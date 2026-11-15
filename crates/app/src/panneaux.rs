@@ -145,6 +145,8 @@ pub struct Panneaux {
     indices_vus: std::collections::BTreeMap<&'static str, usize>,
     /// Ce qu'on cherche parmi « Mes briques » (nom ou description, sans accents).
     pub filtre_briques: String,
+    /// Vrai quand « Exporter en image » vient d'être cliqué ; l'application s'en charge.
+    pub photo_demandee: bool,
     /// Noms des projets enregistrés, fournis par l'application.
     pub projets: Vec<String>,
     edition: Option<Edition>,
@@ -3942,6 +3944,16 @@ impl Panneaux {
             true,
         ) {
             plan.cadrer(false);
+        }
+        if k.bouton_icone(
+            carre(&mut x),
+            "photo",
+            Icone::Photo,
+            Style::Nu,
+            "Exporter le plan en image (PNG)",
+            true,
+        ) {
+            self.photo_demandee = true;
         }
         self.contenus.outils = x - 2.0 - r.left() + 6.0;
     }

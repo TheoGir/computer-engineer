@@ -51,6 +51,8 @@ des plus anciennes ; l'original d'un projet mis au nouveau format est gardé dan
   voir où elle est utilisée.
 - **Les quêtes** : de la porte NON jusqu'à plusieurs ordinateurs, et des grands projets.
   « Vérifier » compare ton circuit à un corrigé prouvé ; chaque réussite devient une brique.
+  La branche « Dépannage » donne au contraire un circuit déjà construit avec un seul fil mal
+  branché : trouve-le et rebranche-le.
 - **L'ordinateur miniature** : dans tes projets, ouvre l'exemple « Ordinateur miniature ».
   Clique sur son clavier et tape deux chiffres : il affiche leur produit.
 
@@ -90,6 +92,21 @@ fin:    HLT
 - **Exporter en Verilog** (dans la même fenêtre) écrit le plan, briques mises à plat, dans le
   dossier `exports` de tes données : on peut le simuler avec un autre outil ou le charger
   dans un vrai circuit programmable (FPGA).
+- **Banc d'essai (Ctrl+T)** : écris une ligne par essai, les interrupteurs puis les lampes :
+
+  ```
+  a b -> s c
+  0 0 -> 0 0
+  1 1 -> 0 1
+  ```
+
+  « Lancer le banc » joue toutes les lignes dans l'ordre et dit lesquelles sont fausses, avec
+  ce qui était attendu et ce qui est sorti. Valeurs en décimal, `0b101` ou `0x1F` ; `-` laisse
+  un interrupteur tel quel ou n'attend rien d'une lampe ; `attendre 50` laisse passer le temps.
+  La mémoire est gardée d'une ligne à l'autre : un interrupteur peut servir d'horloge. Chaque
+  plan et chaque brique garde son banc dans le projet.
+- **Exporter en image** : le bouton appareil photo, à côté du zoom, écrit le plan affiché en
+  PNG dans le dossier `exports`, sans les panneaux et cadré sur tout le circuit.
 - **Copier, coller** : Ctrl+C copie la sélection avec ses fils et ses briques ; Ctrl+V la
   colle ici ou dans un autre projet, en y ajoutant les briques qui manquent. Ce qui est copié
   est aussi du texte : colle-le dans un message pour l'envoyer, la personne qui le reçoit le
@@ -107,6 +124,7 @@ fin:    HLT
 | Ctrl+A, Ctrl+G, Ctrl+D | tout sélectionner, regrouper en brique, dupliquer |
 | Ctrl+C / Ctrl+X / Ctrl+V | copier / couper / coller, dans ce projet ou dans un autre |
 | Ctrl+E | analyser le circuit : table de vérité, expressions, export Verilog |
+| Ctrl+T | banc d'essai du plan : écrire et lancer ses essais |
 | Ctrl+P | programme de la mémoire morte |
 | Suppr | supprimer |
 | Échap | lâcher la sélection, puis remonter d'une brique |

@@ -22,6 +22,7 @@ use crate::fenetres::Fenetres;
 use crate::incident;
 use crate::mise_a_jour::{self, Etat, MiseAJour, Nouvelle, Source};
 use crate::panneaux::{Ouverture, Panneaux};
+use crate::photo::{Photo, Suite};
 use crate::plan::Plan;
 use crate::quete::Quete;
 use crate::raccourci::{Lieu, Raccourcis};
@@ -132,6 +133,8 @@ pub struct Application {
     pub raccourcis: Option<Raccourcis>,
     /// Les raccourcis présents, relus au plus une fois par seconde, et quand.
     raccourcis_presents: ([bool; 2], Option<std::time::Instant>),
+    /// La photo du plan en cours (« Exporter en image »).
+    photo: Option<Photo>,
 }
 
 /// Ce qui est enregistré du projet de l'atelier.
@@ -194,6 +197,7 @@ impl Application {
             lancement: None,
             raccourcis: None,
             raccourcis_presents: ([false; 2], None),
+            photo: None,
         }
     }
 
@@ -1041,12 +1045,13 @@ impl Application {
             Ecran::Atelier => self.image_atelier(ui, dt),
         }
         self.fondre(ui, debut, avant);
-        // F1 partout ; Ctrl+P et Ctrl+E dans l'atelier, sauf pendant une saisie.
-        let (f1, ctrl_p, ctrl_e) = ui.input(|i| {
+        // F1 partout ; Ctrl+P, Ctrl+E et Ctrl+T dans l'atelier, sauf pendant une saisie.
+        let (f1, ctrl_p, ctrl_e, ctrl_t) = ui.input(|i| {
             (
                 i.key_pressed(Key::F1),
                 i.modifiers.command && i.key_pressed(Key::P),
                 i.modifiers.command && i.key_pressed(Key::E),
+                i.modifiers.command && i.key_pressed(Key::T),
             )
         });
         if f1 {
@@ -1059,7 +1064,14 @@ impl Application {
         if ctrl_e && self.ecran == Ecran::Atelier && !saisie {
             self.fenetres.basculer_analyse(&self.atelier);
         }
+        if ctrl_t && self.ecran == Ecran::Atelier && !saisie {
+            self.fenetres.basculer_banc(&self.atelier);
+        }
         let atelier = self.ecran == Ecran::Atelier;
+        if self.photo.is_some() {
+            // Pendant une photo, le plan est seul à l'écran.
+            return;
+        }
         self.fenetres
             .montrer(&ctx, &mut self.atelier, &self.apparence, atelier);
         if std::mem::take(&mut self.fenetres.exporter) {
@@ -1101,6 +1113,84 @@ impl Application {
             Err(e) => self
                 .atelier
                 .dire_longtemps(&format!("L'export en Verilog a échoué : {e}")),
+        }
+    }
+
+    /// Commence une photo du plan : les panneaux s'effacent, le circuit est cadré sur toute
+    /// la fenêtre, sans sélection.
+    fn commencer_la_photo(&mut self, ctx: &egui::Context) {
+        if self.dossier.is_none() {
+            self.atelier
+                .dire_longtemps("Le dossier des données est introuvable : rien n'a été exporté.");
+            return;
+        }
+        let selection = self.atelier.selection.take();
+        self.photo = Some(Photo::nouvelle(self.plan.cam, selection));
+        self.plan.cadrer(true);
+        ctx.request_repaint();
+    }
+
+    /// Une image de plus pendant la photo : la capture est demandée, puis découpée et écrite
+    /// dans le dossier `exports` quand elle arrive.
+    fn avancer_la_photo(&mut self, ctx: &egui::Context, ecran: egui::Rect) {
+        let zone = self.plan.zone_du_circuit(&self.atelier);
+        let Some(photo) = &mut self.photo else {
+            return;
+        };
+        ctx.request_repaint();
+        let texte = match photo.avancer(zone) {
+            Suite::Attendre => return,
+            Suite::Capturer(rappel) => {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(rappel));
+                return;
+            }
+            Suite::Renoncer => {
+                "La capture du plan n'est pas arrivée : rien n'a été exporté.".to_owned()
+            }
+            Suite::Terminer(image, zone) => self.ecrire_la_photo(&image, ecran, zone),
+        };
+        if let Some(photo) = self.photo.take() {
+            self.plan.cam = photo.camera;
+            self.atelier.selection = photo.selection;
+        }
+        self.atelier.dire_longtemps(&texte);
+    }
+
+    /// Écrit la photo découpée en PNG dans `exports`, montre le dossier, et dit ce qui s'est
+    /// passé.
+    fn ecrire_la_photo(
+        &self,
+        image: &egui::ColorImage,
+        ecran: egui::Rect,
+        zone: egui::Rect,
+    ) -> String {
+        let Some(png) = crate::photo::decouper(image, ecran, zone) else {
+            return "Le circuit est hors de l'écran : rien n'a été exporté.".to_owned();
+        };
+        let Some(dossier) = &self.dossier else {
+            return "Le dossier des données est introuvable : rien n'a été exporté.".to_owned();
+        };
+        let at = &self.atelier;
+        let nom = at
+            .lieu()
+            .map_or_else(|| at.projet.nom.clone(), str::to_owned);
+        let dossier = dossier.racine().join("exports");
+        let fichier = dossier.join(format!("{}.png", crate::export::identifiant(&nom)));
+        let ecrit = std::fs::create_dir_all(&dossier)
+            .map_err(|e| e.to_string())
+            .and_then(|()| png.save(&fichier).map_err(|e| e.to_string()));
+        match ecrit {
+            Ok(()) => {
+                // L'image est écrite : ne pas pouvoir montrer le dossier n'est pas un échec.
+                let _ = montrer_le_dossier(&dossier);
+                format!(
+                    "Plan exporté en image : {}, dans le dossier « exports » de tes données.",
+                    fichier
+                        .file_name()
+                        .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+                )
+            }
+            Err(e) => format!("L'export en image a échoué : {e}"),
         }
     }
 
@@ -1220,6 +1310,23 @@ impl Application {
         );
         self.disposition = Some(d);
 
+        if self.photo.is_some() {
+            // Le plan seul, sur toute la fenêtre, le temps de la photo.
+            let seul = Disposition {
+                libre: d.ecran,
+                ..d
+            };
+            self.plan.montrer(
+                ui,
+                &self.apparence,
+                &mut self.atelier,
+                &mut self.anims,
+                &seul,
+                dt,
+            );
+            self.avancer_la_photo(&ctx, d.ecran);
+            return;
+        }
         self.plan.montrer(
             ui,
             &self.apparence,
@@ -1249,6 +1356,9 @@ impl Application {
         }
         if let Some(action) = demandes.action {
             self.agir(action);
+        }
+        if std::mem::take(&mut self.panneaux.photo_demandee) {
+            self.commencer_la_photo(&ctx);
         }
         self.suivre_la_mise_a_jour();
         self.clavier(ui);

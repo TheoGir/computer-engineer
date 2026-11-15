@@ -117,7 +117,11 @@ impl Parcours {
                 p
             }
             _ => {
-                let mut p = Projet::nouveau(nom, quete.plan_de_depart());
+                let depart = match crate::depannage::plan_en_panne(fiche) {
+                    Some(plan) => plan?,
+                    None => quete.plan_de_depart(),
+                };
+                let mut p = Projet::nouveau(nom, depart);
                 for m in &self.briques {
                     p.ajouter(m.clone());
                 }

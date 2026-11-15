@@ -27,6 +27,8 @@ pub enum Branche {
     Jeux,
     /// Les grands projets, plus grands que l'ordinateur : plusieurs machines ensemble.
     Grands,
+    /// Le dépannage : des circuits tout faits, avec un fil mal branché à trouver.
+    Depannage,
 }
 
 impl Branche {
@@ -41,6 +43,7 @@ impl Branche {
             Branche::Codes => "Branche : codes et secrets",
             Branche::Jeux => "Branche : les jeux",
             Branche::Grands => "Grands projets",
+            Branche::Depannage => "Branche : le dépannage",
         }
     }
 
@@ -55,6 +58,7 @@ impl Branche {
             Branche::Codes => "le correcteur d'erreurs",
             Branche::Jeux => "les jeux",
             Branche::Grands => "les grands projets",
+            Branche::Depannage => "le dépannage",
         }
     }
 
@@ -71,6 +75,7 @@ impl Branche {
             Branche::Codes => "Cacher un message, vérifier qu'il est intact, puis réparer tout seul un bit abîmé.",
             Branche::Jeux => "Un arbitre, un juge de morpion, un dé et un tableau des records : la logique s'amuse.",
             Branche::Grands => "Plusieurs ordinateurs qui travaillent ensemble, et un ordinateur seize fois plus grand.",
+            Branche::Depannage => "Des circuits déjà construits, mais avec un fil mal branché : trouver la panne et la réparer.",
         }
     }
 }
@@ -172,6 +177,11 @@ pub const CHAPITRES: &[Chapitre] = &[
         nom: "Ordinateurs en réseau",
         branche: Branche::Grands,
         apprend: "Deux ordinateurs entiers, reliés par une boîte aux lettres, s'échangent des messages, puis des secrets : c'est le début d'Internet.",
+    },
+    Chapitre {
+        nom: "Dépannage",
+        branche: Branche::Depannage,
+        apprend: "Lire un circuit qu'on n'a pas dessiné, voir quand il se trompe, suivre le courant jusqu'à la porte fautive et la rebrancher : le métier de dépanneur.",
     },
 ];
 
@@ -1133,6 +1143,42 @@ pub const SAVOIRS: &[Savoir] = &[
         vraie_vie: "Sur une messagerie chiffrée, ton téléphone fait le travail de A, et celui de ton ami le travail de B : entre les deux, personne ne peut lire.",
         anecdote: "Dans le film « 2001, l'Odyssée de l'espace », l'ordinateur s'appelle HAL. Décale chaque lettre d'un rang : tu obtiens IBM.",
         essaie: "Branche le clavier directement sur B : il déchiffre un message qui n'était pas chiffré, et affiche n'importe quoi.",
+    },
+    Savoir {
+        cle: "panne-ou-x",
+        sert: "Apprendre à trouver une erreur dans un circuit qu'on n'a pas construit soi-même.",
+        marche: "On essaie chaque cas et on note ceux qui sont faux. Ensuite on suit le courant depuis la lampe : la première porte dont la sortie ne correspond pas à ses entrées, ou qui reçoit le mauvais signal, est la coupable.",
+        place: "Avant de livrer une puce, on la teste sur toutes sortes d'entrées. Quand un test échoue, il faut retrouver la porte fautive parmi des millions.",
+        vraie_vie: "Un électricien qui cherche pourquoi une prise ne marche plus fait la même chose : il teste, puis remonte le câble jusqu'à la panne.",
+        anecdote: "En 1947, une vraie mite coincée dans un relais a arrêté l'ordinateur Mark II. On l'a collée dans le cahier de bord : le premier « bug » trouvé.",
+        essaie: "Une fois réparé, débranche exprès un autre fil et regarde quels cas deviennent faux : chaque panne laisse une empreinte différente.",
+    },
+    Savoir {
+        cle: "panne-demi-additionneur",
+        sert: "S'entraîner à lire les symptômes : quelle sortie se trompe, et dans quels cas.",
+        marche: "Si seule la retenue est fausse, la panne est sur le chemin de la retenue ; si seule la somme se trompe, elle est sur celui de la somme. Les portes partagées par les deux sont suspectes quand les deux se trompent.",
+        place: "Les testeurs de puces comparent les sorties à celles attendues, puis déduisent la zone du circuit en cause avant même d'ouvrir le plan.",
+        vraie_vie: "Un médecin fait pareil : les symptômes disent quel organe examiner en premier.",
+        anecdote: "Les puces modernes contiennent des circuits de test cachés, les « chaînes de scan », juste pour pouvoir lire l'état de chaque bascule pendant le dépannage.",
+        essaie: "Avant de réparer, écris la table de vérité fausse : d'après elle seule, peux-tu deviner la porte en cause ?",
+    },
+    Savoir {
+        cle: "panne-multiplexeur",
+        sert: "Apprendre la méthode qui consiste à fixer une entrée pour en étudier une autre.",
+        marche: "Avec sel fixé, le multiplexeur ne devrait écouter qu'une entrée. Si la lampe bouge quand on change l'autre, ou ne suit plus la bonne, on sait quelle moitié du circuit regarder.",
+        place: "Dans un processeur, on isole de la même façon un bloc à la fois : on fixe tout le reste et on observe ce qui change.",
+        vraie_vie: "Pour trouver quelle ampoule d'une guirlande est grillée, on teste une moitié, puis la moitié de la moitié.",
+        anecdote: "Chercher en coupant en deux à chaque fois s'appelle la dichotomie. Avec 20 essais, on trouve une panne parmi un million de portes.",
+        essaie: "Compte combien d'essais il te faut pour trouver la panne, puis cherche une façon d'en faire moins.",
+    },
+    Savoir {
+        cle: "panne-additionneur-complet",
+        sert: "Dépanner un circuit plus grand, où chercher au hasard ne suffit plus.",
+        marche: "La table de vérité (Ctrl+E) montre d'un coup les lignes fausses. On compare avec une addition juste, puis on suit les deux demi-additionneurs : celui qui donne un résultat faux contient la panne.",
+        place: "Les outils de conception de puces comparent automatiquement le circuit à sa description : c'est la « vérification d'équivalence ».",
+        vraie_vie: "Les garagistes branchent une valise de diagnostic sur la voiture : elle lit les codes d'erreur et dit quel morceau tester d'abord.",
+        anecdote: "En 1994, une petite erreur dans une table du processeur Pentium donnait des divisions fausses dans de rares cas. Intel a dû remplacer les puces : près de 475 millions de dollars.",
+        essaie: "Une fois réparé, vérifie que ton additionneur complet donne bien 1 + 1 + 1 = 11 en binaire.",
     },
 ];
 

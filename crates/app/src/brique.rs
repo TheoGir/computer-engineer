@@ -14,7 +14,7 @@ use crate::document::{Broche, Document, Element, Fil, Genre, Id, Point, Source};
 use crate::format::{self, Lecture};
 
 /// Identifiant du format de fichier d'un projet.
-pub const FORMAT: &str = "computer-engineer/projet/3";
+pub const FORMAT: &str = "computer-engineer/projet/4";
 
 /// Un circuit enregistré sous un nom, réutilisable comme brique.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -54,6 +54,10 @@ pub struct Projet {
     pub modeles: Vec<Modele>,
     /// Le plan principal.
     pub principal: Document,
+    /// Les bancs d'essai écrits par l'utilisateur ([`crate::essai`]), par plan : `""` pour
+    /// le plan principal, le nom de la brique sinon. Depuis le format de projet 4.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bancs: BTreeMap<String, String>,
     /// Augmente à chaque changement d'un modèle : sert à savoir quand retraduire les briques.
     #[serde(skip)]
     pub revision: u64,
@@ -68,6 +72,7 @@ impl Projet {
             quete: None,
             modeles: Vec::new(),
             principal,
+            bancs: BTreeMap::new(),
             revision: 0,
         }
     }
@@ -301,6 +306,10 @@ impl Projet {
                 }
             }
         }
+        // Son banc d'essai la suit.
+        if let Some(banc) = self.bancs.remove(ancien) {
+            self.bancs.insert(nouveau.to_owned(), banc);
+        }
         self.revision += 1;
         Ok(())
     }
@@ -317,6 +326,7 @@ impl Projet {
             return Err(format!("La brique « {nom} » n'existe pas."));
         };
         self.modeles.remove(i);
+        self.bancs.remove(nom);
         self.revision += 1;
         Ok(())
     }

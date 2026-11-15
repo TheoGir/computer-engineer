@@ -409,6 +409,9 @@ fn nom_pour_le_joueur(genre: &str) -> String {
 }
 
 fn par_ou_commencer(f: &Fiche) -> String {
+    if crate::depannage::est_un_depannage(f.cle) {
+        return "Ne démonte rien : le circuit est presque juste. Clique sur les entrées pour essayer chaque cas, ou ouvre la table de vérité (Ctrl+E), et note les cas faux. Puis pars de la lampe qui se trompe et remonte les fils : pour chaque porte, vérifie que sa sortie est bien le NAND de ses deux entrées et que ses entrées viennent du bon endroit. Le fil fautif trouvé, rebranche-le.".to_owned();
+    }
     match f.epreuve {
         Epreuve::Combinatoire => "Commence par la table de vérité : pour chaque combinaison d'entrées, que doit valoir chaque lampe ? Une méthode marche toujours : chaque ligne où la lampe vaut 1 devient un ET de ses entrées (inversées quand elles valent 0), et la lampe est le OU de ces ET. On simplifie ensuite. Souvent, une brique déjà gagnée fait la moitié du travail.".to_owned(),
         Epreuve::Sequentielle => "Ce composant se souvient : sa sortie dépend de ce qui s'est passé avant. Il lui faut une mémoire, une boucle ou une bascule gagnée plus tôt. Demande-toi ce qui doit être retenu, et à quel moment (au front montant de l'horloge, le plus souvent) cela doit changer. Le chronogramme montre tout, instant par instant.".to_owned(),

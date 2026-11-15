@@ -8,6 +8,7 @@ use ce_app::apparence::{Apparence, Surveillance};
 use ce_app::document::{Element, Point};
 use ce_app::quete::{Quete, PARCOURS};
 use egui::Vec2;
+use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
 
 type Banc = Harness<'static, Application>;
@@ -207,4 +208,114 @@ fn captures_machine_et_palette() {
     image
         .save(format!("{dossier}/p2-machine.png"))
         .expect("écriture de la capture");
+}
+
+#[test]
+fn capture_depannage() {
+    let Ok(dossier) = std::env::var("CE_CAPTURES") else {
+        eprintln!("CE_CAPTURES n'est pas défini : captures ignorées.");
+        return;
+    };
+    let mut b = banc(true);
+    {
+        let app = b.state_mut();
+        let fiche = PARCOURS
+            .iter()
+            .find(|f| f.cle == "panne-additionneur-complet")
+            .expect("quête");
+        let apparence = app.apparence.clone();
+        assert!(app.atelier.ouvrir_quete(fiche, "Dépannage", &apparence));
+    }
+    b.run_steps(120);
+    let image = b.render().expect("rendu");
+    std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+    image
+        .save(format!("{dossier}/p3-depannage.png"))
+        .expect("écriture de la capture");
+}
+
+#[test]
+fn le_plan_s_exporte_en_image() {
+    let racine = std::env::temp_dir().join(format!("ce-photo-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&racine);
+    let app = Application::nouvelle(Apparence::default(), Surveillance::default())
+        .avec_dossier(ce_app::sauvegarde::Dossier::dans(&racine));
+    let mut b = Harness::builder()
+        .with_size(Vec2::new(1280.0, 800.0))
+        .with_pixels_per_point(1.0)
+        .with_step_dt(1.0 / 60.0)
+        .wgpu()
+        .build_ui_state(|ui, app: &mut Application| app.image(ui), app);
+    b.run_steps(120);
+    let camera = b.state().plan.cam;
+    b.state_mut().panneaux.photo_demandee = true;
+    b.run_steps(20);
+    assert_eq!(b.state().plan.cam, camera, "la vue revient comme avant");
+    let fichier = racine.join("exports").join(format!(
+        "{}.png",
+        ce_app::export::identifiant(&b.state().atelier.projet.nom)
+    ));
+    let image = image::open(&fichier).expect("l'image est écrite");
+    let (l, h) = (image.width(), image.height());
+    assert!(l > 100 && h > 50 && l <= 1280 && h <= 800, "{l} × {h}");
+    if let Ok(dossier) = std::env::var("CE_CAPTURES") {
+        std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+        std::fs::copy(&fichier, format!("{dossier}/p3-photo.png")).expect("copie");
+    }
+    let _ = std::fs::remove_dir_all(&racine);
+}
+
+#[test]
+fn le_banc_d_essai_s_ecrit_s_enregistre_et_se_joue() {
+    let captures = std::env::var("CE_CAPTURES").ok();
+    let mut b = banc(captures.is_some());
+    b.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::T);
+    b.run_steps(10);
+    let texte = b
+        .state()
+        .fenetres
+        .banc
+        .as_ref()
+        .expect("banc ouvert")
+        .texte
+        .clone();
+    assert!(texte.contains("a b -> s c"), "{texte}");
+    let version = b.state().atelier.version;
+    let saisie = b.get_by_role(egui::accesskit::Role::MultilineTextInput);
+    saisie.focus();
+    b.run_steps(2);
+    b.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::End);
+    b.run_steps(2);
+    b.get_by_role(egui::accesskit::Role::MultilineTextInput)
+        .type_text("1 1 -> 1 0");
+    b.run_steps(5);
+    // Le banc est enregistré avec le projet, à la première frappe.
+    let enregistre = b
+        .state()
+        .atelier
+        .projet
+        .bancs
+        .get("")
+        .cloned()
+        .unwrap_or_default();
+    assert!(enregistre.ends_with("1 1 -> 1 0"), "{enregistre}");
+    assert!(b.state().atelier.version > version);
+    b.get_by_label("Lancer le banc").click();
+    b.run_steps(10);
+    let vue = b.state().fenetres.banc.clone().expect("banc ouvert");
+    let (resultat, _) = vue.resultat.expect("banc joué");
+    let lignes = resultat.expect("le banc se lit");
+    assert_eq!(lignes.len(), 2);
+    assert!(lignes[0].juste());
+    assert_eq!(
+        lignes[1].ecarts,
+        ["s : attendu 1, obtenu 0", "c : attendu 0, obtenu 1"]
+    );
+    if let Some(dossier) = captures {
+        let image = b.render().expect("rendu");
+        std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+        image
+            .save(format!("{dossier}/p3-banc.png"))
+            .expect("écriture de la capture");
+    }
 }
