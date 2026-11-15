@@ -115,7 +115,9 @@ fn textes(b: &Banc) -> Vec<String> {
 /// Les mots qui trahissent du français dans ce texte (hors chemins de fichiers et noms de
 /// briques).
 fn francais(texte: &str, briques: &std::collections::BTreeSet<String>) -> Vec<String> {
-    if texte.starts_with('/') || briques.contains(texte) {
+    // Un chemin absolu, sous Linux (/tmp/…) ou sous Windows (C:\Users\…).
+    let chemin_windows = texte.as_bytes().get(1..3) == Some(b":\\".as_slice());
+    if texte.starts_with('/') || chemin_windows || briques.contains(texte) {
         return Vec::new();
     }
     // Ce qui est entre guillemets anglais est cité tel quel : un nom de dossier, de broche.
