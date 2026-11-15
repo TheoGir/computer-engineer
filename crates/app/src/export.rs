@@ -105,21 +105,33 @@ pub fn verilog(projet: &Projet, plan: &Document, nom: &str) -> Result<String, St
     let mut v = String::new();
     let _ = writeln!(
         v,
-        "// « {nom} », exporté par Computer Engineer {} : {portes_nand} portes NAND.",
-        env!("CARGO_PKG_VERSION")
+        "{}",
+        tr!(
+            "// « {nom} », exporté par Computer Engineer {version} : {portes_nand} portes NAND.",
+            nom = nom,
+            version = env!("CARGO_PKG_VERSION"),
+            portes_nand = portes_nand
+        )
+    );
+    let _ =
+        writeln!(
+        v,
+        "{}",
+        tr!("// Une primitive nand par porte NAND du plan, briques mises à plat, avec son délai en")
     );
     let _ = writeln!(
         v,
-        "// Une primitive nand par porte NAND du plan, briques mises à plat, avec son délai en"
-    );
-    let _ = writeln!(
-        v,
-        "// unités de temps (une unité = 1 ns ici). Simulation : iverilog -o sim {module}.v"
+        "{}",
+        tr!(
+            "// unités de temps (une unité = 1 ns ici). Simulation : iverilog -o sim {module}.v",
+            module = module
+        )
     );
     if plan.elements.iter().any(|e| e.genre == Genre::Ecran) {
         let _ = writeln!(
             v,
-            "// L'écran du plan n'est pas exporté : ses entrées restent des fils internes."
+            "{}",
+            tr!("// L'écran du plan n'est pas exporté : ses entrées restent des fils internes.")
         );
     }
     let _ = writeln!(v, "`timescale 1ns/1ns");
@@ -165,7 +177,8 @@ pub fn verilog(projet: &Projet, plan: &Document, nom: &str) -> Result<String, St
     for (i, h) in net.horloges.iter().enumerate() {
         let _ = writeln!(
             v,
-            "  // Horloge interne (simulation seulement) : pour un FPGA, remplace-la par l'horloge de la carte."
+            "  {}",
+            tr!("// Horloge interne (simulation seulement) : pour un FPGA, remplace-la par l'horloge de la carte.")
         );
         let _ = writeln!(v, "  reg h_{i};");
         let _ = writeln!(v, "  initial h_{i} = 1'b0;");

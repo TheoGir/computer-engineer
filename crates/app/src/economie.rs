@@ -146,9 +146,9 @@ impl Ecart {
 
 fn portes(n: u64) -> &'static str {
     if n > 1 {
-        "portes"
+        tr!("portes")
     } else {
-        "porte"
+        tr!("porte")
     }
 }
 

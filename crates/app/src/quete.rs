@@ -1460,7 +1460,10 @@ impl Quete {
             titre: f.titre,
             consigne: f.consigne,
             felicitations: if f.felicitations.is_empty() {
-                tr!("Juste ! « {brique} » rejoint tes briques, prête pour les quêtes suivantes.", brique = f.brique)
+                tr!(
+                    "Juste ! « {brique} » rejoint tes briques, prête pour les quêtes suivantes.",
+                    brique = f.brique
+                )
             } else {
                 crate::langue::traduire(f.felicitations).to_owned()
             },
@@ -1651,7 +1654,7 @@ impl Quete {
     fn reperer(&self, plan: &Document) -> Result<(Vec<Id>, Vec<Id>), String> {
         let trouver = |b: &Attendue, genre: Genre| -> Result<Id, String> {
             let quoi = if genre == Genre::Entree {
-                "l'interrupteur"
+                tr!("l'interrupteur")
             } else {
                 tr!("la lampe")
             };
@@ -1659,17 +1662,30 @@ impl Quete {
                 .elements
                 .iter()
                 .find(|e| e.genre == genre && e.nom == b.nom)
-                .ok_or_else(|| tr!("Il manque {quoi} « {nom} » sur le plan.", quoi = quoi, nom = b.nom))?;
+                .ok_or_else(|| {
+                    tr!(
+                        "Il manque {quoi} « {nom} » sur le plan.",
+                        quoi = quoi,
+                        nom = b.nom
+                    )
+                })?;
             let largeur = match genre {
                 Genre::Entree => e.broches_s[0].largeur,
                 _ => e.broches_e[0].largeur,
             };
             if largeur != b.largeur {
-                return Err(tr!("{v} « {nom} » doit avoir {largeur2} bit{v2}, pas {largeur}.", largeur = largeur, v = if genre == Genre::Entree {
-                        "L'interrupteur"
+                return Err(tr!(
+                    "{v} « {nom} » doit avoir {largeur2} bit{v2}, pas {largeur}.",
+                    largeur = largeur,
+                    v = if genre == Genre::Entree {
+                        tr!("L'interrupteur")
                     } else {
-                        "La lampe"
-                    }, nom = b.nom, largeur2 = b.largeur, v2 = if b.largeur > 1 { "s" } else { "" }));
+                        tr!("La lampe")
+                    },
+                    nom = b.nom,
+                    largeur2 = b.largeur,
+                    v2 = crate::langue::s((b.largeur) as u64)
+                ));
             }
             Ok(e.id)
         };
@@ -1768,7 +1784,9 @@ impl Quete {
         briques.suivre(projet);
         let circuit = match Pont::construire(plan, projet, &briques) {
             Ok(p) => p.circuit,
-            Err(e) => return Verdict::echec(tr!("Le circuit ne peut pas être simulé : {e}.", e = e)),
+            Err(e) => {
+                return Verdict::echec(tr!("Le circuit ne peut pas être simulé : {e}.", e = e))
+            }
         };
         let profondeur = ce_circuit::analyse::chemin_critique(&circuit.netlist);
         let (Ok(mut toi), Ok(mut lui)) = (
@@ -1786,7 +1804,10 @@ impl Quete {
             }
             lui.stabiliser(BUDGET);
             if !toi.stabiliser(BUDGET).est_stable() {
-                return Verdict::echec(tr!("Avec {v}, ton circuit ne se stabilise pas : il oscille.", v = self.decrire(valeurs)));
+                return Verdict::echec(tr!(
+                    "Avec {v}, ton circuit ne se stabilise pas : il oscille.",
+                    v = self.decrire(valeurs)
+                ));
             }
             for (k, b) in self.sorties.iter().enumerate() {
                 let voulu = lui.lire_valeurs(&b.corrige).unwrap_or_default();
@@ -1816,7 +1837,14 @@ impl Quete {
                     } else {
                         tr!("Avec ").to_owned()
                     };
-                    return Verdict::echec(tr!("{moment}{v}, la lampe {nom} devrait valoir {v2} ; elle montre {v3}.", moment = moment, v = self.decrire(valeurs), nom = b.nom, v2 = lire(&voulu), v3 = lire(&vu)));
+                    return Verdict::echec(tr!(
+                        "{moment}{v}, la lampe {nom} devrait valoir {v2} ; elle montre {v3}.",
+                        moment = moment,
+                        v = self.decrire(valeurs),
+                        nom = b.nom,
+                        v2 = lire(&voulu),
+                        v3 = lire(&vu)
+                    ));
                 }
             }
         }
@@ -1827,13 +1855,18 @@ impl Quete {
         }
         Verdict {
             reussi: true,
-            texte: tr!("{len} essai{v} sur {v2}, tous justes, comparés au corrigé.", len = essais.len(), v = if essais.len() > 1 { "s" } else { "" }, v2 = if sequentielle {
-                    "une longue suite d'actions"
+            texte: tr!(
+                "{len} essai{v} sur {v2}, tous justes, comparés au corrigé.",
+                len = essais.len(),
+                v = crate::langue::s((essais.len()) as u64),
+                v2 = if sequentielle {
+                    tr!("une longue suite d'actions")
                 } else if essais.len() == 1 << self.entrees.iter().map(|b| b.largeur).sum::<u32>() {
-                    "toutes les combinaisons"
+                    tr!("toutes les combinaisons")
                 } else {
-                    "des combinaisons tirées au hasard"
-                }),
+                    tr!("des combinaisons tirées au hasard")
+                }
+            ),
         }
     }
 }
@@ -1850,7 +1883,10 @@ fn verifier_l_ordinateur(projet: &Projet, touches: &str, attendu: &str) -> Verdi
             _ => Err(tr!("Il faut un seul {quoi} sur le plan.", quoi = quoi)),
         }
     };
-    let (clavier, ecran) = match (un(Genre::Clavier, "clavier"), un(Genre::Ecran, tr!("écran"))) {
+    let (clavier, ecran) = match (
+        un(Genre::Clavier, "clavier"),
+        un(Genre::Ecran, tr!("écran")),
+    ) {
         (Ok(c), Ok(e)) => (c, e),
         (Err(e), _) | (_, Err(e)) => return Verdict::echec(e),
     };
@@ -1873,7 +1909,12 @@ fn verifier_l_ordinateur(projet: &Projet, touches: &str, attendu: &str) -> Verdi
     } else if vu.is_empty() {
         Verdict::echec(tr!("{tape} n'affiche rien.", tape = tape))
     } else {
-        Verdict::echec(tr!("{tape} affiche « {vu} » au lieu de {attendu}.", tape = tape, vu = vu, attendu = attendu))
+        Verdict::echec(tr!(
+            "{tape} affiche « {vu} » au lieu de {attendu}.",
+            tape = tape,
+            vu = vu,
+            attendu = attendu
+        ))
     }
 }
 

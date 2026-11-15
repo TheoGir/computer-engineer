@@ -38,7 +38,10 @@ fn visiter(
         return Ok(());
     }
     if en_cours.iter().any(|n| n == nom) {
-        return Err(tr!("le composant « {nom} » se contient lui-même", nom = nom));
+        return Err(tr!(
+            "le composant « {nom} » se contient lui-même",
+            nom = nom
+        ));
     }
     let comp = bib
         .composants
@@ -117,7 +120,10 @@ fn extremite(
         },
     };
     if bits.iter().any(|b| *b >= largeur) {
-        return Err(tr!("« {texte} » dépasse la largeur de la broche", texte = texte));
+        return Err(tr!(
+            "« {texte} » dépasse la largeur de la broche",
+            texte = texte
+        ));
     }
     Ok((nom.to_owned(), bits))
 }
@@ -222,7 +228,10 @@ fn plan_de(nom: &str, comp: &Composant, faits: &[Modele]) -> Result<Document, St
                 None => premier = Some(bits),
                 Some(p) => {
                     if p.len() != bits.len() {
-                        return Err(ici(tr!("le fil [{v}] relie des largeurs différentes", v = fil.join(", "))));
+                        return Err(ici(tr!(
+                            "le fil [{v}] relie des largeurs différentes",
+                            v = fil.join(", ")
+                        )));
                     }
                     for (a, b) in p.iter().zip(&bits) {
                         let (ra, rb) = (trouver(&mut uf, *a), trouver(&mut uf, *b));

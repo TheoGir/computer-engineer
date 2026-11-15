@@ -121,6 +121,27 @@ pub fn en_francais() -> bool {
     actuelle() == Langue::Francais
 }
 
+/// La marque du pluriel après le nombre `n` : « s » ou rien. En français, 0 et 1 sont au
+/// singulier (« 0 porte ») ; en anglais, seul 1 l'est (« 0 gates »).
+pub fn s(n: u64) -> &'static str {
+    let pluriel = if en_francais() { n > 1 } else { n != 1 };
+    if pluriel {
+        "s"
+    } else {
+        ""
+    }
+}
+
+/// Un nombre décimal écrit avec un point (`format!("{x:.1}")`), avec la virgule en français :
+/// « 1,7 » en français, « 1.7 » en anglais.
+pub fn decimal(nombre: String) -> String {
+    if en_francais() {
+        nombre.replace('.', ",")
+    } else {
+        nombre
+    }
+}
+
 /// Le texte dans la langue en cours. Le texte français est la clé ; sans traduction, il
 /// reste en français.
 pub fn traduire(francais: &'static str) -> &'static str {
@@ -159,6 +180,58 @@ pub fn traduction(langue: Langue, francais: &str) -> Option<Cow<'static, str>> {
     crate::_rust_i18n_try_translate(langue.code(), francais)
 }
 
+/// Un programme en assembleur dont les commentaires (après `;`) sont traduits quand leur
+/// traduction existe ; le code ne change pas, il s'assemble donc à l'identique. Sert aux
+/// programmes livrés, montrés dans l'éditeur dans la langue de l'interface.
+pub fn traduire_programme(texte: &str) -> String {
+    if en_francais() {
+        return texte.to_owned();
+    }
+    let mut sortie = String::with_capacity(texte.len());
+    for (i, ligne) in texte.split('\n').enumerate() {
+        if i > 0 {
+            sortie.push('\n');
+        }
+        match commentaire(ligne) {
+            Some(debut) => {
+                let (code, note) = ligne.split_at(debut);
+                let note = note[1..].trim();
+                let espace = &ligne[debut + 1..ligne.len() - ligne[debut + 1..].trim_start().len()];
+                sortie.push_str(code);
+                sortie.push(';');
+                sortie.push_str(espace);
+                sortie.push_str(&traduire_texte(note));
+            }
+            None => sortie.push_str(ligne),
+        }
+    }
+    sortie
+}
+
+/// La position du `;` qui ouvre le commentaire d'une ligne d'assembleur, hors caractères
+/// entre apostrophes (`';'`).
+fn commentaire(ligne: &str) -> Option<usize> {
+    let mut dans_un_caractere = false;
+    for (i, c) in ligne.char_indices() {
+        match c {
+            '\'' => dans_un_caractere = !dans_un_caractere,
+            ';' if !dans_un_caractere => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Les commentaires des programmes livrés, à traduire.
+fn commentaires_des_programmes() -> Vec<&'static str> {
+    crate::programme::LIVRES
+        .iter()
+        .flat_map(|texte| texte.lines())
+        .filter_map(|ligne| commentaire(ligne).map(|i| ligne[i + 1..].trim()))
+        .filter(|note| !note.is_empty())
+        .collect()
+}
+
 /// Les textes des données, traduits à l'affichage avec [`traduire`] ou [`traduire_texte`] :
 /// quêtes, chapitres, fiches des composants, tailles de texte, exemples, et descriptions des
 /// briques livrées avec l'application. Le test `traductions` vérifie qu'ils sont tous traduits.
@@ -179,6 +252,29 @@ pub fn textes_des_donnees() -> Vec<String> {
     for e in &crate::exemples::EXEMPLES {
         textes.extend([e.nom, e.resume, e.accueil]);
     }
+    // L'aide (F1), le lexique et les instructions.
+    {
+        use crate::fenetres as f;
+        textes.extend([
+            f::PREMIERS_PAS,
+            f::RACCOURCIS,
+            f::PROGRAMMER,
+            f::FICHIERS,
+            f::ALGEBRE,
+        ]);
+        for (mot, sens) in f::LEXIQUE {
+            textes.extend([*mot, *sens]);
+        }
+        textes.extend(f::INSTRUCTIONS.iter().map(|(_, sens)| *sens));
+    }
+    textes.extend(crate::programme::PROGRAMMES.iter().map(|(nom, _)| *nom));
+    textes.extend([
+        crate::etat::ASTUCE_DU_PLAN,
+        crate::raccourci::DESCRIPTION,
+        crate::raccourci::MESSAGE_ARCHIVE,
+        crate::automate::EXEMPLE,
+    ]);
+    textes.extend(commentaires_des_programmes());
     let mut tous: Vec<String> = textes.into_iter().map(str::to_owned).collect();
     tous.extend(
         crate::quete::corriges()
@@ -292,9 +388,27 @@ mod tests {
     }
 
     #[test]
+    fn les_programmes_traduits_s_assemblent_a_l_identique() {
+        use ce_circuit::ordinateur::assembler;
+        choisir_pour_ce_fil(Some(Langue::Anglais));
+        for texte in crate::programme::LIVRES {
+            let anglais = traduire_programme(texte);
+            assert_ne!(anglais, *texte, "le programme n'a pas été traduit");
+            assert!(!anglais.contains("touche"), "{anglais}");
+            assert_eq!(assembler(&anglais).unwrap(), assembler(texte).unwrap());
+        }
+        choisir_pour_ce_fil(None);
+        assert_eq!(traduire_programme("LDI ';' ; un"), "LDI ';' ; un");
+        assert_eq!(commentaire("LDI ';' ; un"), Some(8));
+    }
+
+    #[test]
     fn sans_traduction_le_francais_reste() {
         choisir_pour_ce_fil(Some(Langue::Anglais));
-        assert_eq!(traduire("Une phrase qui n'existe nulle part."), "Une phrase qui n'existe nulle part.");
+        assert_eq!(
+            traduire("Une phrase qui n'existe nulle part."),
+            "Une phrase qui n'existe nulle part."
+        );
         choisir_pour_ce_fil(None);
     }
 }

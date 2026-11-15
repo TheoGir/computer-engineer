@@ -459,7 +459,11 @@ fn nom_pour_le_joueur(genre: &str) -> String {
         return tr!("porte NAND").to_owned();
     }
     match PARCOURS.iter().find(|f| f.corrige == genre) {
-        Some(f) => tr!("« {brique} » (quête « {titre} »)", brique = f.brique, titre = crate::langue::traduire(f.titre)),
+        Some(f) => tr!(
+            "« {brique} » (quête « {titre} »)",
+            brique = f.brique,
+            titre = crate::langue::traduire(f.titre)
+        ),
         None => genre.to_lowercase().replace('_', " "),
     }
 }

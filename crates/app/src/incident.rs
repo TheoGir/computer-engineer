@@ -234,7 +234,8 @@ pub fn annoncer_un_echec(texte: &str) {
     {
         use winsafe::co::MB;
         use winsafe::prelude::*;
-        let _ = winsafe::HWND::NULL.MessageBox(texte, tr!("Computer Engineer"), MB::ICONERROR | MB::OK);
+        let _ =
+            winsafe::HWND::NULL.MessageBox(texte, tr!("Computer Engineer"), MB::ICONERROR | MB::OK);
     }
     #[cfg(not(windows))]
     let _ = texte;

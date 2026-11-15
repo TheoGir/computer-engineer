@@ -96,11 +96,14 @@ impl Proposition {
 pub fn libelle_pas_par_seconde(par_seconde: f32) -> String {
     let arrondi = (par_seconde * 10.0).round() / 10.0;
     if arrondi >= 10_000.0 {
-        format!("{} k pas/s", (arrondi / 1000.0).round() as i64)
+        tr!("{n} k pas/s", n = (arrondi / 1000.0).round() as i64)
     } else if (arrondi - arrondi.round()).abs() < 0.05 {
-        format!("{} pas/s", arrondi.round() as i64)
+        tr!("{n} pas/s", n = arrondi.round() as i64)
     } else {
-        format!("{arrondi:.1} pas/s").replace('.', ",")
+        tr!(
+            "{n} pas/s",
+            n = crate::langue::decimal(format!("{arrondi:.1}"))
+        )
     }
 }
 
@@ -353,7 +356,7 @@ impl Atelier {
         let mut projet = Projet::nouveau(tr!("Premier circuit"), Document::demi_additionneur());
         projet.quete = Some(Quete::demi_additionneur().cle.to_owned());
         let mut atelier = Self::avec(projet, a);
-        atelier.dire_longtemps(ASTUCE_DU_PLAN);
+        atelier.dire_longtemps(crate::langue::traduire(ASTUCE_DU_PLAN));
         atelier
     }
 
@@ -778,7 +781,11 @@ impl Atelier {
             .arret()
             .map(|s| self.doc.nom_signal(s))
             .unwrap_or_default();
-        self.dire(&tr!("Point d'arrêt : « {nom} » est passé à 1 à t = {t}. La lecture est en pause.", nom = nom, t = t));
+        self.dire(&tr!(
+            "Point d'arrêt : « {nom} » est passé à 1 à t = {t}. La lecture est en pause.",
+            nom = nom,
+            t = t
+        ));
         true
     }
 
@@ -802,7 +809,10 @@ impl Atelier {
         }
         self.session.poser_arret(Some(source));
         let nom = self.doc.nom_signal(source);
-        self.dire(&tr!("Point d'arrêt posé : la lecture s'arrêtera quand « {nom} » passera à 1.", nom = nom));
+        self.dire(&tr!(
+            "Point d'arrêt posé : la lecture s'arrêtera quand « {nom} » passera à 1.",
+            nom = nom
+        ));
     }
 
     /// Part du pas en cours déjà écoulée, de 0 à 1 (pour les animations).
@@ -880,11 +890,19 @@ impl Atelier {
                 self.ouvrir(projet, a);
                 let briques = self.projet.modeles.len();
                 let texte = if fiche.epreuve.ordinateur() {
-                    format!("{} : {}", crate::langue::traduire(fiche.titre), crate::langue::traduire(fiche.consigne))
+                    format!(
+                        "{} : {}",
+                        crate::langue::traduire(fiche.titre),
+                        crate::langue::traduire(fiche.consigne)
+                    )
                 } else if briques > 0 && !self.parcours.briques.is_empty() {
                     tr!("{titre} : {consigne} Tes briques gagnées sont dans la palette. Clique sur Vérifier quand c'est prêt.", titre = crate::langue::traduire(fiche.titre), consigne = crate::langue::traduire(fiche.consigne))
                 } else {
-                    tr!("{titre} : {consigne} Clique sur Vérifier quand c'est prêt.", titre = crate::langue::traduire(fiche.titre), consigne = crate::langue::traduire(fiche.consigne))
+                    tr!(
+                        "{titre} : {consigne} Clique sur Vérifier quand c'est prêt.",
+                        titre = crate::langue::traduire(fiche.titre),
+                        consigne = crate::langue::traduire(fiche.consigne)
+                    )
                 };
                 self.dire_longtemps(&texte);
                 true
@@ -1273,14 +1291,16 @@ impl Atelier {
         let ids = self.elements_selectionnes().to_vec();
         let nom = self.projet.nom_libre(tr!("Brique"));
         let Some((modele, id)) = brique::regrouper(&mut self.doc, &ids, &nom) else {
-            self.dire(tr!("Sélectionne d'abord des portes ou des briques à regrouper."));
+            self.dire(tr!(
+                "Sélectionne d'abord des portes ou des briques à regrouper."
+            ));
             return None;
         };
         let portes = self.projet.nb_portes(&modele.plan);
         let nom = self.projet.ajouter(modele);
         self.selectionner(id);
         self.apres_modification(a);
-        self.dire(&tr!("« {nom} » est une nouvelle brique de {portes} porte{v}. Elle est dans la palette, prête à resservir ; double-clique dessus pour l'ouvrir.", nom = nom, portes = portes, v = if portes > 1 { "s" } else { "" }));
+        self.dire(&tr!("« {nom} » est une nouvelle brique de {portes} porte{v}. Elle est dans la palette, prête à resservir ; double-clique dessus pour l'ouvrir.", nom = nom, portes = portes, v = crate::langue::s(portes as u64)));
         Some(id)
     }
 
@@ -1301,7 +1321,10 @@ impl Atelier {
         let nom = self.projet.nom_libre(base);
         let nom = self.projet.ajouter(brique::modele_du_plan(&self.doc, &nom));
         self.version += 1;
-        self.dire(&tr!("Le plan est enregistré comme la brique « {nom} ». Elle est dans la palette.", nom = nom));
+        self.dire(&tr!(
+            "Le plan est enregistré comme la brique « {nom} ». Elle est dans la palette.",
+            nom = nom
+        ));
         Some(nom)
     }
 
@@ -1312,7 +1335,10 @@ impl Atelier {
             return false;
         }
         if self.doc.elements.iter().any(|e| e.id != id && e.nom == nom) {
-            self.dire(&tr!("Un autre élément s'appelle déjà « {nom} ».", nom = nom));
+            self.dire(&tr!(
+                "Un autre élément s'appelle déjà « {nom} ».",
+                nom = nom
+            ));
             return false;
         }
         if self
@@ -1360,7 +1386,9 @@ impl Atelier {
             match lu {
                 Some(p) => plages.push(p),
                 None => {
-                    self.dire(tr!("Écris les morceaux comme 0:3 4:7, ou 0 1 2 3 pour des bits seuls."));
+                    self.dire(tr!(
+                        "Écris les morceaux comme 0:3 4:7, ou 0 1 2 3 pour des bits seuls."
+                    ));
                     return false;
                 }
             }
@@ -1393,9 +1421,9 @@ impl Atelier {
         match largeurs {
             Some(l) if self.doc.redefinir_jonction(id, &l) => self.apres_modification(a),
             _ => {
-                self.dire(
-                    tr!("Écris la largeur de chaque entrée, comme 4 4 ou 1 1 1 1 (64 bits au plus)."),
-                );
+                self.dire(tr!(
+                    "Écris la largeur de chaque entrée, comme 4 4 ou 1 1 1 1 (64 bits au plus)."
+                ));
                 false
             }
         }
@@ -1556,7 +1584,9 @@ impl Atelier {
                 let (oui, non): (Vec<Id>, Vec<Id>) =
                     ids.iter().partition(|id| self.supprimable(**id));
                 if !non.is_empty() {
-                    self.dire(tr!("Les interrupteurs et les lampes de la quête restent en place."));
+                    self.dire(tr!(
+                        "Les interrupteurs et les lampes de la quête restent en place."
+                    ));
                 }
                 if oui.is_empty() {
                     return false;
@@ -1583,7 +1613,10 @@ impl Atelier {
             return Err(tr!("Donne un nom à la brique.").to_owned());
         }
         if self.projet.modele(nom).is_some() {
-            return Err(tr!("Une brique s'appelle déjà « {nom} » : choisis un autre nom.", nom = nom));
+            return Err(tr!(
+                "Une brique s'appelle déjà « {nom} » : choisis un autre nom.",
+                nom = nom
+            ));
         }
         let automate = crate::automate::Automate::lire(texte)?;
         let briques = automate.briques(nom)?;
@@ -1605,7 +1638,7 @@ impl Atelier {
             .modele(nom)
             .map_or(0, |m| self.projet.nb_portes(&m.plan));
         let n = automate.etats.len();
-        Ok(tr!("Brique « {nom} » fabriquée : {n} état{v}, {portes} porte{v2} NAND. Elle est dans la palette.", nom = nom, n = n, portes = portes, v = if n > 1 { "s" } else { "" }, v2 = if portes > 1 { "s" } else { "" }))
+        Ok(tr!("Brique « {nom} » fabriquée : {n} état{v}, {portes} porte{v2} NAND. Elle est dans la palette.", nom = nom, n = n, portes = portes, v = crate::langue::s(n as u64), v2 = crate::langue::s(portes as u64)))
     }
 
     /// Retourne les éléments sélectionnés de gauche à droite (ou les remet à l'endroit).
@@ -1646,7 +1679,11 @@ impl Atelier {
         };
         let n = pp.elements.len();
         self.presse_papiers = Some(pp);
-        self.dire(&tr!("{n} élément{v} copié{v}. Ctrl+V pour coller, ici ou dans un autre projet.", n = n, v = if n > 1 { "s" } else { "" }));
+        self.dire(&tr!(
+            "{n} élément{v} copié{v}. Ctrl+V pour coller, ici ou dans un autre projet.",
+            n = n,
+            v = crate::langue::s(n as u64)
+        ));
         true
     }
 
@@ -1667,7 +1704,9 @@ impl Atelier {
     /// a été collé.
     pub fn coller(&mut self, a: &Apparence) -> bool {
         let Some(mut pp) = self.presse_papiers.take() else {
-            self.dire(tr!("Rien à coller : sélectionne des éléments, puis Ctrl+C."));
+            self.dire(tr!(
+                "Rien à coller : sélectionne des éléments, puis Ctrl+C."
+            ));
             return false;
         };
         // Les briques sont rangées dans une copie du projet : si l'une d'elles finissait par se
@@ -1695,7 +1734,13 @@ impl Atelier {
         let change = self.apres_modification(a);
         if ajoutees > 0 {
             self.version += 1;
-            self.dire(&tr!("{n} élément{v} collé{v}, et {ajoutees} brique{v2} ajoutée{v2} à ce projet.", n = n, ajoutees = ajoutees, v = if n > 1 { "s" } else { "" }, v2 = if ajoutees > 1 { "s" } else { "" }));
+            self.dire(&tr!(
+                "{n} élément{v} collé{v}, et {ajoutees} brique{v2} ajoutée{v2} à ce projet.",
+                n = n,
+                ajoutees = ajoutees,
+                v = crate::langue::s(n as u64),
+                v2 = crate::langue::s(ajoutees as u64)
+            ));
         }
         change
     }
@@ -1705,16 +1750,16 @@ impl Atelier {
         match e.genre {
             Genre::Nand => "NAND",
             Genre::Entree if e.param > 0 => tr!("démarrage"),
-            Genre::Entree if e.est_poussoir() => "poussoir",
-            Genre::Entree => "interrupteur",
-            Genre::Sortie if e.est_afficheur() => "afficheur",
-            Genre::Sortie => "lampe",
+            Genre::Entree if e.est_poussoir() => tr!("poussoir"),
+            Genre::Entree => tr!("interrupteur"),
+            Genre::Sortie if e.est_afficheur() => tr!("afficheur"),
+            Genre::Sortie => tr!("lampe"),
             Genre::Brique => &e.modele,
-            Genre::Horloge => "horloge",
+            Genre::Horloge => tr!("horloge"),
             Genre::Ecran => tr!("écran"),
-            Genre::Clavier => "clavier",
+            Genre::Clavier => tr!("clavier"),
             Genre::Decoupe => tr!("découpeur"),
-            Genre::Jonction => "jonction",
+            Genre::Jonction => tr!("jonction"),
         }
     }
 
@@ -1728,9 +1773,9 @@ impl Atelier {
                 }
                 plusieurs => Some(tr!("{len} éléments", len = plusieurs.len())),
             },
-            Selection::Fil(f) => Some(format!(
-                "fil {}",
-                self.doc.nom_signal(self.doc.source_de(*f)?)
+            Selection::Fil(f) => Some(tr!(
+                "fil {nom}",
+                nom = self.doc.nom_signal(self.doc.source_de(*f)?)
             )),
         }
     }

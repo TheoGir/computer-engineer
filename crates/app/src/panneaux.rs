@@ -388,7 +388,14 @@ impl Cadre<'_, '_> {
             Pos2::new(rect.right() - ENTETE / 2.0, rect.top() + ENTETE / 2.0),
             Vec2::splat(26.0),
         );
-        self.bouton_icone(r, cle, Icone::Fermer, Style::Nu, tr!("Cacher ce panneau"), true)
+        self.bouton_icone(
+            r,
+            cle,
+            Icone::Fermer,
+            Style::Nu,
+            tr!("Cacher ce panneau"),
+            true,
+        )
     }
 
     /// Petit titre en capitales, avec un texte optionnel à droite. Renvoie la hauteur occupée.
@@ -1117,7 +1124,14 @@ impl Panneaux {
         }
         let rect = carre(&mut x);
         k.reperer("pas", 0, rect);
-        if k.bouton_icone(rect, "pas", Icone::Pas, Style::Nu, tr!("Avancer d'un pas"), true) {
+        if k.bouton_icone(
+            rect,
+            "pas",
+            Icone::Pas,
+            Style::Nu,
+            tr!("Avancer d'un pas"),
+            true,
+        ) {
             at.pas();
         }
         let en_lecture = at.lecture && at.vue_t.is_none();
@@ -1171,7 +1185,11 @@ impl Panneaux {
             + 16.0
             + 8.0
             + k.t
-                .largeur("1,7 pas/s", Police::CorpsMoyen, ty.corps)
+                .largeur(
+                    &tr!("{n} pas/s", n = crate::langue::decimal("1.7".to_owned())),
+                    Police::CorpsMoyen,
+                    ty.corps,
+                )
                 .max(k.t.largeur(&libelle, Police::CorpsMoyen, ty.corps))
             + 10.0;
         let l = if d.etroit { b } else { l_libelle };
@@ -1219,7 +1237,11 @@ impl Panneaux {
                 c.attente,
                 tr!("Vitesse réellement atteinte par la simulation"),
             ),
-            Etat::EnCours => (tr!("En cours").to_owned(), c.attente, tr!("Le courant se propage")),
+            Etat::EnCours => (
+                tr!("En cours").to_owned(),
+                c.attente,
+                tr!("Le courant se propage"),
+            ),
             Etat::EnPause => (
                 tr!("En pause").to_owned(),
                 c.doux,
@@ -1235,7 +1257,7 @@ impl Panneaux {
             + 8.0
             + 8.0
             + self.place_etat.garder(
-                k.t.largeur("000 k pas/s", Police::CorpsDemi, ty.corps),
+                k.t.largeur(&tr!("{n} k pas/s", n = "000"), Police::CorpsDemi, ty.corps),
                 k.t.largeur(&texte, Police::CorpsDemi, ty.corps),
             )
             + 14.0;
@@ -1295,10 +1317,26 @@ impl Panneaux {
         let b = k.a.formes.bouton;
         let mut x = r.left() + 8.0;
         let boutons: [(&str, Icone, &str); 5] = [
-            (tr!("Briques"), Icone::Briques, tr!("Montrer ou cacher les briques")),
-            (tr!("Quête"), Icone::Quete, tr!("Montrer ou cacher la quête")),
-            (tr!("Infos"), Icone::Infos, tr!("Montrer ou cacher les infos")),
-            (tr!("Temps"), Icone::Temps, tr!("Montrer ou cacher le chronogramme")),
+            (
+                tr!("Briques"),
+                Icone::Briques,
+                tr!("Montrer ou cacher les briques"),
+            ),
+            (
+                tr!("Quête"),
+                Icone::Quete,
+                tr!("Montrer ou cacher la quête"),
+            ),
+            (
+                tr!("Infos"),
+                Icone::Infos,
+                tr!("Montrer ou cacher les infos"),
+            ),
+            (
+                tr!("Temps"),
+                Icone::Temps,
+                tr!("Montrer ou cacher le chronogramme"),
+            ),
             (
                 tr!("Étiquettes"),
                 Icone::Etiquettes,
@@ -1679,11 +1717,12 @@ impl Panneaux {
             } else if !posable {
                 tr!("contient la brique ouverte").to_owned()
             } else {
-                format!(
-                    "{portes} porte{} · {} → {}",
-                    if portes > 1 { "s" } else { "" },
-                    resume.entrees,
-                    resume.sorties
+                tr!(
+                    "{portes} porte{s} · {entrees} → {sorties}",
+                    portes = portes,
+                    s = crate::langue::s(portes as u64),
+                    entrees = resume.entrees,
+                    sorties = resume.sorties
                 )
             };
             let ouvrir = Rect::from_min_size(
@@ -1807,8 +1846,11 @@ impl Panneaux {
 
         // Les projets : celui qui est ouvert, ceux qui sont enregistrés, les exemples.
         y += k.rubrique(x + 2.0, y, l - 4.0, tr!("Projets"), "");
-        let mut lignes: Vec<(String, Option<Ouverture>, &str)> =
-            vec![(at.projet.nom.clone(), None, tr!("ouvert, enregistré tout seul"))];
+        let mut lignes: Vec<(String, Option<Ouverture>, &str)> = vec![(
+            at.projet.nom.clone(),
+            None,
+            tr!("ouvert, enregistré tout seul"),
+        )];
         for nom in self.projets.iter().filter(|n| **n != at.projet.nom) {
             lignes.push((
                 nom.clone(),
@@ -1817,9 +1859,10 @@ impl Panneaux {
             ));
         }
         for (rang, exemple) in EXEMPLES.iter().enumerate() {
-            if at.projet.nom != exemple.nom && !self.projets.iter().any(|n| n == exemple.nom) {
+            let nom = crate::langue::traduire(exemple.nom);
+            if at.projet.nom != nom && !self.projets.iter().any(|n| n == nom) {
                 lignes.push((
-                    exemple.nom.to_owned(),
+                    nom.to_owned(),
                     Some(Ouverture::Exemple(rang)),
                     crate::langue::traduire(exemple.resume),
                 ));
@@ -1933,14 +1976,18 @@ impl Panneaux {
         k.t.legende(
             Pos2::new(x, y + 8.0),
             Align2::LEFT_CENTER,
-            "PARCOURS",
+            tr!("PARCOURS"),
             c.discret.c(),
         );
         let faites = PARCOURS.iter().filter(|f| at.parcours.faite(f.cle)).count();
         k.t.texte(
             Pos2::new(x + l, y + 8.0),
             Align2::RIGHT_CENTER,
-            &format!("{faites} sur {}", PARCOURS.len()),
+            &tr!(
+                "{faites} sur {total}",
+                faites = faites,
+                total = PARCOURS.len()
+            ),
             Police::Mono,
             k.a.typo.petit,
             c.doux.c(),
@@ -1997,7 +2044,11 @@ impl Panneaux {
             let touche = k.toucher(
                 rect,
                 egui::Id::unique(("parcours", i)),
-                if ici { "" } else { tr!("Commencer cette quête") },
+                if ici {
+                    ""
+                } else {
+                    tr!("Commencer cette quête")
+                },
                 if ici { Sense::hover() } else { Sense::click() },
             );
             let chaud = if ici { 0.0 } else { touche.chaud };
@@ -2069,9 +2120,9 @@ impl Panneaux {
             Pos2::new(x, r.top() + ENTETE / 2.0),
             Align2::LEFT_CENTER,
             if dans_brique.is_some() {
-                "BRIQUE"
+                tr!("BRIQUE")
             } else {
-                "PROJET"
+                tr!("PROJET")
             },
             Police::CorpsDemi,
             k.a.typo.legende,
@@ -2102,10 +2153,18 @@ impl Panneaux {
         // Les portes de ce plan, briques comprises (pas celles de tout ce qui tourne autour).
         let portes = at.projet.nb_portes(&at.doc);
         let niveaux = at.projet.profondeur(&at.doc);
-        let pluriel = |n: u64| if n > 1 { "s" } else { "" };
-        let mut texte = tr!("{portes} porte{v} NAND", portes = portes, v = pluriel(portes));
+        let pluriel = |n: u64| crate::langue::s(n);
+        let mut texte = tr!(
+            "{portes} porte{v} NAND",
+            portes = portes,
+            v = pluriel(portes)
+        );
         if niveaux > 0 {
-            texte.push_str(&tr!(" en tout, sur {niveaux} niveau{v} de briques emboîtées.", niveaux = niveaux, v = if niveaux > 1 { "x" } else { "" }));
+            texte.push_str(&tr!(
+                " en tout, sur {niveaux} niveau{v} de briques emboîtées.",
+                niveaux = niveaux,
+                v = if niveaux > 1 { "x" } else { "" }
+            ));
         } else {
             texte.push('.');
         }
@@ -2200,7 +2259,12 @@ impl Panneaux {
         let chapitre = PARCOURS.get(rang).map_or("", |f| f.chapitre);
         let etapes = savoir::quetes_du_chapitre(chapitre);
         let etape = etapes.iter().position(|&i| i == rang).unwrap_or(0);
-        let entete = tr!("{to_uppercase} · ÉTAPE {v} SUR {v2}", to_uppercase = crate::langue::traduire(chapitre).to_uppercase(), v = etape + 1, v2 = etapes.len().max(1));
+        let entete = tr!(
+            "{to_uppercase} · ÉTAPE {v} SUR {v2}",
+            to_uppercase = crate::langue::traduire(chapitre).to_uppercase(),
+            v = etape + 1,
+            v2 = etapes.len().max(1)
+        );
         let compteur = tr!("{vus} sur {total}", vus = quete.vus.len(), total = total);
         let l_compteur = if total > 0 {
             k.t.largeur(&compteur, Police::Mono, k.a.typo.petit) + 12.0
@@ -2389,7 +2453,7 @@ impl Panneaux {
         let rect_legende = k.t.legende(
             Pos2::new(x, y + 8.0),
             Align2::LEFT_CENTER,
-            "CONSTRUCTION MINIMALE",
+            tr!("CONSTRUCTION MINIMALE"),
             c.discret.c(),
         );
         k.reperer("construction-minimale", 0, rect_legende);
@@ -2409,15 +2473,27 @@ impl Panneaux {
             Self::etoiles(k, e.etoiles(), Pos2::new(x + l, y + 8.0), true);
         }
         y += 22.0;
-        let pluriel = if e.tiennes > 1 { "s" } else { "" };
+        let pluriel = crate::langue::s(e.tiennes as u64);
         let tiennes = match e.origine {
-            Origine::Ajouts => tr!("{tiennes} porte{pluriel} ajoutée{pluriel}", pluriel = pluriel, tiennes = e.tiennes),
-            _ => format!("{} porte{pluriel}", e.tiennes),
+            Origine::Ajouts => tr!(
+                "{tiennes} porte{pluriel} ajoutée{pluriel}",
+                pluriel = pluriel,
+                tiennes = e.tiennes
+            ),
+            _ => tr!(
+                "{tiennes} porte{pluriel}",
+                tiennes = e.tiennes,
+                pluriel = pluriel
+            ),
         };
         let ligne = if juste {
             format!("{tiennes} · {}", e.titre())
         } else {
-            tr!("{tiennes} pour l'instant · Objectif : {v}", tiennes = tiennes, v = e.titre().to_lowercase())
+            tr!(
+                "{tiennes} pour l'instant · Objectif : {v}",
+                tiennes = tiennes,
+                v = e.titre().to_lowercase()
+            )
         };
         y += k.t.paragraphe(
             Pos2::new(x, y),
@@ -2558,7 +2634,7 @@ impl Panneaux {
             k.t.legende(
                 Pos2::new(x, y + 7.0),
                 Align2::LEFT_CENTER,
-                &format!("Indice {} · {}", n + 1, indice.titre),
+                &tr!("Indice {n} · {titre}", n = n + 1, titre = indice.titre),
                 c.accent_clair.c(),
             );
             y += 18.0;
@@ -2599,7 +2675,11 @@ impl Panneaux {
             let texte = if vus == 0 {
                 tr!("Un indice · {total} en réserve", total = total)
             } else {
-                tr!("Indice suivant · {v} sur {total}", total = total, v = vus + 1)
+                tr!(
+                    "Indice suivant · {v} sur {total}",
+                    total = total,
+                    v = vus + 1
+                )
             };
             k.t.texte(
                 Pos2::new(tete.left() + 34.0, tete.center().y),
@@ -2941,7 +3021,10 @@ impl Panneaux {
         let rect = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 36.0));
         k.reperer("quete-suivante", 0, rect);
         let texte = k.t.abreger(
-            &tr!("Quête suivante : {titre}", titre = crate::langue::traduire(suivante.titre)),
+            &tr!(
+                "Quête suivante : {titre}",
+                titre = crate::langue::traduire(suivante.titre)
+            ),
             Police::CorpsDemi,
             k.a.typo.corps,
             l - 24.0,
@@ -2997,7 +3080,7 @@ impl Panneaux {
                 ));
                 match e.genre {
                     Genre::Nand => {
-                        f.push(texte(tr!("Délai"), "1 pas".to_owned()));
+                        f.push(texte(tr!("Délai"), tr!("1 pas").to_owned()));
                         for (i, b) in e.broches_e.iter().enumerate() {
                             f.push(lue(tr!("Entrée {nom}", nom = b.nom), i));
                         }
@@ -3006,7 +3089,12 @@ impl Panneaux {
                             && at.session.cible(&at.doc, id) != at.session.valeur(Source::de(id));
                         f.push(texte(
                             tr!("État"),
-                            if attend { tr!("va basculer") } else { tr!("au repos") }.to_owned(),
+                            if attend {
+                                tr!("va basculer")
+                            } else {
+                                tr!("au repos")
+                            }
+                            .to_owned(),
                         ));
                     }
                     Genre::Entree if e.param > 0 => {
@@ -3017,7 +3105,10 @@ impl Panneaux {
                             tr!("Nombre de pas pendant lesquels il vaut 1 au démarrage"),
                         ));
                         f.push(sortie(tr!("Valeur").to_owned(), 0));
-                        f.push(texte(tr!("Pour le rejouer"), tr!("reviens à t = 0").to_owned()));
+                        f.push(texte(
+                            tr!("Pour le rejouer"),
+                            tr!("reviens à t = 0").to_owned(),
+                        ));
                     }
                     Genre::Entree if e.est_poussoir() => {
                         f.push(sortie(tr!("Valeur").to_owned(), 0));
@@ -3117,7 +3208,10 @@ impl Panneaux {
                             at.session.touches_en_attente(id).to_string(),
                         ));
                         f.push(sortie(tr!("Sortie").to_owned(), 0));
-                        f.push(texte(tr!("Pour taper"), tr!("sélectionne-le, puis tape").to_owned()));
+                        f.push(texte(
+                            tr!("Pour taper"),
+                            tr!("sélectionne-le, puis tape").to_owned(),
+                        ));
                     }
                     Genre::Decoupe => {
                         let morceaux: Vec<String> = e
@@ -3352,10 +3446,10 @@ impl Panneaux {
         let portes = circuit.portes;
         let total = at.session.nb_portes();
         let pluriel = |n: usize, un: &'static str, plusieurs: &'static str| {
-            if n > 1 {
-                plusieurs
-            } else {
+            if crate::langue::s(n as u64).is_empty() {
                 un
+            } else {
+                plusieurs
             }
         };
         if total == portes {
@@ -3390,7 +3484,11 @@ impl Panneaux {
             x,
             x + l,
             &circuit.signaux.to_string(),
-            "signaux",
+            if crate::langue::s(circuit.signaux as u64).is_empty() {
+                tr!("signal")
+            } else {
+                tr!("signaux")
+            },
             None,
         );
         match circuit.profondeur {
@@ -3402,13 +3500,19 @@ impl Panneaux {
                 tr!("pas au plus long"),
                 None,
             ),
-            Profondeur::Boucle => k.puce(&mut curseur, x, x + l, "", tr!("contient une boucle"), None),
+            Profondeur::Boucle => {
+                k.puce(&mut curseur, x, x + l, "", tr!("contient une boucle"), None)
+            }
             Profondeur::Briques => k.puce(
                 &mut curseur,
                 x,
                 x + l,
                 &circuit.niveaux.to_string(),
-                pluriel(circuit.niveaux, tr!("niveau de briques"), tr!("niveaux de briques")),
+                pluriel(
+                    circuit.niveaux,
+                    tr!("niveau de briques"),
+                    tr!("niveaux de briques"),
+                ),
                 None,
             ),
         }
@@ -3417,7 +3521,10 @@ impl Panneaux {
             y += k.t.paragraphe(
                 Pos2::new(x, y - 4.0),
                 l,
-                &tr!("Ce circuit ne peut pas être simulé : {erreur}", erreur = erreur),
+                &tr!(
+                    "Ce circuit ne peut pas être simulé : {erreur}",
+                    erreur = erreur
+                ),
                 Police::Corps,
                 k.a.typo.petit,
                 c.danger.c(),
@@ -3772,7 +3879,7 @@ impl Panneaux {
             k.t.legende(
                 Pos2::new(xj, y_axe + 8.0),
                 Align2::LEFT_CENTER,
-                "JOURNAL",
+                tr!("JOURNAL"),
                 c.discret.c(),
             );
             let lignes = ((r.bottom() - 14.0 - y0) / 22.0).floor().max(0.0) as usize;
@@ -4301,11 +4408,14 @@ const LIGNES_CHRONO: usize = 10;
 /// Un débit de simulation écrit court : « 850 pas/s », « 33 k pas/s », « 1,2 M pas/s ».
 fn debit_lisible(pas_par_seconde: f32) -> String {
     if pas_par_seconde < 1000.0 {
-        format!("{} pas/s", pas_par_seconde.round() as i64)
+        tr!("{n} pas/s", n = pas_par_seconde.round() as i64)
     } else if pas_par_seconde < 1_000_000.0 {
-        format!("{} k pas/s", (pas_par_seconde / 1000.0).round() as i64)
+        tr!("{n} k pas/s", n = (pas_par_seconde / 1000.0).round() as i64)
     } else {
-        format!("{:.1} M pas/s", pas_par_seconde / 1_000_000.0).replace('.', ",")
+        tr!(
+            "{n} M pas/s",
+            n = crate::langue::decimal(format!("{:.1}", pas_par_seconde / 1_000_000.0))
+        )
     }
 }
 

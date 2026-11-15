@@ -61,7 +61,10 @@ pub fn plan_a_plat(bib: &Bibliotheque, nom: &str) -> Result<Document, String> {
     for (k, p) in net.portes.iter().enumerate() {
         for (i, e) in [p.e0, p.e1].into_iter().enumerate() {
             let source = source_de.get(&e).ok_or_else(|| {
-                tr!("une entrée de porte de « {nom} » n'est pilotée par rien", nom = nom)
+                tr!(
+                    "une entrée de porte de « {nom} » n'est pilotée par rien",
+                    nom = nom
+                )
             })?;
             plan.relier(
                 *source,
@@ -74,9 +77,13 @@ pub fn plan_a_plat(bib: &Bibliotheque, nom: &str) -> Result<Document, String> {
     }
     for b in circuit.broches.iter().filter(|b| b.sens == Sens::Sortie) {
         let id = plan.poser(Element::sortie(&b.nom, &b.nom, 1), Point::default());
-        let source = source_de
-            .get(&b.nets[0])
-            .ok_or_else(|| tr!("la sortie {nom2} de « {nom} » n'est pilotée par rien", nom = nom, nom2 = b.nom))?;
+        let source = source_de.get(&b.nets[0]).ok_or_else(|| {
+            tr!(
+                "la sortie {nom2} de « {nom} » n'est pilotée par rien",
+                nom = nom,
+                nom2 = b.nom
+            )
+        })?;
         plan.relier(
             *source,
             Fil {
@@ -141,7 +148,10 @@ fn plan_en_panne_de(bib: &Bibliotheque, corrige: &str, depart: usize) -> Result<
             }
         }
     }
-    Err(tr!("aucune panne trouvée pour « {corrige} »", corrige = corrige))
+    Err(tr!(
+        "aucune panne trouvée pour « {corrige} »",
+        corrige = corrige
+    ))
 }
 
 #[cfg(test)]

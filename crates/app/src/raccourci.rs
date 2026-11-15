@@ -109,10 +109,13 @@ impl Bilan {
     /// Le message à montrer, s'il y a quelque chose à dire.
     pub fn message(&self) -> Option<String> {
         if self.depuis_l_archive {
-            return Some(MESSAGE_ARCHIVE.to_owned());
+            return Some(crate::langue::traduire(MESSAGE_ARCHIVE).to_owned());
         }
         if let Some(e) = self.erreurs.first() {
-            return Some(tr!("Le raccourci n'a pas pu être posé : {e}. Tu peux réessayer dans Paramètres.", e = e));
+            return Some(tr!(
+                "Le raccourci n'a pas pu être posé : {e}. Tu peux réessayer dans Paramètres.",
+                e = e
+            ));
         }
         match self.poses.as_slice() {
             [] => None,
@@ -175,14 +178,22 @@ impl Raccourcis {
     /// Pose (ou refait) le raccourci de ce lieu vers l'exécutable en marche.
     pub fn poser(&self, lieu: Lieu) -> Result<(), String> {
         if self.temporaire {
-            return Err(MESSAGE_ARCHIVE.to_owned());
+            return Err(crate::langue::traduire(MESSAGE_ARCHIVE).to_owned());
         }
-        let fichier = self
-            .fichier(lieu)
-            .ok_or_else(|| tr!("Windows ne donne pas de dossier {dans_une_phrase}", dans_une_phrase = lieu.dans_une_phrase()))?;
+        let fichier = self.fichier(lieu).ok_or_else(|| {
+            tr!(
+                "Windows ne donne pas de dossier {dans_une_phrase}",
+                dans_une_phrase = lieu.dans_une_phrase()
+            )
+        })?;
         if let Some(dossier) = fichier.parent() {
-            std::fs::create_dir_all(dossier)
-                .map_err(|e| tr!("{display} n'a pas pu être créé ({e})", e = e, display = dossier.display()))?;
+            std::fs::create_dir_all(dossier).map_err(|e| {
+                tr!(
+                    "{display} n'a pas pu être créé ({e})",
+                    e = e,
+                    display = dossier.display()
+                )
+            })?;
         }
         self.systeme.ecrire(&fichier, &self.exe)
     }
@@ -195,7 +206,11 @@ impl Raccourcis {
         match std::fs::remove_file(&fichier) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(tr!("{display} n'a pas pu être supprimé ({e})", e = e, display = fichier.display())),
+            Err(e) => Err(tr!(
+                "{display} n'a pas pu être supprimé ({e})",
+                e = e,
+                display = fichier.display()
+            )),
         }
     }
 
@@ -335,7 +350,7 @@ mod coquille {
                 l.SetPath(exe)?;
                 l.SetWorkingDirectory(dossier)?;
                 l.SetIconLocation(exe, 0)?;
-                l.SetDescription(DESCRIPTION)?;
+                l.SetDescription(crate::langue::traduire(DESCRIPTION))?;
                 l.QueryInterface::<w::IPersistFile>()?
                     .Save(Some(fichier), true)
             })

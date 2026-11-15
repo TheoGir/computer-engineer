@@ -79,10 +79,10 @@ impl Source {
     ) -> Result<self_update::backends::github::Update, String> {
         // Sans clé, `self_update` ne vérifierait rien : on refuse plutôt.
         if self.cles.is_empty() {
-            return Err(
-                tr!("les mises à jour automatiques ne sont pas encore configurées dans cette version")
-                    .to_owned(),
-            );
+            return Err(tr!(
+                "les mises à jour automatiques ne sont pas encore configurées dans cette version"
+            )
+            .to_owned());
         }
         let mut b = self_update::backends::github::Update::configure();
         b.repo_owner(&self.proprietaire)
@@ -168,7 +168,11 @@ impl Source {
                 self_update::update::ReleaseStatus::Updated(r) if r.version() == version => {
                     Ok(Some(version))
                 }
-                self_update::update::ReleaseStatus::Updated(r) => Err(tr!("la version {version2} est arrivée au lieu de la {version}", version = version, version2 = r.version())),
+                self_update::update::ReleaseStatus::Updated(r) => Err(tr!(
+                    "la version {version2} est arrivée au lieu de la {version}",
+                    version = version,
+                    version2 = r.version()
+                )),
                 _ => Ok(None),
             }
         })

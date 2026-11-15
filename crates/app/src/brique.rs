@@ -293,7 +293,10 @@ impl Projet {
             return Ok(());
         }
         if self.modele(nouveau).is_some() {
-            return Err(tr!("Une brique s'appelle déjà « {nouveau} ».", nouveau = nouveau));
+            return Err(tr!(
+                "Une brique s'appelle déjà « {nouveau} ».",
+                nouveau = nouveau
+            ));
         }
         let Some(i) = self.index(ancien) else {
             return Err(tr!("La brique « {ancien} » n'existe pas.", ancien = ancien));
@@ -318,7 +321,11 @@ impl Projet {
     pub fn retirer(&mut self, nom: &str) -> Result<(), String> {
         let n = self.nb_utilisations(nom);
         if n > 0 {
-            return Err(tr!("« {nom} » est encore posée {n} fois : retire d'abord ces briques.", nom = nom, n = n));
+            return Err(tr!(
+                "« {nom} » est encore posée {n} fois : retire d'abord ces briques.",
+                nom = nom,
+                n = n
+            ));
         }
         let Some(i) = self.index(nom) else {
             return Err(tr!("La brique « {nom} » n'existe pas.", nom = nom));

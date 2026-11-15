@@ -109,7 +109,13 @@ impl Format {
             .strip_prefix(self.prefixe)
             .and_then(|n| n.parse::<u32>().ok())
             .filter(|n| *n >= 1)
-            .ok_or_else(|| tr!("format de {genre} inconnu : « {identifiant} »", identifiant = identifiant, genre = self.genre))
+            .ok_or_else(|| {
+                tr!(
+                    "format de {genre} inconnu : « {identifiant} »",
+                    identifiant = identifiant,
+                    genre = self.genre
+                )
+            })
     }
 
     /// Lit un fichier de ce format et le mène, migration après migration, au format actuel.
@@ -123,7 +129,10 @@ impl Format {
             .get("format")
             .and_then(Value::as_str)
             .ok_or_else(|| {
-                tr!("fichier illisible : ce n'est pas un fichier de {genre}", genre = self.genre)
+                tr!(
+                    "fichier illisible : ce n'est pas un fichier de {genre}",
+                    genre = self.genre
+                )
             })?
             .to_owned();
         let numero = self.numero(&identifiant)?;
@@ -132,7 +141,12 @@ impl Format {
         }
         for (k, migrer) in self.migrations[numero as usize - 1..].iter().enumerate() {
             migrer(&mut valeur).map_err(|e| {
-                tr!("le passage du format {v} au format {v2} a échoué : {e}", e = e, v = numero as usize + k, v2 = numero as usize + k + 1)
+                tr!(
+                    "le passage du format {v} au format {v2} a échoué : {e}",
+                    e = e,
+                    v = numero as usize + k,
+                    v2 = numero as usize + k + 1
+                )
             })?;
         }
         if let Some(objet) = valeur.as_object_mut() {

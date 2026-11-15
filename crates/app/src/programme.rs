@@ -24,6 +24,19 @@ pub const PROGRAMMES: [(&str, &str); 2] = [
     ("Majuscules", programmes::MAJUSCULES),
 ];
 
+/// Tous les programmes livrés avec l'application (exemples et quêtes), dont les
+/// commentaires se traduisent dans la langue de l'interface.
+pub const LIVRES: [&str; 8] = [
+    programmes::FIBONACCI,
+    programmes::CALCULATRICE,
+    programmes::MAJUSCULES,
+    programmes::ENVOI_MAJUSCULES,
+    programmes::RECEPTION,
+    programmes::CHIFFREMENT,
+    programmes::DECHIFFREMENT,
+    programmes::MIROIR,
+];
+
 /// Les briques d'une mémoire morte programmée avec `texte` : la mémoire morte elle-même (en
 /// dernier) et les briques qu'elle utilise.
 pub fn briques_de_la_memoire(texte: &str) -> Result<(Vec<Modele>, usize), String> {
@@ -101,7 +114,11 @@ pub fn charger(projet: &mut Projet, nom: &str, texte: &str) -> Result<Charge, St
     projet.deposer(Some(nom), rom.plan);
     if let Some(i) = projet.index(nom) {
         projet.modeles[i].programme = Some(texte.to_owned());
-        projet.modeles[i].description = tr!("Mémoire morte : {instructions} instruction{v} de 16 bits, en NAND", instructions = instructions, v = if instructions > 1 { "s" } else { "" });
+        projet.modeles[i].description = tr!(
+            "Mémoire morte : {instructions} instruction{v} de 16 bits, en NAND",
+            instructions = instructions,
+            v = crate::langue::s(instructions as u64)
+        );
     }
     projet.revision += 1;
     Ok(Charge {

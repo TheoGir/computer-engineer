@@ -204,7 +204,13 @@ pub fn quetes_du_chapitre(nom: &str) -> Vec<usize> {
 /// phrase.
 pub fn fin_de_chapitre(nom: &str) -> (String, String) {
     let Some(i) = CHAPITRES.iter().position(|c| c.nom == nom) else {
-        return (tr!("Chapitre terminé : {nom}", nom = crate::langue::traduire_texte(nom)), String::new());
+        return (
+            tr!(
+                "Chapitre terminé : {nom}",
+                nom = crate::langue::traduire_texte(nom)
+            ),
+            String::new(),
+        );
     };
     let ici = &CHAPITRES[i];
     let suivant = CHAPITRES.get(i + 1);
@@ -220,9 +226,17 @@ pub fn fin_de_chapitre(nom: &str) -> (String, String) {
             tr!("Grand élément construit. {but}", but = b.but()),
         ),
         (_, false) => (
-            tr!("Chapitre terminé : {nom}", nom = crate::langue::traduire_texte(nom)),
+            tr!(
+                "Chapitre terminé : {nom}",
+                nom = crate::langue::traduire_texte(nom)
+            ),
             suivant
-                .map(|s| tr!("Prochain chapitre : {nom}", nom = crate::langue::traduire(s.nom)))
+                .map(|s| {
+                    tr!(
+                        "Prochain chapitre : {nom}",
+                        nom = crate::langue::traduire(s.nom)
+                    )
+                })
                 .unwrap_or_default(),
         ),
     }
@@ -252,10 +266,22 @@ impl Savoir {
     pub fn rubriques(&self) -> [(&'static str, &'static str); 6] {
         [
             (tr!("À quoi ça sert"), crate::langue::traduire(self.sert)),
-            (tr!("Comment ça marche"), crate::langue::traduire(self.marche)),
-            (tr!("Sa place dans le tout"), crate::langue::traduire(self.place)),
-            (tr!("Dans la vraie vie"), crate::langue::traduire(self.vraie_vie)),
-            (tr!("Le savais-tu ?"), crate::langue::traduire(self.anecdote)),
+            (
+                tr!("Comment ça marche"),
+                crate::langue::traduire(self.marche),
+            ),
+            (
+                tr!("Sa place dans le tout"),
+                crate::langue::traduire(self.place),
+            ),
+            (
+                tr!("Dans la vraie vie"),
+                crate::langue::traduire(self.vraie_vie),
+            ),
+            (
+                tr!("Le savais-tu ?"),
+                crate::langue::traduire(self.anecdote),
+            ),
             (tr!("À essayer"), crate::langue::traduire(self.essaie)),
         ]
     }

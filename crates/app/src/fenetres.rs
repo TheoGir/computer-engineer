@@ -72,7 +72,8 @@ impl Editeur {
         let texte = at
             .projet
             .modele(modele)
-            .and_then(|m| m.programme.clone())
+            .and_then(|m| m.programme.as_deref())
+            .map(crate::langue::traduire_programme)
             .unwrap_or_default();
         let mut e = Editeur {
             modele: modele.to_owned(),
@@ -166,7 +167,7 @@ pub struct VueAutomate {
 impl Default for VueAutomate {
     fn default() -> Self {
         VueAutomate {
-            texte: crate::automate::EXEMPLE.to_owned(),
+            texte: crate::langue::traduire(crate::automate::EXEMPLE).to_owned(),
             nom: "FEU_PIETONS".to_owned(),
             message: None,
         }
@@ -198,22 +199,22 @@ pub struct Fenetres {
 /// Le texte de chaque rubrique : des paragraphes, `# ` pour un intertitre, `- ` pour une puce.
 pub fn texte_de(rubrique: Rubrique) -> String {
     match rubrique {
-        Rubrique::PremiersPas => PREMIERS_PAS.to_owned(),
-        Rubrique::Raccourcis => RACCOURCIS.to_owned(),
+        Rubrique::PremiersPas => crate::langue::traduire(PREMIERS_PAS).to_owned(),
+        Rubrique::Raccourcis => crate::langue::traduire(RACCOURCIS).to_owned(),
         Rubrique::Programmer => {
-            let mut t = PROGRAMMER.to_owned();
-            t.push_str("\n# Les seize instructions\n");
+            let mut t = crate::langue::traduire(PROGRAMMER).to_owned();
+            t.push_str(tr!("\n# Les seize instructions\n"));
             for (op, sens) in INSTRUCTIONS {
-                t.push_str(&format!("- {op} : {sens}\n"));
+                t.push_str(&format!("- {op} : {}\n", crate::langue::traduire(sens)));
             }
             t
         }
-        Rubrique::Fichiers => FICHIERS.to_owned(),
-        Rubrique::Algebre => ALGEBRE.to_owned(),
+        Rubrique::Fichiers => crate::langue::traduire(FICHIERS).to_owned(),
+        Rubrique::Algebre => crate::langue::traduire(ALGEBRE).to_owned(),
         Rubrique::Lexique => {
             let mut t = tr!("# De A à Z\nLes mots qu'on croise en construisant un ordinateur. Tape un mot dans « Chercher » pour le trouver aussi dans le reste de l'aide.\n\n").to_owned();
             for (mot, sens) in LEXIQUE {
-                t.push_str(&format!("- {mot} : {sens}\n"));
+                t.push_str(&format!("- {} : {}\n", crate::langue::traduire(mot), crate::langue::traduire(sens)));
             }
             t
         }
@@ -221,7 +222,7 @@ pub fn texte_de(rubrique: Rubrique) -> String {
     }
 }
 
-const PREMIERS_PAS: &str = "# Le principe
+pub(crate) const PREMIERS_PAS: &str = "# Le principe
 Tout est fait d'une seule porte, la NAND : sa sortie vaut 0 seulement quand ses deux entrées valent 1. Avec elle, on fabrique toutes les autres portes, puis des additionneurs, des mémoires, un processeur, et enfin un ordinateur entier.
 
 # Le plan
@@ -242,7 +243,7 @@ Le parcours mène pas à pas de la porte NON jusqu'à l'ordinateur. Chaque quêt
 - X : valeur inconnue ou en conflit (deux sorties qui se contredisent, une boucle instable).
 - Z : rien ne pilote ce fil.";
 
-const RACCOURCIS: &str = "# Partout
+pub(crate) const RACCOURCIS: &str = "# Partout
 - F1 : ouvrir ou fermer cette aide.
 
 # Dans l'atelier
@@ -267,7 +268,7 @@ const RACCOURCIS: &str = "# Partout
 # Clavier du circuit
 Quand un clavier du circuit est sélectionné, ce que tu tapes va au circuit, comme sur un vrai clavier branché à l'ordinateur.";
 
-const PROGRAMMER: &str = "# La mémoire morte
+pub(crate) const PROGRAMMER: &str = "# La mémoire morte
 La mémoire morte de l'ordinateur miniature contient son programme. Ici, elle n'est pas un tableau de nombres caché : c'est un vrai circuit de portes NAND, une ligne par instruction, fabriqué à partir du programme.
 
 Ouvre l'exemple « Ordinateur miniature » depuis tes projets, puis Ctrl+P : écris un programme en assembleur, « Charger dans la mémoire », et l'ordinateur redémarre avec. La mémoire morte est refabriquée porte par porte : double-clique dessus pour voir ses nouvelles portes.
@@ -280,7 +281,7 @@ Ouvre l'exemple « Ordinateur miniature » depuis tes projets, puis Ctrl+P : éc
 - Tout ce qui suit un point-virgule est un commentaire.
 - A est l'accumulateur, M[m] la case m de la mémoire vive (16 cases), Z et C les indicateurs zéro et retenue du dernier calcul.";
 
-const FICHIERS: &str = "# Où sont tes projets
+pub(crate) const FICHIERS: &str = "# Où sont tes projets
 Tout est enregistré tout seul, une seconde après chaque modification, dans le dossier de données (sous Windows : %APPDATA%\\Computer Engineer). Mes projets, « Ouvrir le dossier », y mène.
 - projets : un fichier JSON lisible par projet ; corbeille : les projets mis à la corbeille.
 - parcours.json : les quêtes réussies et les briques gagnées.
@@ -294,7 +295,7 @@ L'application cherche une nouvelle version au lancement, vérifie sa signature a
 # Premier lancement sous Windows
 L'exécutable n'est pas signé par un certificat payant : au tout premier lancement, Windows peut afficher « Windows a protégé votre ordinateur ». Clique sur « Informations complémentaires », puis « Exécuter quand même ». Les mises à jour suivantes, elles, sont vérifiées par leur signature.";
 
-const ALGEBRE: &str = "# Trois opérations
+pub(crate) const ALGEBRE: &str = "# Trois opérations
 Toute la logique s'écrit avec trois opérations. On les lit ainsi dans l'analyse du circuit (Ctrl+E) et dans les indices des quêtes.
 - NON : ¬a vaut 1 quand a vaut 0, et 0 quand a vaut 1.
 - ET : a·b vaut 1 seulement quand a et b valent 1.
@@ -672,8 +673,8 @@ impl Fenetres {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(tr!("Partir d'un exemple :")).color(c.doux.c()));
                     for (nom, texte) in PROGRAMMES {
-                        if ui.button(nom).clicked() {
-                            editeur.texte = texte.to_owned();
+                        if ui.button(crate::langue::traduire(nom)).clicked() {
+                            editeur.texte = crate::langue::traduire_programme(texte);
                             editeur.essayer();
                         }
                     }
@@ -699,7 +700,7 @@ impl Fenetres {
                 match &editeur.verdict {
                     Ok(n) => {
                         ui.label(
-                            RichText::new(tr!("{n} instruction{v} sur {TAILLE_MAXIMALE} possibles : prêt à charger.", n = n, v = if *n > 1 { "s" } else { "" }, TAILLE_MAXIMALE = TAILLE_MAXIMALE))
+                            RichText::new(tr!("{n} instruction{v} sur {TAILLE_MAXIMALE} possibles : prêt à charger.", n = n, v = crate::langue::s((*n) as u64), TAILLE_MAXIMALE = TAILLE_MAXIMALE))
                             .color(c.un.c()),
                         );
                     }
@@ -802,7 +803,7 @@ impl Fenetres {
                 match &lu {
                     Ok(auto) => {
                         ui.label(
-                            RichText::new(tr!("{len} état{v}, {len2} entrée{v2}, {len3} sortie{v3} : {bits_d_etat} bascule{v4} D pour retenir l'état.", len = auto.etats.len(), v = if auto.etats.len() > 1 { "s" } else { "" }, len2 = auto.entrees.len(), v2 = if auto.entrees.len() > 1 { "s" } else { "" }, len3 = auto.sorties.len(), v3 = if auto.sorties.len() > 1 { "s" } else { "" }, bits_d_etat = auto.bits_d_etat(), v4 = if auto.bits_d_etat() > 1 { "s" } else { "" }))
+                            RichText::new(tr!("{len} état{v}, {len2} entrée{v2}, {len3} sortie{v3} : {bits_d_etat} bascule{v4} D pour retenir l'état.", len = auto.etats.len(), v = crate::langue::s((auto.etats.len()) as u64), len2 = auto.entrees.len(), v2 = crate::langue::s((auto.entrees.len()) as u64), len3 = auto.sorties.len(), v3 = crate::langue::s((auto.sorties.len()) as u64), bits_d_etat = auto.bits_d_etat(), v4 = crate::langue::s((auto.bits_d_etat()) as u64)))
                             .color(c.un.c()),
                         );
                     }
@@ -905,12 +906,12 @@ impl Fenetres {
                         let justes = lignes.iter().filter(|l| l.juste()).count();
                         let (texte, couleur) = if justes == lignes.len() {
                             (
-                                tr!("Tout est juste : {justes} essai{v}.", justes = justes, v = if justes > 1 { "s" } else { "" }),
+                                tr!("Tout est juste : {justes} essai{v}.", justes = justes, v = crate::langue::s(justes as u64)),
                                 c.un.c(),
                             )
                         } else {
                             (
-                                tr!("{v} essai{v2} faux sur {len}.", v = lignes.len() - justes, v2 = if lignes.len() - justes > 1 { "s" } else { "" }, len = lignes.len()),
+                                tr!("{v} essai{v2} faux sur {len}.", v = lignes.len() - justes, v2 = crate::langue::s((lignes.len() - justes) as u64), len = lignes.len()),
                                 c.danger.c(),
                             )
                         };
@@ -1011,7 +1012,7 @@ impl Fenetres {
                     }
                     Ok(an) => {
                         ui.label(
-                            RichText::new(tr!("{portes} porte{v} NAND · {profondeur} étape{v2} au plus entre une entrée et une sortie · {len} combinaison{v3} d'entrées, toutes simulées.", portes = an.portes, v = if an.portes > 1 { "s" } else { "" }, profondeur = an.profondeur, v2 = if an.profondeur > 1 { "s" } else { "" }, len = an.lignes.len(), v3 = if an.lignes.len() > 1 { "s" } else { "" }))
+                            RichText::new(tr!("{portes} porte{v} NAND · {profondeur} étape{v2} au plus entre une entrée et une sortie · {len} combinaison{v3} d'entrées, toutes simulées.", portes = an.portes, v = crate::langue::s((an.portes) as u64), profondeur = an.profondeur, v2 = crate::langue::s((an.profondeur) as u64), len = an.lignes.len(), v3 = crate::langue::s((an.lignes.len()) as u64)))
                             .color(c.doux.c()),
                         );
                         ui.add_space(8.0);
@@ -1176,8 +1177,11 @@ fn vue_machine(ui: &mut egui::Ui, vue: &crate::programme::VueMachine, code: &[u1
                     };
                     let en_cours = vue.pc == Some(i as u8);
                     let r = ui.label(if en_cours {
-                        mono(tr!("{texte}   ◀ en cours", texte = texte), c.accent_clair.c())
-                            .background_color(c.enfonce.c())
+                        mono(
+                            tr!("{texte}   ◀ en cours", texte = texte),
+                            c.accent_clair.c(),
+                        )
+                        .background_color(c.enfonce.c())
                     } else {
                         mono(texte, c.doux.c())
                     });
@@ -1186,7 +1190,10 @@ fn vue_machine(ui: &mut egui::Ui, vue: &crate::programme::VueMachine, code: &[u1
                     }
                 }
                 if code.is_empty() {
-                    ui.label(mono(tr!("aucun programme chargé").to_owned(), c.discret.c()));
+                    ui.label(mono(
+                        tr!("aucun programme chargé").to_owned(),
+                        c.discret.c(),
+                    ));
                 }
             });
         let ui = &mut colonnes[1];

@@ -69,7 +69,7 @@ fn arguments(src: &str, debut: usize) -> Vec<String> {
     let mut profondeur = 0i32;
     let mut morceau = String::new();
     let mut i = debut;
-    let mut fini = |morceau: &mut String, noms: &mut Vec<String>| {
+    let fini = |morceau: &mut String, noms: &mut Vec<String>| {
         let m = morceau.trim();
         if let Some((nom, _)) = m.split_once('=') {
             let nom = nom.trim();
@@ -188,40 +188,43 @@ fn anglais() -> BTreeMap<String, String> {
 }
 
 /// Vrai si ce texte est le résultat d'un modèle `tr!` rempli (une description écrite par le
-/// code avec un nombre dedans) : il n'est pas une clé à lui seul.
+/// code avec un nombre dedans) : il n'est pas une clé à lui seul. Un trou rempli est un
+/// nombre ou un nom : court, sans espace.
 fn rempli_par_un_modele(texte: &str, modeles: &[String]) -> bool {
-    modeles.iter().any(|m| {
-        let trous = langue::trous(m);
-        if trous.is_empty() {
-            return false;
+    fn colle(texte: &str, morceaux: &[&str]) -> bool {
+        let Some((premier, reste)) = morceaux.split_first() else {
+            return texte.is_empty();
+        };
+        if reste.is_empty() {
+            return texte == *premier;
         }
-        // Les morceaux fixes du modèle, dans l'ordre.
-        let mut reste = texte;
-        let mut morceaux = Vec::new();
-        let mut m2 = m.as_str();
-        for t in &trous {
-            let marque = format!("{{{t}}}");
-            let (avant, apres) = m2.split_once(&marque).unwrap();
-            morceaux.push(avant);
-            m2 = apres;
-        }
-        morceaux.push(m2);
-        let (premier, autres) = morceaux.split_first().unwrap();
-        let Some(r) = reste.strip_prefix(premier) else {
+        let Some(apres) = texte.strip_prefix(premier) else {
             return false;
         };
-        reste = r;
-        for (k, morceau) in autres.iter().enumerate() {
-            let dernier = k + 1 == autres.len();
-            if dernier {
-                return reste.ends_with(morceau);
-            }
-            match reste.find(morceau) {
-                Some(p) if !morceau.is_empty() => reste = &reste[p + morceau.len()..],
-                _ => return false,
-            }
+        // Le trou qui suit : un nombre ou un nom, de 1 à 20 caractères sans espace.
+        apres
+            .char_indices()
+            .skip(1)
+            .map(|(i, _)| i)
+            .chain(std::iter::once(apres.len()))
+            .take(20)
+            .take_while(|&i| !apres[..i].contains(char::is_whitespace))
+            .any(|i| colle(&apres[i..], reste))
+    }
+    modeles.iter().any(|m| {
+        let trous = langue::trous(m);
+        if trous.is_empty() || m.contains("{{") || m.contains("}}") {
+            return false;
         }
-        true
+        let mut morceaux = Vec::new();
+        let mut reste = m.as_str();
+        for t in &trous {
+            let (avant, apres) = reste.split_once(&format!("{{{t}}}")).unwrap();
+            morceaux.push(avant);
+            reste = apres;
+        }
+        morceaux.push(reste);
+        colle(texte, &morceaux)
     })
 }
 
@@ -272,7 +275,10 @@ fn chaque_texte_a_sa_traduction_anglaise() {
     let inutiles: Vec<&String> = en.keys().filter(|c| !cles.contains(*c)).collect();
     if let Ok(chemin) = std::env::var("CE_ECRIRE_TRADUCTIONS") {
         std::fs::write(&chemin, serde_json::to_string_pretty(&manquants).unwrap()).unwrap();
-        eprintln!("{} textes sans traduction écrits dans {chemin}", manquants.len());
+        eprintln!(
+            "{} textes sans traduction écrits dans {chemin}",
+            manquants.len()
+        );
     }
     for c in &inutiles {
         erreurs.push(format!("traduction d'un texte qui n'existe plus : « {c} »"));

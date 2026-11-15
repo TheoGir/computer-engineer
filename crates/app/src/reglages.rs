@@ -242,6 +242,7 @@ mod tests {
             taille_texte: 1.3,
             vitesse: Some(1),
             raccourcis_proposes: true,
+            langue: Some(crate::langue::Langue::Anglais),
         };
         assert_eq!(Reglages::de_json(&tout.en_json()), tout);
     }

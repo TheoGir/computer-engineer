@@ -234,7 +234,12 @@ fn lancer() -> ExitCode {
             let texte = incident::texte_du_rapport(tr!("démarrage impossible"), &detail);
             let ou = incident::ecrire_un_rapport(&rapports, "demarrage", &texte).map_or_else(
                 |_| String::new(),
-                |p| tr!("\n\nUn rapport a été écrit dans {display}.", display = p.display()),
+                |p| {
+                    tr!(
+                        "\n\nUn rapport a été écrit dans {display}.",
+                        display = p.display()
+                    )
+                },
             );
             incident::annoncer_un_echec(&tr!("Computer Engineer n'a pas pu ouvrir sa fenêtre.\n\n{e}\n\nLa cause la plus fréquente est un pilote de carte graphique trop ancien : mettre à jour le pilote (Windows Update ou le site du fabricant) règle en général le problème.{ou}", e = e, ou = ou));
             ExitCode::FAILURE

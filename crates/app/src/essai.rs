@@ -14,7 +14,8 @@
 //!   en hexadécimal. `-` laisse un interrupteur comme il était, ou n'attend rien d'une lampe.
 //! - Les lignes se jouent dans l'ordre, sur le même circuit : sa mémoire est gardée d'une
 //!   ligne à l'autre. Un interrupteur peut donc servir d'horloge (`0` puis `1`).
-//! - `attendre 50` laisse passer 50 unités de temps (pour un circuit qui a une horloge).
+//! - `attendre 50` (ou `wait 50`) laisse passer 50 unités de temps (pour un circuit qui a une
+//!   horloge).
 //! - `#` commence un commentaire.
 
 use crate::brique::Projet;
@@ -58,8 +59,12 @@ fn lire_case(mot: &str) -> Result<Case, String> {
     } else {
         m.parse::<u64>()
     };
-    lu.map(Some)
-        .map_err(|_| tr!("« {mot} » n'est pas une valeur (0, 1, 12, 0b101, 0x1F ou -)", mot = mot))
+    lu.map(Some).map_err(|_| {
+        tr!(
+            "« {mot} » n'est pas une valeur (0, 1, 12, 0b101, 0x1F ou -)",
+            mot = mot
+        )
+    })
 }
 
 /// Les mots d'une ligne, séparés par des espaces ou des virgules.
@@ -86,9 +91,9 @@ struct Borne {
 /// Trouve l'élément de ce nom parmi ceux du genre voulu.
 fn borne(plan: &Document, nom: &str, genre: Genre, numero: usize) -> Result<Borne, String> {
     let quoi = if genre == Genre::Entree {
-        "interrupteur"
+        tr!("interrupteur")
     } else {
-        "lampe"
+        tr!("lampe")
     };
     let trouves: Vec<_> = plan
         .elements
@@ -140,7 +145,10 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
                 .map(|n| borne(plan, n, Genre::Sortie, numero))
                 .collect::<Result<Vec<_>, _>>()?;
             if sorties.is_empty() {
-                return Err(tr!("ligne {numero} : nomme au moins une lampe après « -> »", numero = numero));
+                return Err(tr!(
+                    "ligne {numero} : nomme au moins une lampe après « -> »",
+                    numero = numero
+                ));
             }
             entete = Some((entrees, sorties));
             continue;
@@ -161,26 +169,43 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
             continue;
         };
         let premiers = mots(ligne);
-        if let Some(&"attendre") = premiers.first() {
+        if let Some(&("attendre" | "wait")) = premiers.first() {
             let duree: u64 = premiers
                 .get(1)
                 .and_then(|d| d.parse().ok())
                 .filter(|_| premiers.len() == 2)
-                .ok_or_else(|| tr!("ligne {numero} : écris « attendre » suivi d'un nombre", numero = numero))?;
+                .ok_or_else(|| {
+                    tr!(
+                        "ligne {numero} : écris « attendre » suivi d'un nombre",
+                        numero = numero
+                    )
+                })?;
             b.avancer(duree);
             continue;
         }
         let (g, d) = deux_cotes(ligne).ok_or_else(|| {
-            tr!("ligne {numero} : il manque « -> » entre les interrupteurs et les lampes", numero = numero)
+            tr!(
+                "ligne {numero} : il manque « -> » entre les interrupteurs et les lampes",
+                numero = numero
+            )
         })?;
         let (valeurs_e, valeurs_s) = (mots(g), mots(d));
         if valeurs_e.len() != entrees.len() || valeurs_s.len() != sorties.len() {
-            return Err(tr!("ligne {numero} : {len} valeur{v} avant « -> » et {len2} après, comme dans l'en-tête", numero = numero, len = entrees.len(), v = if entrees.len() > 1 { "s" } else { "" }, len2 = sorties.len()));
+            return Err(tr!("ligne {numero} : {len} valeur{v} avant « -> » et {len2} après, comme dans l'en-tête", numero = numero, len = entrees.len(), v = crate::langue::s((entrees.len()) as u64), len2 = sorties.len()));
         }
         for (borne, mot) in entrees.iter().zip(&valeurs_e) {
-            if let Some(v) = lire_case(mot).map_err(|e| format!("ligne {numero} : {e}"))? {
+            if let Some(v) =
+                lire_case(mot).map_err(|e| tr!("ligne {numero} : {e}", numero = numero, e = e))?
+            {
                 if !tient(v, borne.largeur) {
-                    return Err(tr!("ligne {numero} : {v} ne tient pas sur les {largeur} bit{v2} de « {nom} »", numero = numero, v = v, largeur = borne.largeur, v2 = if borne.largeur > 1 { "s" } else { "" }, nom = borne.nom));
+                    return Err(tr!(
+                        "ligne {numero} : {v} ne tient pas sur les {largeur} bit{v2} de « {nom} »",
+                        numero = numero,
+                        v = v,
+                        largeur = borne.largeur,
+                        v2 = crate::langue::s((borne.largeur) as u64),
+                        nom = borne.nom
+                    ));
                 }
                 b.ecrire(&format!("e{}", borne.id), v)
                     .map_err(|e| e.to_string())?;
@@ -189,7 +214,8 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
         b.stabiliser(BUDGET);
         let mut ecarts = Vec::new();
         for (borne, mot) in sorties.iter().zip(&valeurs_s) {
-            let Some(attendue) = lire_case(mot).map_err(|e| format!("ligne {numero} : {e}"))?
+            let Some(attendue) =
+                lire_case(mot).map_err(|e| tr!("ligne {numero} : {e}", numero = numero, e = e))?
             else {
                 continue;
             };
@@ -204,7 +230,12 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
                         .unwrap_or_else(|_| "?".to_owned())
                         .to_uppercase(),
                 };
-                ecarts.push(tr!("{nom} : attendu {attendue}, obtenu {obtenue}", attendue = attendue, obtenue = obtenue, nom = borne.nom));
+                ecarts.push(tr!(
+                    "{nom} : attendu {attendue}, obtenu {obtenue}",
+                    attendue = attendue,
+                    obtenue = obtenue,
+                    nom = borne.nom
+                ));
             }
         }
         jouees.push(LigneJouee {

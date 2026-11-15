@@ -25,10 +25,10 @@ use crate::disposition::{disposer_accueil, DispositionAccueil};
 use crate::document::{Document, Genre};
 use crate::etat::{libelle_pas_par_seconde, Atelier, Proposition};
 use crate::exemples::EXEMPLES;
+use crate::langue::Langue;
 use crate::panneaux::{Cadre, Ouverture, Panneaux};
 use crate::quete::{Epreuve, Fiche, PARCOURS};
 use crate::raccourci::Lieu;
-use crate::langue::Langue;
 use crate::reglages::{Lancement, Reglages, TAILLES_TEXTE};
 use crate::sauvegarde::FicheProjet;
 use crate::savoir::{self, Branche};
@@ -196,7 +196,7 @@ pub fn il_y_a(maintenant: SystemTime, quand: SystemTime) -> String {
 
 /// « 1 brique », « 3 briques ».
 fn pluriel(n: usize, mot: &str) -> String {
-    if n > 1 {
+    if !crate::langue::s(n as u64).is_empty() {
         format!("{n} {mot}s")
     } else {
         format!("{n} {mot}")
@@ -996,7 +996,10 @@ impl Accueil {
         bas -= 40.0;
         if cx.courant.is_some() {
             let rect = Rect::from_min_max(Pos2::new(x, bas - 34.0), Pos2::new(x + l, bas));
-            let bulle = tr!("Revenir à « {nom} » (Entrée sur l'accueil)", nom = at.projet.nom);
+            let bulle = tr!(
+                "Revenir à « {nom} » (Entrée sur l'accueil)",
+                nom = at.projet.nom
+            );
             if d.compact {
                 if k.bouton_icone(
                     rect,
@@ -1086,7 +1089,12 @@ impl Accueil {
                 .as_deref()
                 .and_then(|cle| PARCOURS.iter().position(|f| f.cle == cle));
             let ligne = match quete {
-                Some(i) => tr!("Quête {v} · {v2} — {v3}", v = i + 1, v2 = crate::langue::traduire(PARCOURS[i].titre), v3 = crate::langue::traduire(PARCOURS[i].chapitre)),
+                Some(i) => tr!(
+                    "Quête {v} · {v2} — {v3}",
+                    v = i + 1,
+                    v2 = crate::langue::traduire(PARCOURS[i].titre),
+                    v3 = crate::langue::traduire(PARCOURS[i].chapitre)
+                ),
                 None => tr!("Projet libre").to_owned(),
             };
             k.t.texte(
@@ -1099,7 +1107,7 @@ impl Accueil {
             );
             let mut details = vec![
                 pluriel(at.projet.principal.elements.len(), tr!("élément")),
-                pluriel(at.projet.modeles.len(), "brique"),
+                pluriel(at.projet.modeles.len(), tr!("brique")),
             ];
             if let Some(quand) = fiche.and_then(|f| f.modifie) {
                 details.push(tr!("modifié {v}", v = il_y_a(cx.maintenant, quand)));
@@ -1133,12 +1141,16 @@ impl Accueil {
             let fin = k.t.texte(
                 Pos2::new(b.right() + 14.0, b.center().y),
                 Align2::LEFT_CENTER,
-                "ou",
+                tr!("ou"),
                 Police::Corps,
                 k.a.typo.petit,
                 c.discret.c(),
             );
-            Self::touche_clavier(&k.t, Pos2::new(fin.right() + 6.0, b.center().y), tr!("Entrée"));
+            Self::touche_clavier(
+                &k.t,
+                Pos2::new(fin.right() + 6.0, b.center().y),
+                tr!("Entrée"),
+            );
             if d.large {
                 Self::miniature(&k.t, apercu, &at.projet.principal, at.horloge, anime);
             }
@@ -1170,7 +1182,8 @@ impl Accueil {
                     k.a.typo.fort,
                     c.doux.c(),
                 );
-                let lb = Self::largeur_bouton(k, tr!("Commencer la quête"), Some(Icone::Lecture)) + 24.0;
+                let lb =
+                    Self::largeur_bouton(k, tr!("Commencer la quête"), Some(Icone::Lecture)) + 24.0;
                 let b = Rect::from_min_size(
                     Pos2::new(tx, carte.bottom() - 28.0 - 38.0),
                     Vec2::new(lb, 38.0),
@@ -1401,7 +1414,12 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(px, py + 8.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(nom, Police::Corps, k.a.typo.petit, lc - lcompte - 8.0),
+                &k.t.abreger(
+                    crate::langue::traduire(nom),
+                    Police::Corps,
+                    k.a.typo.petit,
+                    lc - lcompte - 8.0,
+                ),
                 Police::Corps,
                 k.a.typo.petit,
                 if f == n {
@@ -1470,10 +1488,12 @@ impl Accueil {
                             StrokeKind::Inside,
                         );
                     }
-                    let quete = f
-                        .quete
-                        .as_deref()
-                        .and_then(|q| PARCOURS.iter().find(|p| p.cle == q).map(|p| crate::langue::traduire(p.titre)));
+                    let quete = f.quete.as_deref().and_then(|q| {
+                        PARCOURS
+                            .iter()
+                            .find(|p| p.cle == q)
+                            .map(|p| crate::langue::traduire(p.titre))
+                    });
                     k.t.icone(
                         if quete.is_some() {
                             Icone::Quete
@@ -1674,7 +1694,12 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.left() + 16.0, r.top() + 32.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(crate::langue::traduire(nom), Police::CorpsDemi, k.a.typo.corps, lg - 32.0),
+                &k.t.abreger(
+                    crate::langue::traduire(nom),
+                    Police::CorpsDemi,
+                    k.a.typo.corps,
+                    lg - 32.0,
+                ),
                 Police::CorpsDemi,
                 k.a.typo.corps,
                 c.texte.c(),
@@ -1808,7 +1833,12 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.left() + 58.0, r.center().y - 9.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(crate::langue::traduire(f.titre), Police::CorpsDemi, k.a.typo.fort, lt),
+                &k.t.abreger(
+                    crate::langue::traduire(f.titre),
+                    Police::CorpsDemi,
+                    k.a.typo.fort,
+                    lt,
+                ),
                 Police::CorpsDemi,
                 k.a.typo.fort,
                 c.texte.c(),
@@ -1919,7 +1949,7 @@ impl Accueil {
         k.t.legende(
             Pos2::new(ix + 22.0, carte.top() + 16.0 + 8.0),
             Align2::LEFT_CENTER,
-            "CE QUE TU APPRENDS ICI",
+            tr!("CE QUE TU APPRENDS ICI"),
             c.accent_clair.c(),
         );
         k.t.paragraphe(
@@ -2045,7 +2075,7 @@ impl Accueil {
             k.t.legende(
                 Pos2::new(ix + 22.0, y + 8.0),
                 Align2::LEFT_CENTER,
-                "COMPRENDRE",
+                tr!("COMPRENDRE"),
                 c.accent_clair.c(),
             );
             y += 26.0;
@@ -2196,7 +2226,10 @@ impl Accueil {
         let sous = match (n, cx.dossier) {
             (_, None) => tr!("Les projets ne sont pas enregistrés ici.").to_owned(),
             (0, _) => tr!("Aucun projet enregistré pour l'instant.").to_owned(),
-            (n, _) => tr!("{v} · enregistrés automatiquement, une seconde après chaque modification.", v = pluriel(n, "projet")),
+            (n, _) => tr!(
+                "{v} · enregistrés automatiquement, une seconde après chaque modification.",
+                v = pluriel(n, tr!("projet"))
+            ),
         };
         // Les boutons d'en-tête, à droite du titre.
         let nouveau = tr!("Nouveau projet");
@@ -2231,7 +2264,14 @@ impl Accueil {
                 demandes.push(Demande::OuvrirDossier);
             }
         }
-        let mut y = Self::titre(k, x, y, (xb - x - 16.0).max(200.0), tr!("Mes projets"), &sous);
+        let mut y = Self::titre(
+            k,
+            x,
+            y,
+            (xb - x - 16.0).max(200.0),
+            tr!("Mes projets"),
+            &sous,
+        );
 
         if n == 0 {
             let r = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 120.0));
@@ -2424,7 +2464,7 @@ impl Accueil {
                     pluriel(f.elements, tr!("élément"))
                 });
                 if f.briques > 0 {
-                    morceaux.push(pluriel(f.briques, "brique"));
+                    morceaux.push(pluriel(f.briques, tr!("brique")));
                 }
                 morceaux.join(" · ")
             };
@@ -2475,7 +2515,12 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.left() + 73.0, r.center().y + 11.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(crate::langue::traduire(e.resume), Police::Corps, k.a.typo.petit, l - 200.0),
+                &k.t.abreger(
+                    crate::langue::traduire(e.resume),
+                    Police::Corps,
+                    k.a.typo.petit,
+                    l - 200.0,
+                ),
                 Police::Corps,
                 k.a.typo.petit,
                 c.doux.c(),
@@ -2704,7 +2749,10 @@ impl Accueil {
             tr!("Language : la langue de toute l'application."),
             "reglage-langue",
             &options,
-            Langue::TOUTES.iter().position(|l| *l == langue).unwrap_or(0),
+            Langue::TOUTES
+                .iter()
+                .position(|l| *l == langue)
+                .unwrap_or(0),
         ) {
             nouveau.langue = Some(Langue::TOUTES[i]);
         }
@@ -2727,7 +2775,7 @@ impl Accueil {
         y1 += LIGNE;
         let options: Vec<String> = TAILLES_TEXTE
             .iter()
-            .map(|(_, n)| crate::langue::traduire(*n).to_owned())
+            .map(|(_, n)| crate::langue::traduire(n).to_owned())
             .collect();
         if let Some(i) = ligne(
             k,
@@ -2869,7 +2917,7 @@ impl Accueil {
                 let h_texte =
                     k.t.p
                         .layout(
-                            crate::raccourci::MESSAGE_ARCHIVE.to_owned(),
+                            crate::langue::traduire(crate::raccourci::MESSAGE_ARCHIVE).to_owned(),
                             Police::Corps.taille(13.0 * k.a.formes.echelle_texte),
                             c.doux.c(),
                             il,
@@ -2888,7 +2936,7 @@ impl Accueil {
                 y1 += k.t.paragraphe(
                     Pos2::new(ix, y1),
                     il,
-                    crate::raccourci::MESSAGE_ARCHIVE,
+                    crate::langue::traduire(crate::raccourci::MESSAGE_ARCHIVE),
                     Police::Corps,
                     13.0,
                     c.doux.c(),
@@ -2963,7 +3011,14 @@ impl Accueil {
                 )
                 .size()
                 .y;
-        section(k, x2, y2, l1, 56.0 + 44.0 + h_chemin + 70.0, tr!("Mes données"));
+        section(
+            k,
+            x2,
+            y2,
+            l1,
+            56.0 + 44.0 + h_chemin + 70.0,
+            tr!("Mes données"),
+        );
         y2 += 56.0;
         y2 += k.t.paragraphe(
             Pos2::new(ix, y2),
@@ -3033,7 +3088,10 @@ impl Accueil {
             (tr!("Ctrl + D"), tr!("Dupliquer la sélection")),
             (tr!("Suppr"), tr!("Supprimer la sélection")),
             ("F", tr!("Recadrer le plan")),
-            (tr!("Échap"), tr!("Lâcher la sélection, sortir d'une brique")),
+            (
+                tr!("Échap"),
+                tr!("Lâcher la sélection, sortir d'une brique"),
+            ),
             (tr!("Molette"), tr!("Zoomer autour du pointeur")),
         ];
         section(
