@@ -194,6 +194,11 @@ pub struct Fenetres {
     /// Vrai quand « Exporter en Verilog » vient d'être demandé : l'application écrit le
     /// fichier, car elle seule connaît le dossier des données.
     pub exporter: bool,
+    /// La documentation (F2).
+    pub documentation: Option<crate::fenetre_doc::Documentation>,
+    /// Une quête ou un exemple à ouvrir, demandé depuis la documentation : l'application
+    /// l'ouvre, car elle seule sait enregistrer le projet d'avant.
+    pub ouvrir: Option<crate::panneaux::Ouverture>,
 }
 
 /// Le texte de chaque rubrique : des paragraphes, `# ` pour un intertitre, `- ` pour une puce.
@@ -245,6 +250,7 @@ Le parcours mène pas à pas de la porte NON jusqu'à l'ordinateur. Chaque quêt
 
 pub(crate) const RACCOURCIS: &str = "# Partout
 - F1 : ouvrir ou fermer cette aide.
+- F2 : ouvrir ou fermer la documentation, sur la page de l'élément sélectionné s'il y en a un.
 
 # Dans l'atelier
 - Espace : lecture ou pause de la simulation.
@@ -489,6 +495,27 @@ fn ecrire(ui: &mut egui::Ui, texte: &str, a: &Apparence) {
 }
 
 impl Fenetres {
+    /// Ouvre la documentation sur `page` (la page déjà montrée, ou l'accueil de la
+    /// documentation, si `page` est vide) ; la ferme si elle est déjà ouverte et qu'aucune page
+    /// n'est demandée.
+    pub fn basculer_documentation(&mut self, page: Option<crate::documentation::Page>) {
+        match (&mut self.documentation, page) {
+            (Some(d), Some(p)) => {
+                if d.page == p {
+                    self.documentation = None;
+                } else {
+                    d.aller(p);
+                }
+            }
+            (Some(_), None) => self.documentation = None,
+            (None, p) => {
+                self.documentation = Some(crate::fenetre_doc::Documentation::sur(
+                    p.unwrap_or(crate::documentation::Page::Sommaire),
+                ));
+            }
+        }
+    }
+
     /// Ouvre ou ferme l'aide.
     pub fn basculer_aide(&mut self) {
         self.aide = match self.aide {
@@ -535,6 +562,7 @@ impl Fenetres {
     /// Vrai si une fenêtre est ouverte.
     pub fn ouvertes(&self) -> bool {
         self.aide.is_some()
+            || self.documentation.is_some()
             || self.editeur.is_some()
             || self.analyse.is_some()
             || self.banc.is_some()
@@ -562,6 +590,16 @@ impl Fenetres {
             .stroke(egui::Stroke::NONE)
             .min_size(egui::vec2(0.0, a.formes.controle + 4.0))
         };
+        if let Some(d) = &mut self.documentation {
+            let (ouverte, ouvrir) = d.montrer(ctx, at, a, cadre);
+            if !ouverte {
+                self.documentation = None;
+            }
+            if ouvrir.is_some() {
+                self.ouvrir = ouvrir;
+            }
+        }
+        let mut vers_la_documentation = false;
         if let Some(rubrique) = &mut self.aide {
             let mut ouverte = true;
             egui::Window::new(tr!("Aide"))
@@ -598,6 +636,16 @@ impl Fenetres {
                                 *rubrique = r;
                                 self.recherche.clear();
                             }
+                        }
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            RichText::new(tr!("Chaque pièce et chaque brique a sa page dans la documentation."))
+                                .color(c.doux.c()),
+                        );
+                        if ui.button(tr!("Ouvrir la documentation (F2)")).clicked() {
+                            vers_la_documentation = true;
                         }
                     });
                     ui.add_space(4.0);
@@ -639,6 +687,9 @@ impl Fenetres {
             if !ouverte {
                 self.aide = None;
             }
+        }
+        if vers_la_documentation && self.documentation.is_none() {
+            self.basculer_documentation(None);
         }
 
         if !atelier {
@@ -1254,8 +1305,8 @@ mod tests {
         // Ceux qui sont branchés dans app.rs.
         let t = texte_de(Rubrique::Raccourcis);
         for r in [
-            "F1", "Ctrl+P", "Ctrl+G", "Ctrl+Z", "Espace", "Échap", "Ctrl+C", "Ctrl+V", "Ctrl+E",
-            "Ctrl+T", "R :", "Ctrl+K",
+            "F1", "F2", "Ctrl+P", "Ctrl+G", "Ctrl+Z", "Espace", "Échap", "Ctrl+C", "Ctrl+V",
+            "Ctrl+E", "Ctrl+T", "R :", "Ctrl+K",
         ] {
             assert!(t.contains(r), "{r}");
         }

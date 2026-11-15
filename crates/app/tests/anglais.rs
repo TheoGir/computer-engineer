@@ -284,6 +284,18 @@ fn rien_ne_reste_en_francais() {
     b.state_mut().fenetres.aide = None;
     b.run_steps(5);
 
+    // La documentation, page par page.
+    for p in std::iter::once(ce_app::documentation::Page::Sommaire)
+        .chain(ce_app::documentation::toutes_les_pages())
+    {
+        let nom = format!("documentation {p:?}");
+        b.state_mut().fenetres.documentation = Some(ce_app::fenetre_doc::Documentation::sur(p));
+        b.run_steps(3);
+        relever(&b, &nom, &mut trouve);
+    }
+    b.state_mut().fenetres.documentation = None;
+    b.run_steps(5);
+
     // Un projet vide, et le retour à l'accueil.
     b.state_mut().ouvrir(Ouverture::Nouveau);
     b.run_steps(40);

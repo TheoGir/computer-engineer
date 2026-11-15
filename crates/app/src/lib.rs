@@ -36,6 +36,8 @@
 //! - [`plan`] : le circuit dessiné, animé et manipulable ;
 //! - [`panneaux`] : barre du haut, briques, quête, infos, chronogramme ;
 //! - [`fenetres`] : l'aide (F1) et l'éditeur de programme (Ctrl+P) ;
+//! - [`documentation`] et [`fenetre_doc`] : la documentation des pièces, des notions et de
+//!   chaque brique (F2) ;
 //! - [`licences`] : les licences des bibliothèques et polices ;
 //! - [`accueil`] : l'écran d'accueil, les projets, le parcours et les paramètres ;
 //! - [`app`] : la boucle d'une image.
@@ -54,11 +56,13 @@ pub mod depannage;
 pub mod dessin;
 pub mod disposition;
 pub mod document;
+pub mod documentation;
 pub mod economie;
 pub mod essai;
 pub mod etat;
 pub mod exemples;
 pub mod export;
+pub mod fenetre_doc;
 pub mod fenetres;
 pub mod format;
 pub mod importer;

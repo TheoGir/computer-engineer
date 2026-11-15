@@ -3194,6 +3194,7 @@ impl Panneaux {
                         ));
                         f.push(texte(tr!("Utilisée dans"), at.usages_du_modele(&e.modele)));
                         f.push(texte(tr!("Pour l'ouvrir"), "double-clic".to_owned()));
+                        f.push(texte(tr!("Sa documentation"), tr!("F2").to_owned()));
                         for (i, b) in e.broches_e.iter().enumerate().take(16) {
                             f.push(lue(tr!("Entrée {nom}", nom = b.nom), i));
                         }
