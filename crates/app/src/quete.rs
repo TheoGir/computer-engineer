@@ -1764,7 +1764,7 @@ impl Quete {
         self.entrees
             .iter()
             .zip(valeurs)
-            .map(|(b, v)| format!("{} = {v}", b.nom))
+            .map(|(b, v)| format!("{} = {v}", crate::langue::nom_affiche(&b.nom)))
             .collect::<Vec<_>>()
             .join(", ")
     }

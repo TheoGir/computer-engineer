@@ -133,6 +133,276 @@ pub fn s<N: TryInto<u64>>(n: N) -> &'static str {
     }
 }
 
+/// Les noms des briques livrées et de leurs broches, en anglais. Ce sont des noms de circuit :
+/// enregistrés en français dans les projets et vérifiés par les corrigés, ils ne sont traduits
+/// qu'à l'affichage ([`nom_affiche`]), pour qu'un projet s'ouvre à l'identique dans les deux
+/// langues. Les lettres seules (`a`, `s`, `q`…) et les noms déjà anglais (`clk`, `irq`) ne
+/// changent pas.
+pub const NOMS_ANGLAIS: &[(&str, &str)] = &[
+    // Briques.
+    ("ADD8_RAPIDE", "ADD8_FAST"),
+    ("ADD_COMPLET", "FULL_ADD"),
+    ("ADD_COMPLET_REPARE", "FULL_ADD_FIXED"),
+    ("ARBITRE", "ARBITER"),
+    ("AUTOMATE_30", "AUTOMATON_30"),
+    ("BALAYAGE", "SCAN"),
+    ("BANC_REGISTRES", "REG_FILE"),
+    ("BASCULE_D", "D_FLIPFLOP"),
+    ("BASCULE_JK", "JK_FLIPFLOP"),
+    ("BASCULE_T", "T_FLIPFLOP"),
+    ("BINAIRE_DCB", "BIN_TO_BCD"),
+    ("Brique", "Brick"),
+    ("CADENCE", "PACER"),
+    ("CARRE", "SQUARE"),
+    ("CARTE_RESEAU", "NETWORK_CARD"),
+    ("CELLULE", "CELL"),
+    ("CELLULE_VIE", "LIFE_CELL"),
+    ("CESAR", "CAESAR"),
+    ("CHRONOMETRE", "STOPWATCH"),
+    ("COMPARATEUR4", "COMPARATOR4"),
+    ("COMPTEUR4", "COUNTER4"),
+    ("COMPTEUR_24", "COUNTER_24"),
+    ("COMPTEUR_60", "COUNTER_60"),
+    ("COMPTEUR_BCD", "BCD_COUNTER"),
+    ("COMPTEUR_CASCADE", "CASCADE_COUNTER"),
+    ("COMPTEUR_HB4", "UPDOWN_COUNTER4"),
+    ("COMPTEUR_PROGRAMME", "PROGRAM_COUNTER"),
+    ("CONTROLEUR_ECRAN", "SCREEN_CONTROLLER"),
+    ("CONTROLE_PARITE", "PARITY_CHECK"),
+    ("DE", "DIE"),
+    ("DECALAGE8", "SHIFT_REG8"),
+    ("DECALEUR8", "SHIFTER8"),
+    ("DECODEUR", "DECODER"),
+    ("DECODEUR2", "DECODER2"),
+    ("DECODEUR3", "DECODER3"),
+    ("DECODEUR4", "DECODER4"),
+    ("DEMI_ADD", "HALF_ADD"),
+    ("DEMI_ADD_REPARE", "HALF_ADD_FIXED"),
+    ("DETECTEUR_FRONT", "EDGE_DETECTOR"),
+    ("DIVISEUR4", "DIVIDER4"),
+    ("EGAL4", "EQUAL4"),
+    ("EMETTEUR_SERIE", "SERIAL_TX"),
+    ("ENCODEUR4", "ENCODER4"),
+    ("EQUIV", "XNOR"),
+    ("ET", "AND"),
+    ("FEU", "TRAFFIC_LIGHT"),
+    ("FILE", "QUEUE"),
+    ("HAMMING_CORRECTEUR", "HAMMING_FIX"),
+    ("INTERRUPTIONS", "INTERRUPTS"),
+    ("LIAISON_SERIE", "SERIAL_LINK"),
+    ("MAJORITE", "MAJORITY"),
+    ("MASQUE_XOR", "XOR_MASK"),
+    ("MEILLEUR_SCORE", "HIGH_SCORE"),
+    ("MEMOIRE_MORTE", "ROM"),
+    ("MEMOIRE_VIDEO", "VIDEO_RAM"),
+    ("MINUTERIE", "TIMER"),
+    ("MONTRE", "WATCH"),
+    ("MORPION", "TIC_TAC_TOE"),
+    ("MOTIF_101", "PATTERN_101"),
+    ("MUX_REPARE", "MUX_FIXED"),
+    ("NEGATIF8", "NEGATE8"),
+    ("NON", "NOT"),
+    ("NON_OU", "NOR"),
+    ("NUL8", "ZERO8"),
+    ("ORDINATEUR", "COMPUTER"),
+    ("OSCILLATEUR", "OSCILLATOR"),
+    ("OU", "OR"),
+    ("OU_X", "XOR"),
+    ("OU_X_REPARE", "XOR_FIXED"),
+    ("PARITE8", "PARITY8"),
+    ("PGCD", "GCD"),
+    ("PILE", "STACK"),
+    ("POLICE", "FONT"),
+    ("PREMIER", "PRIME"),
+    ("PROCESSEUR", "PROCESSOR"),
+    ("RECEPTEUR_SERIE", "SERIAL_RX"),
+    ("REGISTRE8", "REGISTER8"),
+    ("REGISTRE8_RAZ", "REGISTER8_RST"),
+    ("REVEIL", "ALARM_CLOCK"),
+    ("SELECTEUR_BUS", "BUS_SELECTOR"),
+    ("SEPT_SEGMENTS", "SEVEN_SEGMENT"),
+    ("SERIALISEUR", "SERIALIZER"),
+    ("SOMME_CONTROLE", "CHECKSUM"),
+    ("SOUSTRACTEUR4", "SUBTRACTOR4"),
+    ("TOUS_10", "ALL_10"),
+    ("TOUS_11", "ALL_11"),
+    ("TOUS_12", "ALL_12"),
+    ("TOUS_13", "ALL_13"),
+    ("TOUS_14", "ALL_14"),
+    ("TOUS_15", "ALL_15"),
+    ("TOUS_18", "ALL_18"),
+    ("TOUS_2", "ALL_2"),
+    ("TOUS_21", "ALL_21"),
+    ("TOUS_25", "ALL_25"),
+    ("TOUS_3", "ALL_3"),
+    ("TOUS_4", "ALL_4"),
+    ("TOUS_5", "ALL_5"),
+    ("TOUS_6", "ALL_6"),
+    ("TOUS_7", "ALL_7"),
+    ("TOUS_8", "ALL_8"),
+    ("TOUS_9", "ALL_9"),
+    ("UAL", "ALU"),
+    ("VERROU_D", "D_LATCH"),
+    ("VERROU_SR", "SR_LATCH"),
+    // Broches et éléments.
+    ("adresse", "addr"),
+    ("ajouter", "add"),
+    ("arret", "stopped"),
+    ("arreter", "stop"),
+    ("charge", "load"),
+    ("charge_c", "load_c"),
+    ("charger", "do_load"),
+    ("cible", "target"),
+    ("clavier", "keyboard"),
+    ("depiler", "pop"),
+    ("dispo", "avail"),
+    ("droite", "right"),
+    ("ecran", "screen"),
+    ("ecran_ecrit", "screen_wr"),
+    ("ecrire", "write"),
+    ("ecrit", "wr"),
+    ("ecrit_a", "wrote_a"),
+    ("ecrit_ram", "ram_wr"),
+    ("egal", "eq"),
+    ("egalite", "equal"),
+    ("empiler", "push"),
+    ("emprunt", "borrow"),
+    ("entree", "input"),
+    ("envoyer", "send"),
+    ("erreur", "error"),
+    ("fin", "end"),
+    ("fin_image", "frame_end"),
+    ("fin_ligne", "line_end"),
+    ("fini", "done"),
+    ("front", "edge"),
+    ("gagne", "wins"),
+    ("gagne_a", "a_wins"),
+    ("gagne_b", "b_wins"),
+    ("gel", "freeze"),
+    ("haut", "up"),
+    ("inf", "less"),
+    ("lancer", "roll"),
+    ("ligne", "line"),
+    ("ligne_e", "line_e"),
+    ("lire", "read"),
+    ("lu", "rdata"),
+    ("marche", "run"),
+    ("motif", "pattern"),
+    ("nouveau", "new"),
+    ("nraz", "nreset"),
+    ("occupe", "busy"),
+    ("orange", "amber"),
+    ("plein", "full"),
+    ("pret", "ready"),
+    ("raz", "reset"),
+    ("recu", "received"),
+    ("regler", "set"),
+    ("retenue", "carry"),
+    ("rouge", "red"),
+    ("rs", "co"),
+    ("saut", "jump"),
+    ("somme", "sum"),
+    ("sommet", "top"),
+    ("sonne", "ring"),
+    ("sortie", "out"),
+    ("sup", "greater"),
+    ("tic", "tick"),
+    ("touche", "key"),
+    ("valide", "valid"),
+    ("valider", "confirm"),
+    ("vert", "green"),
+    ("vide", "empty"),
+    ("vu", "seen"),
+];
+
+/// Le nom anglais d'un nom de circuit, s'il en a un.
+fn nom_anglais(nom: &str) -> Option<&'static str> {
+    NOMS_ANGLAIS
+        .binary_search_by(|(fr, _)| fr.cmp(&nom))
+        .ok()
+        .map(|i| NOMS_ANGLAIS[i].1)
+}
+
+/// Un nom de circuit (brique, broche, élément, signal) tel qu'on l'affiche : en anglais, les
+/// noms livrés sont traduits, morceau par morceau (`cpu.sortie`, `d[3]`, `ET 2`, `ecran1`) ;
+/// un nom inconnu, choisi par l'utilisateur, reste tel quel. Le nom enregistré ne change
+/// jamais : seul l'affichage suit la langue.
+pub fn nom_affiche(nom: &str) -> Cow<'_, str> {
+    if en_francais() || nom.is_empty() {
+        return Cow::Borrowed(nom);
+    }
+    let mut sortie = String::with_capacity(nom.len() + 8);
+    let mut change = false;
+    for (i, morceau) in nom.split('.').enumerate() {
+        if i > 0 {
+            sortie.push('.');
+        }
+        // Ce qui suit le nom : un indice de bus, ou un numéro.
+        let fin_nom = morceau.find(['[', ' ']).unwrap_or(morceau.len());
+        let (tete, queue) = morceau.split_at(fin_nom);
+        // `ecran1`, `clavier2` : le numéro qu'ajoute l'application reste derrière le nom.
+        let racine = tete.trim_end_matches(|c: char| c.is_ascii_digit());
+        let numero = &tete[racine.len()..];
+        match nom_anglais(tete) {
+            Some(t) => {
+                sortie.push_str(t);
+                change = true;
+            }
+            None => match nom_anglais(racine) {
+                Some(t) if !numero.is_empty() && racine.chars().all(|c| c.is_ascii_lowercase()) => {
+                    sortie.push_str(t);
+                    sortie.push_str(numero);
+                    change = true;
+                }
+                _ => sortie.push_str(tete),
+            },
+        }
+        sortie.push_str(queue);
+    }
+    if change {
+        Cow::Owned(sortie)
+    } else {
+        Cow::Borrowed(nom)
+    }
+}
+
+/// La légende d'une lampe telle qu'on l'affiche : traduite si c'est un texte livré
+/// (« compteur de programme »), ou un nom de circuit livré, sinon telle quelle.
+pub fn legende_affichee(legende: &str) -> Cow<'_, str> {
+    match traduire_texte(legende) {
+        Cow::Borrowed(t) if std::ptr::eq(t, legende) => nom_affiche(legende),
+        autre => autre,
+    }
+}
+
+/// Le nombre de caractères le plus grand d'un nom de circuit dans toutes les langues : la
+/// taille d'une brique sur le plan ne dépend pas de la langue.
+pub fn longueur_nom(nom: &str) -> usize {
+    let anglais = nom_anglais(nom).map_or(0, |a| a.chars().count());
+    nom.chars().count().max(anglais)
+}
+
+/// Le nom enregistré d'un nom de circuit tapé par l'utilisateur, en français ou en anglais,
+/// parmi les noms possibles : `reset` désigne la broche `raz`.
+pub fn nom_saisi<'a>(saisi: &str, possibles: impl IntoIterator<Item = &'a str>) -> Option<&'a str> {
+    let mut anglais = None;
+    for p in possibles {
+        if p == saisi {
+            return Some(p);
+        }
+        if anglais.is_none() && nom_anglais(p) == Some(saisi) {
+            anglais = Some(p);
+        }
+    }
+    anglais
+}
+
+/// Le nom anglais d'un nom de circuit, en toute langue (pour une recherche qui accepte les
+/// deux) : `None` s'il n'en a pas.
+pub fn nom_en_anglais(nom: &str) -> Option<&'static str> {
+    nom_anglais(nom)
+}
+
 /// Un nombre décimal écrit avec un point (`format!("{x:.1}")`), avec la virgule en français :
 /// « 1,7 » en français, « 1.7 » en anglais.
 pub fn decimal(nombre: String) -> String {
@@ -172,8 +442,22 @@ pub fn traduire_texte(francais: &str) -> Cow<'_, str> {
     match traduction(langue, francais) {
         Some(Cow::Borrowed(t)) => Cow::Borrowed(t),
         Some(Cow::Owned(t)) => Cow::Owned(t),
-        None => Cow::Borrowed(francais),
+        None => description_calculee(francais).map_or(Cow::Borrowed(francais), Cow::Owned),
     }
+}
+
+/// La traduction d'une description écrite par le code avec un nombre dedans, comme celle
+/// d'une mémoire morte refaite pour un nouveau programme.
+fn description_calculee(francais: &str) -> Option<String> {
+    let n: u64 = francais
+        .strip_prefix("Mémoire morte : ")?
+        .strip_suffix(" instructions de 12 bits, une porte NAND par instruction non nulle")?
+        .parse()
+        .ok()?;
+    Some(crate::tr!(
+        "Mémoire morte : {n} instructions de 12 bits, une porte NAND par instruction non nulle",
+        n = n
+    ))
 }
 
 /// La traduction intégrée de ce texte dans cette langue, s'il y en a une.
@@ -286,6 +570,8 @@ pub fn textes_des_donnees() -> Vec<String> {
     for e in &crate::exemples::EXEMPLES {
         if let Ok(projet) = crate::exemples::ordinateur(e.nom, e.programme) {
             tous.extend(projet.modeles.iter().map(|m| m.description.clone()));
+            // Les légendes des lampes de l'exemple, enregistrées en français.
+            tous.extend(projet.principal.elements.iter().map(|e| e.legende.clone()));
         }
     }
     tous.retain(|t| !t.trim().is_empty());
@@ -310,8 +596,10 @@ pub fn remplir(modele: &str, valeurs: &[(&str, &dyn Display)]) -> String {
         if let Some(fin) = suite.strip_prefix('{').and_then(|s| s.find('}')) {
             let nom = &suite[1..=fin];
             if let Some((_, v)) = valeurs.iter().find(|(n, _)| *n == nom) {
-                use std::fmt::Write as _;
-                let _ = write!(texte, "{v}");
+                // Une valeur qui est un nom de circuit livré (`raz`, `ET`) s'affiche dans la
+                // langue de l'interface.
+                let valeur = v.to_string();
+                texte.push_str(&nom_affiche(&valeur));
                 reste = &suite[fin + 2..];
                 continue;
             }
@@ -401,6 +689,60 @@ mod tests {
         choisir_pour_ce_fil(None);
         assert_eq!(traduire_programme("LDI ';' ; un"), "LDI ';' ; un");
         assert_eq!(commentaire("LDI ';' ; un"), Some(8));
+    }
+
+    #[test]
+    fn les_noms_de_circuit_s_affichent_en_anglais() {
+        let tries: Vec<_> = NOMS_ANGLAIS.iter().map(|(fr, _)| *fr).collect();
+        let mut attendu = tries.clone();
+        attendu.sort_unstable();
+        attendu.dedup();
+        assert_eq!(
+            tries, attendu,
+            "NOMS_ANGLAIS doit rester trié, sans doublon"
+        );
+        choisir_pour_ce_fil(Some(Langue::Anglais));
+        assert_eq!(nom_affiche("ET"), "AND");
+        assert_eq!(nom_affiche("raz"), "reset");
+        assert_eq!(nom_affiche("cpu.sortie"), "cpu.out");
+        assert_eq!(nom_affiche("d[3]"), "d[3]");
+        assert_eq!(nom_affiche("ecran[2]"), "screen[2]");
+        assert_eq!(nom_affiche("ecran1"), "screen1");
+        assert_eq!(nom_affiche("ET 2"), "AND 2");
+        assert_eq!(nom_affiche("TOUS_8"), "ALL_8");
+        assert_eq!(nom_affiche("Mon circuit"), "Mon circuit");
+        assert_eq!(nom_affiche("g12"), "g12");
+        assert_eq!(remplir("brique {b}", &[("b", &"OU_X")]), "brique XOR");
+        assert_eq!(nom_saisi("reset", ["a", "raz"]), Some("raz"));
+        assert_eq!(nom_saisi("raz", ["raz"]), Some("raz"));
+        assert_eq!(nom_saisi("zzz", ["raz"]), None);
+        choisir_pour_ce_fil(None);
+        assert_eq!(nom_affiche("ET"), "ET");
+        assert_eq!(longueur_nom("ET"), 3);
+    }
+
+    /// Dans chaque brique livrée, les noms anglais des broches restent tous différents, et
+    /// deux briques livrées n'ont pas le même nom anglais.
+    #[test]
+    fn les_noms_anglais_ne_se_confondent_pas() {
+        choisir_pour_ce_fil(Some(Langue::Anglais));
+        let bib = crate::quete::corriges();
+        let mut briques = std::collections::BTreeMap::new();
+        for (nom, c) in &bib.composants {
+            let anglais = nom_affiche(nom).into_owned();
+            if let Some(autre) = briques.insert(anglais.clone(), nom.clone()) {
+                panic!("{nom} et {autre} s'appellent tous deux {anglais}");
+            }
+            let mut broches = std::collections::BTreeSet::new();
+            for b in &c.broches {
+                assert!(
+                    broches.insert(nom_affiche(&b.nom).into_owned()),
+                    "{nom} : deux broches s'appellent {} en anglais",
+                    nom_affiche(&b.nom)
+                );
+            }
+        }
+        choisir_pour_ce_fil(None);
     }
 
     #[test]

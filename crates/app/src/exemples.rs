@@ -82,11 +82,11 @@ pub fn ordinateur(nom: &str, programme: &str) -> Result<Projet, String> {
     let clavier = plan.poser(Element::clavier("clavier"), Point::nouveau(160.0, 370.0));
     let ecran = plan.poser(Element::ecran("ecran"), Point::nouveau(940.0, 200.0));
     let arret = plan.poser(
-        Element::sortie("arret", tr!("arrêt"), 1),
+        Element::sortie("arret", "arrêt", 1),
         Point::nouveau(820.0, 380.0),
     );
     let compteur = plan.poser(
-        Element::sortie("pc", tr!("compteur de programme"), 8),
+        Element::sortie("pc", "compteur de programme", 8),
         Point::nouveau(820.0, 470.0),
     );
     let mut ok = brancher(&mut plan, Source::de(raz), pc, entree("raz"));

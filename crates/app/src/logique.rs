@@ -399,7 +399,10 @@ pub fn analyser(projet: &Projet, plan: &Document) -> Result<Analyse, String> {
         id.get(1..)
             .and_then(|n| n.parse::<crate::document::Id>().ok())
             .and_then(|n| plan.elements.iter().find(|e| e.id == n))
-            .map_or_else(|| id.to_owned(), |e| e.nom.clone())
+            .map_or_else(
+                || id.to_owned(),
+                |e| crate::langue::nom_affiche(&e.nom).into_owned(),
+            )
     };
     if plan
         .elements
@@ -522,10 +525,10 @@ fn expression_attendue(f: &'static Fiche) -> Option<String> {
             Sens::Entree => &quete.entrees,
             Sens::Sortie => &quete.sorties,
         };
-        liste
-            .iter()
-            .find(|a| a.corrige == broche)
-            .map_or_else(|| broche.to_owned(), |a| a.nom.clone())
+        liste.iter().find(|a| a.corrige == broche).map_or_else(
+            || crate::langue::nom_affiche(broche).into_owned(),
+            |a| crate::langue::nom_affiche(&a.nom).into_owned(),
+        )
     };
     let entrees: Vec<(String, u32)> = table
         .entrees

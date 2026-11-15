@@ -95,11 +95,10 @@ fn borne(plan: &Document, nom: &str, genre: Genre, numero: usize) -> Result<Born
     } else {
         tr!("lampe")
     };
-    let trouves: Vec<_> = plan
-        .elements
-        .iter()
-        .filter(|e| e.genre == genre && e.nom == nom)
-        .collect();
+    // Le nom s'écrit tel qu'enregistré, ou tel qu'affiché en anglais (`reset` pour `raz`).
+    let du_genre = || plan.elements.iter().filter(|e| e.genre == genre);
+    let nom = crate::langue::nom_saisi(nom, du_genre().map(|e| e.nom.as_str())).unwrap_or(nom);
+    let trouves: Vec<_> = du_genre().filter(|e| e.nom == nom).collect();
     match trouves.as_slice() {
         [e] => Ok(Borne {
             nom: nom.to_owned(),
@@ -257,7 +256,7 @@ pub fn modele_de_banc(plan: &Document) -> String {
         plan.elements
             .iter()
             .filter(|e| e.genre == genre && !e.nom.is_empty())
-            .map(|e| e.nom.clone())
+            .map(|e| crate::langue::nom_affiche(&e.nom).into_owned())
             .collect()
     };
     let (entrees, sorties) = (noms(Genre::Entree), noms(Genre::Sortie));

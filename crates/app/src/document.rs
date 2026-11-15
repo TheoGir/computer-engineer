@@ -389,9 +389,15 @@ impl Element {
             Genre::Entree | Genre::Horloge => 62.0,
             Genre::Sortie => 52.0,
             Genre::Brique => {
-                let long =
-                    |b: &[Broche]| b.iter().map(|b| b.nom.chars().count()).max().unwrap_or(0);
-                let titre = 36.0 + 8.6 * self.modele.chars().count() as f32;
+                // La plus longue écriture du nom, toutes langues confondues : la brique garde
+                // la même taille en français et en anglais.
+                let long = |b: &[Broche]| {
+                    b.iter()
+                        .map(|b| crate::langue::longueur_nom(&b.nom))
+                        .max()
+                        .unwrap_or(0)
+                };
+                let titre = 36.0 + 8.6 * crate::langue::longueur_nom(&self.modele) as f32;
                 let broches = 54.0 + 7.0 * (long(&self.broches_e) + long(&self.broches_s)) as f32;
                 (titre.max(broches).max(120.0) / 10.0).ceil().min(36.0) * 10.0
             }

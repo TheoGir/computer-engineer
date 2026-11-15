@@ -840,13 +840,22 @@ impl Panneaux {
                 at.renommer_projet(texte);
             }
             Champ::Modele(ancien) => {
-                at.renommer_modele(&ancien, texte);
+                // Le nom montré (traduit) qu'on n'a pas changé ne renomme rien.
+                if crate::langue::nom_affiche(&ancien) != texte {
+                    at.renommer_modele(&ancien, texte);
+                }
             }
             Champ::Description(modele) => at.decrire_modele(&modele, texte),
             // Le filtre est rangé par celui qui dessine le champ.
             Champ::Filtre => {}
             Champ::Nom(id) => {
-                at.renommer_element(id, texte, a);
+                let inchange = at
+                    .doc
+                    .element(id)
+                    .is_some_and(|e| crate::langue::nom_affiche(&e.nom) == texte);
+                if !inchange {
+                    at.renommer_element(id, texte, a);
+                }
             }
             Champ::Largeur(id) => match texte.parse() {
                 Ok(n) => {
@@ -942,7 +951,14 @@ impl Panneaux {
         let hauteur = 40.0;
         let noms: Vec<String> = std::iter::once(at.projet.nom.clone())
             .chain(at.etapes_du_chemin())
-            .map(|n| k.t.abreger(&n, Police::CorpsDemi, k.a.typo.corps, 190.0))
+            .map(|n| {
+                k.t.abreger(
+                    &crate::langue::nom_affiche(&n),
+                    Police::CorpsDemi,
+                    k.a.typo.corps,
+                    190.0,
+                )
+            })
             .collect();
         let largeurs: Vec<f32> = noms
             .iter()
@@ -1697,8 +1713,10 @@ impl Panneaux {
         let mut trouvees = 0;
         for (i, resume) in resumes.iter().enumerate() {
             let nom = at.projet.modeles[i].nom.clone();
+            let affiche = crate::langue::nom_affiche(&nom).into_owned();
             if !filtre.is_empty()
                 && !crate::fenetres::plier(&nom).contains(&filtre)
+                && !crate::fenetres::plier(&affiche).contains(&filtre)
                 && !crate::fenetres::plier(&at.projet.modeles[i].description).contains(&filtre)
             {
                 continue;
@@ -1767,7 +1785,7 @@ impl Panneaux {
             k.t.texte(
                 Pos2::new(rect.left() + 33.0, rect.center().y - 8.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(&nom, Police::MonoGras, ty.petit, place),
+                &k.t.abreger(&affiche, Police::MonoGras, ty.petit, place),
                 Police::MonoGras,
                 ty.petit,
                 c.texte.alpha(force),
@@ -2132,7 +2150,10 @@ impl Panneaux {
             at.volets.quete = false;
         }
         let mut y = self.defilement_de_la_quete(k, r);
-        let titre = dans_brique.clone().unwrap_or_else(|| at.projet.nom.clone());
+        let titre = dans_brique
+            .as_deref()
+            .map(|n| crate::langue::nom_affiche(n).into_owned())
+            .unwrap_or_else(|| at.projet.nom.clone());
         let champ = match &dans_brique {
             Some(nom) => Champ::Modele(nom.clone()),
             None => Champ::Projet,
@@ -2163,7 +2184,11 @@ impl Panneaux {
             texte.push_str(&tr!(
                 " en tout, sur {niveaux} niveau{v} de briques emboîtées.",
                 niveaux = niveaux,
-                v = if niveaux > 1 { "x" } else { "" }
+                v = match crate::langue::s(niveaux) {
+                    "" => "",
+                    _ if crate::langue::en_francais() => "x",
+                    _ => "s",
+                }
             ));
         } else {
             texte.push('.');
@@ -2173,14 +2198,14 @@ impl Panneaux {
                 let (e, s) = at.doc.interface();
                 let noms = |b: &[Broche]| {
                     if b.is_empty() {
-                        "aucune".to_owned()
+                        tr!("aucune").to_owned()
                     } else {
                         b.iter()
                             .map(|b| {
                                 if b.largeur > 1 {
-                                    format!("{}[{}]", b.nom, b.largeur)
+                                    format!("{}[{}]", crate::langue::nom_affiche(&b.nom), b.largeur)
                                 } else {
-                                    b.nom.clone()
+                                    crate::langue::nom_affiche(&b.nom).into_owned()
                                 }
                             })
                             .collect::<Vec<_>>()
@@ -2827,7 +2852,7 @@ impl Panneaux {
             k.t.texte(
                 Pos2::new(centre(i), y + 8.0),
                 Align2::CENTER_CENTER,
-                nom,
+                &crate::langue::nom_affiche(nom),
                 Police::MonoGras,
                 k.a.typo.petit,
                 if i < n_entrees {
@@ -3062,20 +3087,23 @@ impl Panneaux {
                         puits: id,
                         entree: i,
                     };
-                    let signal = at
-                        .doc
-                        .source_de(fil)
-                        .map_or("libre".to_owned(), |s| at.doc.nom_signal(s));
+                    let signal = at.doc.source_de(fil).map_or(tr!("libre").to_owned(), |s| {
+                        crate::langue::nom_affiche(&at.doc.nom_signal(s)).into_owned()
+                    });
                     Rang::Signal(nom, signal, at.lecture_lue(fil))
                 };
                 let sortie = |nom: String, j: usize| {
                     let s = Source::nouvelle(id, j);
-                    Rang::Signal(nom, at.doc.nom_signal(s), at.lecture(s))
+                    Rang::Signal(
+                        nom,
+                        crate::langue::nom_affiche(&at.doc.nom_signal(s)).into_owned(),
+                        at.lecture(s),
+                    )
                 };
                 f.push(Rang::Saisie(
                     tr!("Nom").to_owned(),
                     Champ::Nom(id),
-                    e.nom.clone(),
+                    crate::langue::nom_affiche(&e.nom).into_owned(),
                     tr!("Clique pour renommer"),
                 ));
                 match e.genre {
@@ -3146,7 +3174,7 @@ impl Panneaux {
                         f.push(Rang::Saisie(
                             tr!("Brique").to_owned(),
                             Champ::Modele(e.modele.clone()),
-                            e.modele.clone(),
+                            crate::langue::nom_affiche(&e.modele).into_owned(),
                             tr!("Renomme la brique, partout où elle est posée"),
                         ));
                         let description = at
@@ -3265,21 +3293,29 @@ impl Panneaux {
                 {
                     f.push(Rang::Signal(
                         tr!("Signal").to_owned(),
-                        at.doc.nom_signal(source),
+                        crate::langue::nom_affiche(&at.doc.nom_signal(source)).into_owned(),
                         at.lecture(source),
                     ));
                     if let Some(e) = at.doc.element(source.id) {
                         let depart = match e.broches_s.get(source.sortie) {
-                            Some(b) if e.broches_s.len() > 1 => format!("{} · {}", e.nom, b.nom),
-                            _ => e.nom.clone(),
+                            Some(b) if e.broches_s.len() > 1 => format!(
+                                "{} · {}",
+                                crate::langue::nom_affiche(&e.nom),
+                                crate::langue::nom_affiche(&b.nom)
+                            ),
+                            _ => crate::langue::nom_affiche(&e.nom).into_owned(),
                         };
                         f.push(texte(tr!("Part de"), depart));
                     }
                     let arrivee = match puits.broches_e.get(fil.entree) {
                         Some(b) if puits.broches_e.len() > 1 => {
-                            format!("{} · {}", puits.nom, b.nom)
+                            format!(
+                                "{} · {}",
+                                crate::langue::nom_affiche(&puits.nom),
+                                crate::langue::nom_affiche(&b.nom)
+                            )
                         }
-                        _ => puits.nom.clone(),
+                        _ => crate::langue::nom_affiche(&puits.nom).into_owned(),
                     };
                     f.push(texte(tr!("Arrive sur"), arrivee));
                     let largeur = at.doc.largeur_source(source).unwrap_or(1);
@@ -3537,7 +3573,12 @@ impl Panneaux {
         let prises = &circuit.sondes;
         for (source, nom) in prises.iter().take(SONDES) {
             let lecture = at.lecture(*source);
-            let nom = k.t.abreger(nom, Police::Mono, k.a.typo.corps, l - 90.0);
+            let nom = k.t.abreger(
+                &crate::langue::nom_affiche(nom),
+                Police::Mono,
+                k.a.typo.corps,
+                l - 90.0,
+            );
             if lecture.largeur <= 1 {
                 k.puce(
                     &mut curseur,
@@ -3593,8 +3634,12 @@ impl Panneaux {
         let r = d.temps;
         let circuit = self.connaitre(at);
         let toutes = circuit.signaux;
-        let sources: Vec<(Source, String)> =
-            circuit.sondes.iter().take(LIGNES_CHRONO).cloned().collect();
+        let sources: Vec<(Source, String)> = circuit
+            .sondes
+            .iter()
+            .take(LIGNES_CHRONO)
+            .map(|(s, n)| (*s, crate::langue::nom_affiche(n).into_owned()))
+            .collect();
         let ligne = k.a.formes.ligne_chrono;
         self.contenus.temps = 56.0 + 20.0 + sources.len().max(1) as f32 * ligne + 18.0;
         let Some(t) = Self::panneau(k, r, "temps", ouverture) else {
@@ -3907,7 +3952,12 @@ impl Panneaux {
                 k.t.texte(
                     Pos2::new(xj + 76.0, y),
                     Align2::LEFT_CENTER,
-                    &k.t.abreger(&l.nom, Police::MonoGras, k.a.typo.petit, 42.0),
+                    &k.t.abreger(
+                        &crate::langue::nom_affiche(&l.nom),
+                        Police::MonoGras,
+                        k.a.typo.petit,
+                        42.0,
+                    ),
                     Police::MonoGras,
                     k.a.typo.petit,
                     if l.entree {

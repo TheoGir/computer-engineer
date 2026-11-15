@@ -1769,7 +1769,11 @@ impl Atelier {
             Selection::Elements(ids) => match ids.as_slice() {
                 [id] => {
                     let e = self.doc.element(*id)?;
-                    Some(format!("{} · {}", e.nom, Self::nom_genre(e)))
+                    Some(format!(
+                        "{} · {}",
+                        crate::langue::nom_affiche(&e.nom),
+                        crate::langue::nom_affiche(Self::nom_genre(e))
+                    ))
                 }
                 plusieurs => Some(tr!("{len} éléments", len = plusieurs.len())),
             },
