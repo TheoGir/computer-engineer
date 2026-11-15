@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = ["crates/moteur", "crates/circuit", "crates/cli", "crates/app"]
+
+[workspace.package]
+version = "0.4.0"
+edition = "2021"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+opt-level = 3
+# LTO « thin » plutôt que « fat » (13/11/2026) : la version finale se compile environ 2,5 fois
+# plus vite (115 s contre 45 s sur 4 cœurs), sans perte mesurée de vitesse du moteur (`ce mesure`,
+# 6 passes alternées : médianes égales ou meilleures sur les 9 bancs). Exécutable +14 %, archive +8 %.
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+
+# Profil de la CI : optimisé pour que les tests exhaustifs restent rapides, sans LTO pour compiler vite.
+[profile.ci]
+inherits = "release"
+lto = false
+codegen-units = 16
+panic = "unwind"
+debug-assertions = true
+overflow-checks = true
+
+# Les tests exhaustifs (additionneur 8 bits, comparaisons aléatoires) sont lents sans optimisation.
+[profile.dev]
+opt-level = 1
+
+[profile.test]
+opt-level = 2
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

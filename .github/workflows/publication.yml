@@ -1,0 +1,416 @@
+name: Publication
+
+# Publie une version quand on pousse une étiquette vX.Y.Z (procédure : docs/publier.md).
+#
+# Rien n'est recompilé ni retesté ici : la publication reprend l'exécutable que la CI a construit
+# en version finale et testé sur ce même commit (tests Linux et Windows, essais dans un dossier
+# avec accent, mise à jour de bout en bout), après avoir attendu que cette CI soit entièrement
+# verte. Quatre jobs :
+# - ci : contrôle l'étiquette, la version et le CHANGELOG en quelques secondes, puis retrouve la
+#   CI de ce commit et attend qu'elle soit verte ;
+# - zipsign : en même temps, compile zipsign à neuf et transmet son empreinte SHA-256 ;
+# - essais : sans aucun secret, vérifie que l'exécutable porte ce commit, le profil release et la
+#   version du code, l'essaie encore, et transmet son empreinte SHA-256 ;
+# - windows : reprend ces deux fichiers (empreintes comparées), signe, publie et revérifie comme
+#   avant. C'est le seul job qui reçoit la clé de signature : l'exécutable n'y est jamais lancé,
+#   et zipsign, le programme à qui l'on confie la clé, n'y vient d'aucun cache (un cache peut
+#   être écrit par tout job qui lance l'exécutable).
+#
+# La version (archive signée et page de nouveautés) est publiée dans le dépôt public des
+# versions, séparé du code, où l'application installée vient la chercher.
+#
+# Secrets demandés (Paramètres du dépôt › Secrets and variables › Actions) :
+# - ZIPSIGN_CLE_PRIVEE : la clé privée de signature (zipsign gen-key), encodée en base64 ;
+# - CE_JETON_VERSIONS : un jeton GitHub « fine-grained » limité au dépôt public des versions,
+#   avec la permission Contents en lecture et écriture.
+#
+# Lancé à la main (workflow_dispatch) sans version, il fait tout sauf publier : essai à blanc,
+# sur une branche comme sur une étiquette. Seule une étiquette poussée publie sans version saisie.
+# Lancé à la main sur main avec une version (« 0.1.0 »), il publie cette version et pose
+# lui-même l'étiquette vX.Y.Z dans ce dépôt : c'est ainsi que les sessions Claude publient, car
+# elles ne peuvent pas pousser d'étiquette. Une étiquette posée par ce workflow (GITHUB_TOKEN) ne
+# relance pas ce workflow : la version n'est publiée qu'une fois.
+#
+# Les actions sont épinglées sur un commit (une étiquette peut être déplacée, pas un commit).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publier:
+        description: "Version à publier depuis main, sans le v (ex. 0.1.0). Vide : essai à blanc."
+        required: false
+        default: ""
+
+# Lecture seule par défaut ; chaque job demande ce dont il a besoin.
+permissions:
+  contents: read
+
+concurrency:
+  group: publication
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # Compilé dans l'application : c'est là qu'elle cherche ses mises à jour.
+  CE_DEPOT_DES_VERSIONS: TheoGir/computer-engineer-releases
+  # Publier ou non, et sous quelle étiquette : celle poussée, ou celle demandée à la main.
+  PUBLIER: ${{ (github.event_name == 'push' && github.ref_type == 'tag') || (github.event_name == 'workflow_dispatch' && inputs.publier != '') }}
+  ETIQUETTE: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.publier) }}
+  ETIQUETTE_A_POSER: ${{ github.event_name == 'workflow_dispatch' && inputs.publier != '' }}
+
+jobs:
+  ci:
+    name: Contrôles, puis CI verte sur ce commit
+    # Attendre la CI coûte des minutes : sous Linux, elles comptent simple.
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      # Lire la version, le CHANGELOG et les étiquettes existantes.
+      contents: read
+      # Retrouver la CI de ce commit et suivre son état.
+      actions: read
+    outputs:
+      run: ${{ steps.ci.outputs.run }}
+    steps:
+      # Le jeton (lecture seule) reste dans le dépôt cloné : git ls-remote en a besoin pour lire
+      # les étiquettes. Aucun exécutable de la CI ne tourne dans ce job.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Étiquette, version et CHANGELOG, avant d'attendre la CI
+        if: env.PUBLIER == 'true'
+        run: outils/controler-version.sh
+      - name: Trouver la CI de ce commit et attendre qu'elle soit verte
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Une erreur passagère de l'API GitHub (502, limite secondaire) ne doit pas arrêter une
+          # attente de plusieurs minutes : chaque appel est réessayé, 5 fois au plus. Seule la
+          # sortie de l'essai réussi est rendue : sur une erreur, gh écrit le corps de la réponse
+          # sur sa sortie standard, et il se collerait devant la bonne réponse.
+          essayer() {
+            local n=1 sortie
+            until sortie="$("$@")"; do
+              if [ "$n" -ge 5 ]; then
+                echo "L'API GitHub ne répond pas après 5 essais : rien n'est publié." >&2
+                return 1
+              fi
+              echo "L'API GitHub n'a pas répondu (essai $n sur 5) : nouvel essai dans $((n * 10)) s." >&2
+              sleep $((n * 10))
+              n=$((n + 1))
+            done
+            printf '%s\n' "$sortie"
+          }
+          # La CI du commit à publier, lancée par un push (main) ou à la main. Une CI de PR ne compte
+          # pas : elle construit le commit de fusion avec main, pas ce commit. On prend la plus
+          # récente qui n'a pas été annulée ; si elle est annulée pendant l'attente, on en cherche
+          # une autre. Quelques minutes de grâce si elle vient d'être lancée.
+          trouver() {
+            gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --limit 100 \
+              --json databaseId,event,conclusion \
+              --jq '[.[] | select((.event == "push" or .event == "workflow_dispatch") and .conclusion != "cancelled")] | sort_by(.databaseId) | last | .databaseId // empty'
+          }
+          # Une seule requête par appel.
+          etat_ci() {
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '"\(.status)|\(.conclusion)|\(.head_sha)"'
+          }
+          conclusion=""
+          for _ in 1 2 3 4 5; do
+            run=""
+            for _ in $(seq 1 30); do
+              run="$(essayer trouver)"
+              [ -n "$run" ] && break
+              sleep 10
+            done
+            if [ -z "$run" ]; then
+              echo "Aucune CI (push sur main ou lancée à la main) pour le commit $GITHUB_SHA." >&2
+              echo "Pousse d'abord ce commit sur main, ou lance la CI à la main sur une branche qui le porte." >&2
+              exit 1
+            fi
+            echo "CI de ce commit : https://github.com/$GITHUB_REPOSITORY/actions/runs/$run"
+            while :; do
+              etat="$(essayer etat_ci)"
+              IFS='|' read -r statut conclusion sha <<< "$etat"
+              [ "$sha" = "$GITHUB_SHA" ] || { echo "La CI trouvée porte le commit $sha, pas $GITHUB_SHA." >&2; exit 1; }
+              [ "$statut" = completed ] && break
+              # Une requête toutes les 10 s : 360 par heure, la limite du jeton étant de 1 000.
+              echo "CI en cours ($statut), nouvel essai dans 10 s"
+              sleep 10
+            done
+            [ "$conclusion" = cancelled ] || break
+            echo "Cette CI a été annulée : recherche d'une autre CI de ce commit."
+          done
+          if [ "$conclusion" != success ]; then
+            echo "La CI de ce commit n'est pas verte ($conclusion) : rien n'est publié." >&2
+            exit 1
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  zipsign:
+    name: Windows, zipsign compilé à neuf
+    # zipsign est le programme à qui l'on confie la clé de signature. Il est compilé ici depuis
+    # crates.io (versions des dépendances figées par --locked), sans aucun cache ni code du
+    # projet, pendant que le job ci attend la CI.
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions: {}
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      artefact: ${{ steps.transmettre.outputs.artifact-id }}
+      empreinte: ${{ steps.compiler.outputs.empreinte }}
+    steps:
+      - name: Compiler zipsign 0.2.2
+        id: compiler
+        run: |
+          cargo install zipsign --version 0.2.2 --locked --root "$RUNNER_TEMP/zipsign"
+          empreinte="$(sha256sum < "$RUNNER_TEMP/zipsign/bin/zipsign.exe" | cut -d' ' -f1)"
+          echo "Empreinte SHA-256 de zipsign.exe : $empreinte"
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+      - name: Transmettre zipsign au job qui signe
+        id: transmettre
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: zipsign
+          path: ${{ runner.temp }}/zipsign/bin/zipsign.exe
+          if-no-files-found: error
+          # Aussi longtemps que GitHub permet de relancer les jobs en échec de ce run.
+          retention-days: 30
+
+  essais:
+    name: Windows, essais de l'exécutable de la CI (sans secret)
+    needs: ci
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Télécharger l'exécutable gardé par la CI.
+      actions: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUN_CI: ${{ needs.ci.outputs.run }}
+    outputs:
+      artefact: ${{ steps.reprendre.outputs.artefact }}
+      empreinte: ${{ steps.reprendre.outputs.empreinte }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # L'exécutable essayé ici ne doit trouver aucun jeton dans le dépôt cloné.
+          persist-credentials: false
+      - name: Reprendre l'exécutable construit et testé par la CI de ce commit
+        id: reprendre
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Après une relance de la CI, un run peut porter plusieurs artefacts de ce nom (un par
+          # essai) : on prend le plus récent, celui du dernier essai qui l'a construit.
+          id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_CI/artifacts?name=computer-engineer-windows-x86_64&per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not)] | max_by(.id) | .id // empty')"
+          if [ -z "$id" ]; then
+            echo "L'exécutable de cette CI n'est plus disponible (il est gardé 30 jours) : voir docs/publier.md." >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/ci.zip"
+          python -m zipfile -e "$RUNNER_TEMP/ci.zip" "$RUNNER_TEMP/ci"
+          ls -l "$RUNNER_TEMP/ci"
+          cat "$RUNNER_TEMP/ci/construction.txt"
+          # Construit par la CI à partir de ce commit, en version finale, pour le bon dépôt des versions.
+          exiger() {
+            grep -qx "$1" "$RUNNER_TEMP/ci/construction.txt" \
+              || { echo "construction.txt ne dit pas « $1 » : rien n'est publié." >&2; exit 1; }
+          }
+          exiger "commit=$GITHUB_SHA"
+          exiger "profil=release"
+          exiger "depot=$CE_DEPOT_DES_VERSIONS"
+          # Empreinte prise avant tout lancement : le job de signature vérifiera qu'il signe ce
+          # fichier-là, octet pour octet.
+          empreinte="$(sha256sum < "$RUNNER_TEMP/ci/computer-engineer.exe" | cut -d' ' -f1)"
+          echo "Artefact $id, empreinte SHA-256 de computer-engineer.exe : $empreinte"
+          { echo "artefact=$id"; echo "empreinte=$empreinte"; } >> "$GITHUB_OUTPUT"
+      - name: L'exécutable annonce la version du code
+        run: |
+          version="$(cargo metadata --format-version 1 --no-deps --locked | python -c 'import json,sys; sys.stdout.write(next(p["version"] for p in json.load(sys.stdin.buffer)["packages"] if p["name"]=="ce-app"))')"
+          annoncee="$("$RUNNER_TEMP/ci/computer-engineer.exe" --version | tr -d '\r')"
+          echo "L'exécutable annonce : $annoncee"
+          test "$annoncee" = "Computer Engineer $version"
+      - name: Essai de l'exécutable dans un dossier avec accent et espace
+        run: |
+          dossier="$RUNNER_TEMP/Zoé essai"
+          mkdir -p "$dossier"
+          cp "$RUNNER_TEMP/ci/computer-engineer.exe" "$dossier/"
+          "$dossier/computer-engineer.exe" --verifier
+
+  windows:
+    name: Windows, archive signée
+    needs: [ci, zipsign, essais]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      # Écriture : seulement pour poser l'étiquette quand on publie depuis main à la main.
+      contents: write
+      # Télécharger zipsign et l'exécutable essayé.
+      actions: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUN_CI: ${{ needs.ci.outputs.run }}
+      ARTEFACT: ${{ needs.essais.outputs.artefact }}
+      EMPREINTE: ${{ needs.essais.outputs.empreinte }}
+      ZIPSIGN_ARTEFACT: ${{ needs.zipsign.outputs.artefact }}
+      ZIPSIGN_EMPREINTE: ${{ needs.zipsign.outputs.empreinte }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Étiquette, version et CHANGELOG, encore, juste avant de signer
+        if: env.PUBLIER == 'true'
+        run: outils/controler-version.sh
+
+      - name: Reprendre zipsign, compilé à neuf dans ce run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$ZIPSIGN_ARTEFACT" ] || [ -z "$ZIPSIGN_EMPREINTE" ]; then
+            echo "Le job zipsign n'a transmis ni l'artefact ni son empreinte : rien n'est signé." >&2
+            exit 1
+          fi
+          run_artefact="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ZIPSIGN_ARTEFACT" --jq '.workflow_run.id')"
+          if [ "$run_artefact" != "$GITHUB_RUN_ID" ]; then
+            echo "L'artefact zipsign $ZIPSIGN_ARTEFACT vient du run $run_artefact, pas de ce run ($GITHUB_RUN_ID)." >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ZIPSIGN_ARTEFACT/zip" > "$RUNNER_TEMP/zipsign.zip"
+          python -m zipfile -e "$RUNNER_TEMP/zipsign.zip" "$RUNNER_TEMP/zipsign"
+          recue="$(sha256sum < "$RUNNER_TEMP/zipsign/zipsign.exe" | cut -d' ' -f1)"
+          echo "Empreinte attendue : $ZIPSIGN_EMPREINTE"
+          echo "Empreinte reçue    : $recue"
+          if [ "$recue" != "$ZIPSIGN_EMPREINTE" ]; then
+            echo "Le zipsign téléchargé n'est pas celui compilé par le job zipsign : rien n'est signé." >&2
+            exit 1
+          fi
+
+      - name: Reprendre l'exécutable essayé, sans le lancer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Ce job reçoit la clé de signature : l'exécutable n'y est jamais lancé. On reprend
+          # l'artefact que le job d'essais a choisi et essayé, et on vérifie que c'est le même
+          # fichier, octet pour octet.
+          if [ -z "$ARTEFACT" ] || [ -z "$EMPREINTE" ]; then
+            echo "Le job d'essais n'a transmis ni l'artefact ni son empreinte : rien n'est signé." >&2
+            exit 1
+          fi
+          run_artefact="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTEFACT" --jq '.workflow_run.id')"
+          if [ "$run_artefact" != "$RUN_CI" ]; then
+            echo "L'artefact $ARTEFACT vient du run $run_artefact, pas de la CI $RUN_CI." >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTEFACT/zip" > "$RUNNER_TEMP/ci.zip"
+          python -m zipfile -e "$RUNNER_TEMP/ci.zip" "$RUNNER_TEMP/ci"
+          exiger() {
+            grep -qx "$1" "$RUNNER_TEMP/ci/construction.txt" \
+              || { echo "construction.txt ne dit pas « $1 » : rien n'est signé." >&2; exit 1; }
+          }
+          exiger "commit=$GITHUB_SHA"
+          exiger "profil=release"
+          exiger "depot=$CE_DEPOT_DES_VERSIONS"
+          recue="$(sha256sum < "$RUNNER_TEMP/ci/computer-engineer.exe" | cut -d' ' -f1)"
+          echo "Empreinte attendue : $EMPREINTE"
+          echo "Empreinte reçue    : $recue"
+          if [ "$recue" != "$EMPREINTE" ]; then
+            echo "L'exécutable téléchargé n'est pas celui qui a été essayé : rien n'est signé." >&2
+            exit 1
+          fi
+          mkdir -p target/release
+          cp "$RUNNER_TEMP/ci/computer-engineer.exe" target/release/computer-engineer.exe
+
+      - name: Archive signée et vérifiée avec les clés compilées dans l'application
+        env:
+          ZIPSIGN_CLE_PRIVEE: ${{ secrets.ZIPSIGN_CLE_PRIVEE }}
+        run: |
+          # Juste avant de lui confier la clé : ce zipsign est bien celui du job zipsign.
+          zipsign="$RUNNER_TEMP/zipsign/zipsign.exe"
+          if [ "$(sha256sum < "$zipsign" | cut -d' ' -f1)" != "$ZIPSIGN_EMPREINTE" ]; then
+            echo "zipsign n'est plus celui compilé par le job zipsign : rien n'est signé." >&2
+            exit 1
+          fi
+          if [ -z "$ZIPSIGN_CLE_PRIVEE" ]; then
+            echo "Le secret ZIPSIGN_CLE_PRIVEE n'est pas réglé : rien ne peut être signé." >&2
+            exit 1
+          fi
+          cle="$RUNNER_TEMP/signature.key"
+          printf '%s' "$ZIPSIGN_CLE_PRIVEE" | base64 -d > "$cle"
+          trap 'rm -f "$cle"' EXIT
+          ZIPSIGN="$zipsign" outils/empaqueter.sh target/release/computer-engineer.exe "$cle" dist
+
+      - name: Notes de la version, tirées du CHANGELOG
+        run: |
+          version="${ETIQUETTE#v}"
+          [ "$PUBLIER" = true ] || version="$(sed -n 's/^## \([0-9][^ ]*\).*/\1/p' CHANGELOG.md | head -1)"
+          awk -v v="$version" '
+            /^## / { dedans = (index($0, "## " v) == 1); next }
+            dedans { print }
+          ' CHANGELOG.md > dist/notes.md
+          test -s dist/notes.md
+          cat dist/notes.md
+
+      - name: Conserver l'archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: publication
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publier dans le dépôt public des versions
+        if: env.PUBLIER == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CE_JETON_VERSIONS }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Le secret CE_JETON_VERSIONS n'est pas réglé : impossible de publier." >&2
+            exit 1
+          fi
+          gh release create "$ETIQUETTE" dist/computer-engineer-*.zip \
+            --repo "$CE_DEPOT_DES_VERSIONS" \
+            --title "Computer Engineer ${ETIQUETTE#v}" \
+            --notes-file dist/notes.md
+
+      - name: Vérifier la version publiée, téléchargée comme un inconnu
+        if: env.PUBLIER == 'true'
+        run: |
+          nom="$(basename dist/computer-engineer-*.zip)"
+          url="https://github.com/$CE_DEPOT_DES_VERSIONS/releases/download/$ETIQUETTE/$nom"
+          mkdir -p verif
+          for essai in 1 2 3 4 5; do
+            curl -fsSL "$url" -o "verif/$nom" && break
+            sleep $((essai * 10))
+          done
+          cmp "verif/$nom" "dist/$nom"
+          cles=()
+          for c in crates/app/cles/verification-*.pub; do [ -s "$c" ] && cles+=("$c"); done
+          "$RUNNER_TEMP/zipsign/zipsign.exe" verify zip "verif/$nom" "${cles[@]}"
+          # Ce que l'application installée demande à GitHub : la dernière version, sans s'identifier.
+          # Réessayé comme le téléchargement : la version est déjà en ligne, une panne passagère de
+          # l'API ne doit pas arrêter le run avant la pose de l'étiquette.
+          annoncee=""
+          for essai in 1 2 3 4 5; do
+            annoncee="$(curl -fsSL "https://api.github.com/repos/$CE_DEPOT_DES_VERSIONS/releases/latest" \
+              | python -c 'import json,sys; sys.stdout.write(json.load(sys.stdin.buffer)["tag_name"])')" && [ "$annoncee" = "$ETIQUETTE" ] && break
+            sleep $((essai * 10))
+          done
+          echo "Dernière version annoncée : $annoncee"
+          [ "$annoncee" = "$ETIQUETTE" ]
+
+      - name: Poser l'étiquette dans ce dépôt
+        if: env.ETIQUETTE_A_POSER == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$ETIQUETTE" -m "Version ${ETIQUETTE#v}" "$GITHUB_SHA"
+          git push origin "refs/tags/$ETIQUETTE"

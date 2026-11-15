@@ -1,0 +1,271 @@
+name: CI
+
+# Trois jobs en parallèle : Linux (formatage, lint, tests, documentation, comparaison Icarus),
+# Windows tests, Windows exécutables. Le temps d'attente est celui du plus long, pas leur somme.
+#
+# Partout (PR, main, lancement à la main), les exécutables sont construits en version finale
+# (profil release, LTO) et essayés. Sur main, ils sont gardés en artefact : c'est exactement cet
+# exécutable, testé ici, que le workflow Publication signe et publie, sans le recompiler
+# (docs/publier.md). Lancée à la main (workflow_dispatch), la CI fait de même sur n'importe quelle
+# branche.
+#
+# Les actions sont épinglées sur un commit : une étiquette peut être déplacée, pas un commit.
+#
+# Cache Rust : la CI reste à chaud tant que ni rustc, ni les profils, ni les dépendances ne
+# changent.
+# - Quand Cargo.lock ou le Cargo.toml d'une crate change, le cache précédent est repris, mais
+#   l'action de cache en retire ce qui a été compilé il y a plus de sept jours. Si la dernière
+#   compilation complète est plus vieille, cette CI-là recompile tout (une vingtaine de minutes),
+#   une fois sur la PR puis une fois sur main.
+# - Toute retouche, dans le Cargo.toml racine, des profils, de [workspace.dependencies], de
+#   [patch], de [replace] ou du resolver repart d'un cache vide, sans reprise
+#   (outils/empreinte-reglages.sh).
+# - L'exécutable publié est lié aux dépendances compilées gardées dans ce cache par les CI
+#   précédentes de main. Après le retrait d'une dépendance douteuse, vider les caches avant de
+#   publier : docs/publier.md, « Vider les caches ».
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # Sur une PR, un nouveau push annule la CI précédente. Ailleurs, chaque CI a son propre groupe :
+  # elle n'est jamais mise en attente ni annulée par une autre, et chaque commit de main garde sa
+  # CI complète et son exécutable testé, que la publication réutilise.
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.ref) || format('ci-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Lecture seule : aucun job de la CI n'écrit dans le dépôt.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # Compilé dans l'application : c'est là qu'elle cherche ses mises à jour. Même valeur que dans
+  # publication.yml, pour que l'exécutable testé ici soit celui qui est publié.
+  CE_DEPOT_DES_VERSIONS: TheoGir/computer-engineer-releases
+
+jobs:
+  controles:
+    name: Formatage, lint, tests, comparaison Icarus
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+          rustc --version
+      - name: Empreinte des réglages de compilation
+        id: reglages
+        run: |
+          # Le Cargo.toml racine porte les profils de compilation, que la clé du cache Rust ne suit
+          # pas d'elle-même. On n'en prend que ce qui change la compilation des dépendances : ni
+          # une montée de version ni une crate ajoutée ne doivent repartir d'un cache vide.
+          empreinte="$(outils/empreinte-reglages.sh)"
+          echo "Empreinte des réglages : $empreinte"
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+      - name: Cache Rust (dépendances compilées)
+        # Épinglé sur le commit de la v2.9.3 : une étiquette peut être déplacée, pas un commit.
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # Changer ce préfixe vide tous les caches. Un cache n'est enregistré qu'après un job
+          # réussi : jamais une compilation interrompue. La clé suit déjà rustc, Cargo.lock et les
+          # Cargo.toml des crates (sans leur version) ; on y ajoute l'empreinte ci-dessus. Elle ne
+          # suit pas les commandes : si ce job compile autre chose (autre profil, autres fonctions,
+          # autre commande cargo), passer le préfixe à v2-rust, sinon le cache reste « à jour » et
+          # le surplus est recompilé à chaque CI sans être enregistré.
+          prefix-key: v1-rust
+          key: ${{ steps.reglages.outputs.empreinte }}
+          # ~/.cargo/bin n'est pas mis en cache : zipsign a son propre cache, et rien d'autre n'y
+          # est installé.
+          cache-bin: false
+      - name: Icarus Verilog
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends iverilog
+          iverilog -V | head -1
+      - name: Contrôles
+        run: outils/verifier.sh
+
+  windows-tests:
+    name: Windows, tests
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Icarus Verilog n'est pas installé sous Windows : la comparaison tourne dans le job Linux.
+      CE_EXIGER_ICARUS: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+      - name: Empreinte des réglages de compilation
+        id: reglages
+        run: |
+          # Le Cargo.toml racine porte les profils de compilation, que la clé du cache Rust ne suit
+          # pas d'elle-même. On n'en prend que ce qui change la compilation des dépendances : ni
+          # une montée de version ni une crate ajoutée ne doivent repartir d'un cache vide.
+          empreinte="$(outils/empreinte-reglages.sh)"
+          echo "Empreinte des réglages : $empreinte"
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+      - name: Cache Rust (dépendances compilées)
+        # Épinglé sur le commit de la v2.9.3 : une étiquette peut être déplacée, pas un commit.
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # Changer ce préfixe vide tous les caches. Un cache n'est enregistré qu'après un job
+          # réussi : jamais une compilation interrompue. La clé suit déjà rustc, Cargo.lock et les
+          # Cargo.toml des crates (sans leur version) ; on y ajoute l'empreinte ci-dessus. Elle ne
+          # suit pas les commandes : si ce job compile autre chose (autre profil, autres fonctions,
+          # autre commande cargo), passer le préfixe à v2-rust, sinon le cache reste « à jour » et
+          # le surplus est recompilé à chaque CI sans être enregistré.
+          prefix-key: v1-rust
+          key: ${{ steps.reglages.outputs.empreinte }}
+          # ~/.cargo/bin n'est pas mis en cache : zipsign a son propre cache, et rien d'autre n'y
+          # est installé.
+          cache-bin: false
+      - name: Tests
+        run: cargo test --workspace --locked --profile ci
+
+  windows-executables:
+    name: Windows, exécutables et mise à jour
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CE_EXIGER_ICARUS: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+      - name: Empreinte des réglages de compilation
+        id: reglages
+        run: |
+          # Le Cargo.toml racine porte les profils de compilation, que la clé du cache Rust ne suit
+          # pas d'elle-même. On n'en prend que ce qui change la compilation des dépendances : ni
+          # une montée de version ni une crate ajoutée ne doivent repartir d'un cache vide.
+          empreinte="$(outils/empreinte-reglages.sh)"
+          echo "Empreinte des réglages : $empreinte"
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+      - name: Cache Rust (dépendances compilées)
+        # Épinglé sur le commit de la v2.9.3 : une étiquette peut être déplacée, pas un commit.
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # Changer ce préfixe vide tous les caches. Un cache n'est enregistré qu'après un job
+          # réussi : jamais une compilation interrompue. La clé suit déjà rustc, Cargo.lock et les
+          # Cargo.toml des crates (sans leur version) ; on y ajoute l'empreinte ci-dessus. Elle ne
+          # suit pas les commandes : si ce job compile autre chose (autre profil, autres fonctions,
+          # autre commande cargo), passer le préfixe à v2-rust, sinon le cache reste « à jour » et
+          # le surplus est recompilé à chaque CI sans être enregistré.
+          prefix-key: v1-rust
+          key: ${{ steps.reglages.outputs.empreinte }}
+          # ~/.cargo/bin n'est pas mis en cache : zipsign a son propre cache, et rien d'autre n'y
+          # est installé.
+          cache-bin: false
+      - name: zipsign (signature des archives), gardé en cache
+        # Il ne sert qu'à l'essai des mises à jour, avec des clés jetables. La publication ne
+        # prend pas zipsign dans un cache : elle le compile à neuf (publication.yml).
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cargo/bin/zipsign.exe
+          key: zipsign-0.2.2-${{ runner.os }}
+      - name: Installer zipsign s'il n'est pas en cache
+        run: command -v zipsign || cargo install zipsign --version 0.2.2 --locked
+      - name: Exécutables en version finale et exécutable d'essai des mises à jour
+        id: construire
+        run: |
+          # L'exécutable d'essai (fonction banc-mise-a-jour, jamais publié) est construit dans le
+          # profil ci, en même temps que la version finale : les deux constructions vont dans des
+          # dossiers différents (target/ci, target/release).
+          # Un seul nom pour le profil de la version finale : celui que cargo construit, celui du
+          # dossier où l'on prend les exécutables et celui que construction.txt annonce.
+          profil=release
+          cargo build --profile ci --locked -p ce-app --features banc-mise-a-jour > "$RUNNER_TEMP/banc.log" 2>&1 &
+          pid=$!
+          cargo build --profile "$profil" --locked -p ce-cli -p ce-app
+          wait "$pid" || { cat "$RUNNER_TEMP/banc.log"; exit 1; }
+          cat "$RUNNER_TEMP/banc.log"
+          # Empreinte de ce que cargo vient de produire, avant toute copie et tout essai.
+          sha256="$(sha256sum < "target/$profil/computer-engineer.exe" | cut -d' ' -f1)"
+          mkdir -p "$RUNNER_TEMP/exe"
+          cp "target/$profil/computer-engineer.exe" "target/$profil/ce.exe" "$RUNNER_TEMP/exe/"
+          cp target/ci/computer-engineer.exe "$RUNNER_TEMP/banc.exe"
+          # Ce qui a été construit, relu par la publication avant de signer.
+          {
+            printf 'commit=%s\nprofil=%s\ndepot=%s\n' "$GITHUB_SHA" "$profil" "$CE_DEPOT_DES_VERSIONS"
+            printf 'run=%s\nessai=%s\nrustc=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$(rustc -V)"
+            printf 'sha256=%s\n' "$sha256"
+          } > "$RUNNER_TEMP/exe/construction.txt"
+          cat "$RUNNER_TEMP/exe/construction.txt"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+      - name: Essai de l'exécutable dans un dossier avec accent et espace
+        run: |
+          dossier="$RUNNER_TEMP/Zoé essai"
+          mkdir -p "$dossier"
+          cp "$RUNNER_TEMP/exe/ce.exe" "$dossier/"
+          cd "$dossier"
+          ./ce.exe reference > reference.json
+          ./ce.exe valider reference.json
+          ./ce.exe table reference.json ADD_COMPLET
+          ./ce.exe infos reference.json ADD8
+      - name: Essai de l'application sans fenêtre, dans le même dossier
+        run: |
+          dossier="$RUNNER_TEMP/Zoé essai"
+          cp "$RUNNER_TEMP/exe/computer-engineer.exe" "$dossier/"
+          cd "$dossier"
+          # Contrôle interne : moteur, quête, apparence. Le code de sortie fait foi
+          # (l'application n'a pas de console en version finale).
+          ./computer-engineer.exe --verifier
+          ./computer-engineer.exe --ecrire-apparence
+          test -s apparence.json
+      - name: Mise à jour automatique de bout en bout, exécutable en marche, dossier avec accent
+        run: |
+          # L'exécutable d'essai lit l'adresse d'un faux serveur de versions et une clé d'essai,
+          # puis se remplace lui-même par l'exécutable construit plus haut, d'abord avec une
+          # signature fausse (refusée), puis la bonne.
+          outils/essai-mise-a-jour.sh "$RUNNER_TEMP/banc.exe" "$RUNNER_TEMP/exe/computer-engineer.exe" "$RUNNER_TEMP/maj"
+      - name: L'exécutable gardé est celui que cargo a produit, octet pour octet
+        env:
+          # L'empreinte prise à la sortie de cargo, gardée par le runner et non dans un fichier.
+          ATTENDUE: ${{ steps.construire.outputs.sha256 }}
+        run: |
+          # Les essais ci-dessus ont lancé des copies de l'exécutable et une mise à jour qui
+          # remplace un exécutable par un autre : celui que l'on garde pour la publication ne doit
+          # pas avoir changé depuis la compilation, et construction.txt doit dire la même empreinte.
+          # C'est une garde contre un accident, pas contre un programme hostile déjà entré dans
+          # les caches de main (voir l'en-tête).
+          gardee="$(sha256sum < "$RUNNER_TEMP/exe/computer-engineer.exe" | cut -d' ' -f1)"
+          ecrite="$(sed -n 's/^sha256=//p' "$RUNNER_TEMP/exe/construction.txt")"
+          echo "Empreinte SHA-256 à la compilation : $ATTENDUE"
+          echo "Empreinte SHA-256 du fichier gardé : $gardee"
+          echo "Empreinte dans construction.txt    : $ecrite"
+          if [ "${#ATTENDUE}" -ne 64 ] || [ "$gardee" != "$ATTENDUE" ] || [ "$ecrite" != "$ATTENDUE" ]; then
+            echo "L'exécutable gardé n'est plus celui que cargo a produit." >&2
+            exit 1
+          fi
+      - name: Conserver les exécutables
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: computer-engineer-windows-x86_64
+          path: |
+            ${{ runner.temp }}/exe/computer-engineer.exe
+            ${{ runner.temp }}/exe/ce.exe
+            ${{ runner.temp }}/exe/construction.txt
+          if-no-files-found: error
+          # La publication reprend l'exécutable d'un push sur main ou d'une CI lancée à la main :
+          # on le garde 30 jours. Celui d'une PR ne sert qu'à l'essayer : 7 jours.
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}

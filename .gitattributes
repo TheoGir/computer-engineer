@@ -1,0 +1,7 @@
+# Fins de ligne LF partout, y compris sous Windows (tests et formatage identiques sur toutes les machines).
+* text=auto eol=lf
+*.exe binary
+*.png binary
+*.ttf binary
+*.ico binary
+*.rgba binary

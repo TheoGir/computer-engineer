@@ -1,0 +1,17 @@
+[package]
+name = "ce-cli"
+description = "Outil en ligne de commande : valider une bibliothèque, tables de vérité, mesure de vitesse."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "ce"
+path = "src/main.rs"
+
+[dependencies]
+ce-moteur = { path = "../moteur" }
+ce-circuit = { path = "../circuit" }

@@ -1,0 +1,15 @@
+[package]
+name = "ce-moteur"
+description = "Noyau de simulation logique événementielle à quatre valeurs (0, 1, X, Z) et délais inertiels."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Le mode rapide compilé : la logique est écrite en WebAssembly puis traduite en code
+# machine par Cranelift, à travers l'interface sûre de Wasmtime.
+wasmtime = { version = "50.0.1", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasm-encoder = "0.243"
