@@ -1,4 +1,4 @@
-# computer-engineer/projet/4
+# computer-engineer/projet/5
 bancs
 bancs.
 bancs.DEMI
@@ -21,6 +21,7 @@ modeles[].plan.elements[].entrees
 modeles[].plan.elements[].genre
 modeles[].plan.elements[].id
 modeles[].plan.elements[].legende
+modeles[].plan.elements[].miroir
 modeles[].plan.elements[].modele
 modeles[].plan.elements[].nom
 modeles[].plan.elements[].plages
@@ -46,6 +47,7 @@ principal.elements[].entrees
 principal.elements[].genre
 principal.elements[].id
 principal.elements[].legende
+principal.elements[].miroir
 principal.elements[].modele
 principal.elements[].nom
 principal.elements[].param

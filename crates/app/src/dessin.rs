@@ -621,6 +621,11 @@ impl<'a> Toile<'a> {
                 ligne(&[(5.5, 4.5), (5.5, 8.5)], false);
                 ligne(&[(7.0, 10.0), (13.0, 10.0)], false);
             }
+            Icone::Miroir => {
+                ligne(&[(10.0, 2.5), (10.0, 17.5)], false);
+                ligne(&[(7.5, 5.0), (2.5, 10.0), (7.5, 15.0)], true);
+                ligne(&[(12.5, 5.0), (17.5, 10.0), (12.5, 15.0)], true);
+            }
             Icone::Photo => {
                 ligne(
                     &[
@@ -816,6 +821,8 @@ pub enum Icone {
     Segments,
     /// Un appareil photo : exporter le plan en image.
     Photo,
+    /// Deux flèches opposées autour d'un axe : retourner de gauche à droite.
+    Miroir,
     /// Un clavier.
     Clavier,
     /// Un découpeur de bus.

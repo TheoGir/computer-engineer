@@ -18,15 +18,47 @@ const DEGAGEMENT: f32 = 24.0;
 /// `tronc` est l'abscisse du tronçon vertical partagé par les fils d'une même source,
 /// ou 0 pour le placer à mi-chemin.
 pub fn itineraire(p1: Point, p2: Point, tronc: f32) -> Vec<Point> {
+    itineraire_oriente(p1, 1.0, p2, 1.0, (tronc > 0.0).then_some(tronc))
+}
+
+/// Itinéraire en angle droit de `p1` à `p2`, quand les éléments peuvent être retournés.
+/// `s1` est le sens où part le fil de la sortie (`1` vers la droite, `-1` vers la gauche),
+/// `s2` le sens où il doit aller en arrivant sur l'entrée. `tronc` : l'abscisse du tronçon
+/// vertical partagé par les fils d'une même source.
+pub fn itineraire_oriente(
+    p1: Point,
+    s1: f32,
+    p2: Point,
+    s2: f32,
+    tronc: Option<f32>,
+) -> Vec<Point> {
+    let miroir = |p: Point| Point::nouveau(-p.x, p.y);
+    if s1 == s2 {
+        if s1 > 0.0 {
+            return droit(p1, p2, tronc);
+        }
+        // Les deux retournés : le même itinéraire, vu dans un miroir.
+        return droit(miroir(p1), miroir(p2), tronc.map(|t| -t))
+            .into_iter()
+            .map(miroir)
+            .collect();
+    }
+    // Sens contraires : le fil part, longe à la verticale au-delà des deux bouts, et revient.
+    let x = if s1 > 0.0 {
+        (p1.x + DEGAGEMENT).max(p2.x + DEGAGEMENT)
+    } else {
+        (p1.x - DEGAGEMENT).min(p2.x - DEGAGEMENT)
+    };
+    vec![p1, Point::nouveau(x, p1.y), Point::nouveau(x, p2.y), p2]
+}
+
+/// L'itinéraire d'une sortie qui va vers la droite à une entrée qu'on aborde vers la droite.
+fn droit(p1: Point, p2: Point, tronc: Option<f32>) -> Vec<Point> {
     if p2.x - p1.x >= AVANCE_MIN {
         if (p2.y - p1.y).abs() <= 0.5 {
             return vec![p1, p2];
         }
-        let mx = if tronc > 0.0 {
-            tronc
-        } else {
-            (p1.x + p2.x) / 2.0
-        };
+        let mx = tronc.unwrap_or((p1.x + p2.x) / 2.0);
         return vec![p1, Point::nouveau(mx, p1.y), Point::nouveau(mx, p2.y), p2];
     }
     // L'arrivée est à gauche de la source : on contourne, entre les deux si la place existe,
@@ -90,7 +122,7 @@ pub struct Faisceau {
 /// Calcule les fils de toutes les sources. `position` donne la position affichée d'un élément.
 pub fn tracer(doc: &Document, position: impl Fn(Id) -> Point) -> Vec<Faisceau> {
     // Une seule passe sur les arrivées, rangées par source.
-    let mut par_source: HashMap<Source, Vec<(Fil, Point)>> = HashMap::new();
+    let mut par_source: HashMap<Source, Vec<(Fil, Point, f32)>> = HashMap::new();
     for e in &doc.elements {
         if e.entrees.iter().all(Option::is_none) {
             continue;
@@ -104,6 +136,7 @@ pub fn tracer(doc: &Document, position: impl Fn(Id) -> Point) -> Vec<Faisceau> {
                         entree: i,
                     },
                     e.entree_en(pos, i),
+                    e.sens(),
                 ));
             }
         }
@@ -115,27 +148,29 @@ pub fn tracer(doc: &Document, position: impl Fn(Id) -> Point) -> Vec<Faisceau> {
             let source = Source::nouvelle(s.id, j);
             let p1 = s.sortie_en(pos, j);
             let arrivees = par_source.remove(&source).unwrap_or_default();
-            faisceaux.push(faisceau(source, p1, arrivees));
+            faisceaux.push(faisceau(source, p1, s.sens(), arrivees));
         }
     }
     faisceaux
 }
 
-fn faisceau(source: Source, p1: Point, arrivees: Vec<(Fil, Point)>) -> Faisceau {
+fn faisceau(source: Source, p1: Point, s1: f32, arrivees: Vec<(Fil, Point, f32)>) -> Faisceau {
     {
+        // L'arrivée la plus proche dans le sens où part le fil : le tronc commun s'arrête à
+        // mi-chemin d'elle.
         let plus_proche = arrivees
             .iter()
-            .filter(|(_, p2)| p2.x - p1.x >= AVANCE_MIN && (p2.y - p1.y).abs() > 0.5)
-            .map(|(_, p2)| p2.x)
+            .filter(|(_, p2, s2)| {
+                *s2 == s1 && (p2.x - p1.x) * s1 >= AVANCE_MIN && (p2.y - p1.y).abs() > 0.5
+            })
+            .map(|(_, p2, _)| (p2.x - p1.x) * s1)
             .fold(f32::INFINITY, f32::min);
-        let tronc = if plus_proche.is_finite() {
-            p1.x + ((plus_proche - p1.x) / 2.0).max(22.0)
-        } else {
-            0.0
-        };
+        let tronc = plus_proche
+            .is_finite()
+            .then(|| p1.x + s1 * (plus_proche / 2.0).max(22.0));
         let fils: Vec<(Fil, Vec<Point>)> = arrivees
             .into_iter()
-            .map(|(f, p2)| (f, itineraire(p1, p2, tronc)))
+            .map(|(f, p2, s2)| (f, itineraire_oriente(p1, s1, p2, s2, tronc)))
             .collect();
         let mut jonctions: Vec<Point> = Vec::new();
         for i in 0..fils.len() {
@@ -266,6 +301,42 @@ mod tests {
 
     fn p(x: f32, y: f32) -> Point {
         Point::nouveau(x, y)
+    }
+
+    /// Chaque tronçon est horizontal ou vertical, et le fil part et arrive dans le bon sens.
+    fn verifier(l: &[Point], s1: f32, s2: f32) {
+        for w in l.windows(2) {
+            assert!(
+                (w[0].x - w[1].x).abs() < 1e-3 || (w[0].y - w[1].y).abs() < 1e-3,
+                "{l:?}"
+            );
+        }
+        let n = l.len();
+        assert!((l[1].x - l[0].x) * s1 > 0.0, "départ : {l:?}");
+        assert!((l[n - 1].x - l[n - 2].x) * s2 > 0.0, "arrivée : {l:?}");
+    }
+
+    #[test]
+    fn les_elements_retournes_ont_des_fils_dans_le_bon_sens() {
+        for (a, b) in [
+            (p(0.0, 0.0), p(200.0, 50.0)),
+            (p(200.0, 0.0), p(0.0, 50.0)),
+            (p(0.0, 0.0), p(10.0, 0.0)),
+            (p(0.0, 0.0), p(-300.0, -80.0)),
+        ] {
+            for (s1, s2) in [(1.0, 1.0), (-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0)] {
+                let l = itineraire_oriente(a, s1, b, s2, None);
+                assert_eq!((l[0], l[l.len() - 1]), (a, b));
+                if l.len() > 2 {
+                    verifier(&l, s1, s2);
+                }
+            }
+        }
+        // Deux éléments retournés : l'image dans un miroir des deux éléments à l'endroit.
+        let droit = itineraire(p(-200.0, 0.0), p(0.0, 60.0), 0.0);
+        let retourne = itineraire_oriente(p(200.0, 0.0), -1.0, p(0.0, 60.0), -1.0, None);
+        let miroir: Vec<Point> = droit.iter().map(|q| p(-q.x, q.y)).collect();
+        assert_eq!(retourne, miroir);
     }
 
     #[test]

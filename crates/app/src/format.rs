@@ -33,9 +33,10 @@ pub struct Format {
 pub const PROJET: Format = Format {
     genre: "projet",
     prefixe: "computer-engineer/projet/",
-    actuel: 4,
+    actuel: 5,
     migrations: &[
         |v| programme_des_memoires(v, "modeles"),
+        rien_a_changer,
         rien_a_changer,
         rien_a_changer,
     ],
@@ -45,8 +46,12 @@ pub const PROJET: Format = Format {
 pub const PARCOURS: Format = Format {
     genre: "avancement",
     prefixe: "computer-engineer/parcours/",
-    actuel: 3,
-    migrations: &[|v| programme_des_memoires(v, "briques"), rien_a_changer],
+    actuel: 4,
+    migrations: &[
+        |v| programme_des_memoires(v, "briques"),
+        rien_a_changer,
+        rien_a_changer,
+    ],
 };
 
 /// Migration 2 → 3 (projets et avancement) : les éléments gagnent le champ facultatif
@@ -56,6 +61,9 @@ pub const PARCOURS: Format = Format {
 ///
 /// Migration 3 → 4 (projets seulement) : le projet gagne le champ facultatif `bancs`, les
 /// bancs d'essai écrits par l'utilisateur. Absent, il n'y en a aucun ; même raison.
+///
+/// Migration 4 → 5 des projets, 3 → 4 de l'avancement : les éléments gagnent le champ
+/// facultatif `miroir` (élément retourné de gauche à droite). Absent, il vaut « non ».
 fn rien_a_changer(_: &mut Value) -> Result<(), String> {
     Ok(())
 }

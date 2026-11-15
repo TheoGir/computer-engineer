@@ -45,6 +45,9 @@ des plus anciennes ; l'original d'un projet mis au nouveau format est gardé dan
   0 dès que tu le lâches. L'afficheur est une lampe de 7 bits (8 avec le point) : bit 0 = a en
   haut, puis b à f dans le sens des aiguilles d'une montre, bit 6 = g au milieu. Branche-le
   sur la sortie de ton décodeur 7 segments pour voir tes chiffres.
+- **Retourner (R)** : une pièce sélectionnée se retourne de gauche à droite, entrées à droite
+  et sorties à gauche. Pratique pour une boucle de mémoire : le signal revient vers la gauche
+  sans faire le tour.
 - **Les briques** : sélectionne plusieurs éléments (Maj + glisser), puis Ctrl+G. La brique va
   dans la palette ; double-clic pour entrer dedans, Échap pour remonter. Sélectionne une
   brique posée pour lui écrire une description (elle s'affiche au survol dans la palette) et
@@ -105,6 +108,23 @@ fin:    HLT
   un interrupteur tel quel ou n'attend rien d'une lampe ; `attendre 50` laisse passer le temps.
   La mémoire est gardée d'une ligne à l'autre : un interrupteur peut servir d'horloge. Chaque
   plan et chaque brique garde son banc dans le projet.
+- **Automates (Ctrl+K)** : décris des états et leurs transitions, l'application fabrique la
+  brique en portes NAND et en bascules D :
+
+  ```
+  entrées : bouton
+  sorties : voitures, pietons
+  état attente : voitures
+    si bouton -> orange
+  état orange :
+    -> traversee
+  état traversee : pietons
+    si non bouton -> attente
+  ```
+
+  Le premier état est celui du départ, où `raz` ramène. À chaque front de `clk`, la première
+  transition vraie est suivie, sinon on reste. La brique a aussi une sortie `etat` : le numéro
+  de l'état en binaire, dans l'ordre du texte.
 - **Exporter en image** : le bouton appareil photo, à côté du zoom, écrit le plan affiché en
   PNG dans le dossier `exports`, sans les panneaux et cadré sur tout le circuit.
 - **Copier, coller** : Ctrl+C copie la sélection avec ses fils et ses briques ; Ctrl+V la
@@ -125,6 +145,8 @@ fin:    HLT
 | Ctrl+C / Ctrl+X / Ctrl+V | copier / couper / coller, dans ce projet ou dans un autre |
 | Ctrl+E | analyser le circuit : table de vérité, expressions, export Verilog |
 | Ctrl+T | banc d'essai du plan : écrire et lancer ses essais |
+| R | retourner la sélection de gauche à droite |
+| Ctrl+K | éditeur d'automates : des états en texte, une brique en NAND |
 | Ctrl+P | programme de la mémoire morte |
 | Suppr | supprimer |
 | Échap | lâcher la sélection, puis remonter d'une brique |

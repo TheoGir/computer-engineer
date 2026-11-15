@@ -152,6 +152,27 @@ impl VueBanc {
     }
 }
 
+/// L'éditeur d'automates (Ctrl+K) : le texte, le nom de la brique, et le dernier message.
+#[derive(Clone, Debug, PartialEq)]
+pub struct VueAutomate {
+    /// Le texte de l'automate.
+    pub texte: String,
+    /// Le nom de la brique à fabriquer.
+    pub nom: String,
+    /// Ce qu'a donné la dernière fabrication.
+    pub message: Option<Result<String, String>>,
+}
+
+impl Default for VueAutomate {
+    fn default() -> Self {
+        VueAutomate {
+            texte: crate::automate::EXEMPLE.to_owned(),
+            nom: "FEU_PIETONS".to_owned(),
+            message: None,
+        }
+    }
+}
+
 /// Les fenêtres ouvertes.
 #[derive(Debug, Default)]
 pub struct Fenetres {
@@ -165,6 +186,10 @@ pub struct Fenetres {
     pub analyse: Option<VueAnalyse>,
     /// Le banc d'essai du plan (Ctrl+T).
     pub banc: Option<VueBanc>,
+    /// L'éditeur d'automates (Ctrl+K) ; le texte reste quand on le ferme.
+    pub automate: Option<VueAutomate>,
+    /// Le dernier automate écrit, gardé quand la fenêtre se ferme.
+    automate_garde: Option<VueAutomate>,
     /// Vrai quand « Exporter en Verilog » vient d'être demandé : l'application écrit le
     /// fichier, car elle seule connaît le dossier des données.
     pub exporter: bool,
@@ -233,10 +258,12 @@ const RACCOURCIS: &str = "# Partout
 - Ctrl+D : dupliquer la sélection.
 - Ctrl+C, Ctrl+X, Ctrl+V : copier, couper, coller la sélection, avec ses fils et ses briques, dans ce projet ou dans un autre. Ce qui est copié peut aussi se coller sous forme de texte, pour l'envoyer à quelqu'un.
 - Ctrl+E : analyser le circuit : sa table de vérité, l'expression simplifiée de chaque lampe, et l'export en Verilog.
+- Ctrl+K : l'éditeur d'automates : décris des états et leurs transitions, l'application en fabrique la brique en portes NAND.
 - Ctrl+T : le banc d'essai du plan : écris les essais (valeurs des interrupteurs, ce que doivent afficher les lampes) et lance-les tous d'un coup.
 - Ctrl+P : écrire le programme de la mémoire morte de l'ordinateur.
 - Échap : lâcher la sélection, puis remonter d'une brique.
 - F : recadrer le plan.
+- R : retourner la sélection de gauche à droite (entrées à droite, sorties à gauche), pour ramener un signal vers la gauche sans détour.
 - Flèches : déplacer la sélection.
 - Molette : zoomer ; glisser le fond : se déplacer.
 - Double-clic sur une brique : entrer dedans.
@@ -500,12 +527,21 @@ impl Fenetres {
         };
     }
 
+    /// Ouvre ou ferme l'éditeur d'automates.
+    pub fn basculer_automate(&mut self) {
+        match self.automate.take() {
+            Some(vue) => self.automate_garde = Some(vue),
+            None => self.automate = Some(self.automate_garde.take().unwrap_or_default()),
+        }
+    }
+
     /// Vrai si une fenêtre est ouverte.
     pub fn ouvertes(&self) -> bool {
         self.aide.is_some()
             || self.editeur.is_some()
             || self.analyse.is_some()
             || self.banc.is_some()
+            || self.automate.is_some()
     }
 
     /// Dessine les fenêtres ouvertes. L'éditeur n'apparaît que dans l'atelier.
@@ -617,6 +653,7 @@ impl Fenetres {
         }
         self.fenetre_d_analyse(ctx, at, a, cadre);
         self.fenetre_du_banc(ctx, at, a, cadre);
+        self.fenetre_d_automate(ctx, at, a, cadre);
         let Some(editeur) = &mut self.editeur else {
             return;
         };
@@ -721,6 +758,109 @@ impl Fenetres {
 }
 
 impl Fenetres {
+    /// La fenêtre de l'éditeur d'automates (Ctrl+K) : le texte, ce qu'on en comprend tout de
+    /// suite (ou l'erreur), et le bouton qui fabrique la brique.
+    fn fenetre_d_automate(
+        &mut self,
+        ctx: &egui::Context,
+        at: &mut Atelier,
+        a: &Apparence,
+        cadre: egui::Frame,
+    ) {
+        let Some(vue) = &mut self.automate else {
+            return;
+        };
+        let c = a.palette();
+        let e = a.formes.echelle_texte;
+        let principal = egui::Button::new(
+            RichText::new("Fabriquer la brique")
+                .font(Police::CorpsDemi.taille(a.typo.corps * e))
+                .color(Color32::WHITE),
+        )
+        .fill(c.accent.c())
+        .stroke(egui::Stroke::NONE)
+        .min_size(egui::vec2(0.0, a.formes.controle + 4.0));
+        let lu = crate::automate::Automate::lire(&vue.texte);
+        let mut ouverte = true;
+        let mut fabriquer = false;
+        egui::Window::new("Automate")
+            .id(egui::Id::unique("fenetre-automate"))
+            .open(&mut ouverte)
+            .collapsible(false)
+            .resizable(true)
+            .default_size([600.0, 560.0])
+            .frame(cadre)
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new("Décris les états : « état nom : sorties à 1 », puis ses transitions « si entrée et non autre -> état ». Le premier état est celui du départ (raz). À chaque front de clk, la première transition vraie est suivie ; sinon on reste.")
+                        .color(c.doux.c()),
+                );
+                ui.add_space(4.0);
+                ScrollArea::vertical()
+                    .id_salt("texte-automate")
+                    .max_height((ui.available_height() - 110.0).max(140.0))
+                    .show(ui, |ui| {
+                        if ui
+                            .add(
+                                TextEdit::multiline(&mut vue.texte)
+                                    .code_editor()
+                                    .desired_width(f32::INFINITY)
+                                    .desired_rows(14),
+                            )
+                            .changed()
+                        {
+                            vue.message = None;
+                        }
+                    });
+                ui.add_space(4.0);
+                match &lu {
+                    Ok(auto) => {
+                        ui.label(
+                            RichText::new(format!(
+                                "{} état{}, {} entrée{}, {} sortie{} : {} bascule{} D pour retenir l'état.",
+                                auto.etats.len(),
+                                if auto.etats.len() > 1 { "s" } else { "" },
+                                auto.entrees.len(),
+                                if auto.entrees.len() > 1 { "s" } else { "" },
+                                auto.sorties.len(),
+                                if auto.sorties.len() > 1 { "s" } else { "" },
+                                auto.bits_d_etat(),
+                                if auto.bits_d_etat() > 1 { "s" } else { "" },
+                            ))
+                            .color(c.un.c()),
+                        );
+                    }
+                    Err(raison) => {
+                        ui.label(RichText::new(format!("À corriger, {raison}")).color(c.danger.c()));
+                    }
+                }
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Nom de la brique").color(c.doux.c()));
+                    ui.add(TextEdit::singleline(&mut vue.nom).desired_width(180.0));
+                    if ui.add_enabled(lu.is_ok(), principal).clicked() {
+                        fabriquer = true;
+                    }
+                });
+                if let Some(message) = &vue.message {
+                    match message {
+                        Ok(texte) => ui.label(RichText::new(texte).color(c.un.c())),
+                        Err(texte) => ui.label(RichText::new(texte).color(c.danger.c())),
+                    };
+                }
+            });
+        if fabriquer {
+            let message = at.fabriquer_automate(&vue.texte, &vue.nom);
+            if let Ok(texte) = &message {
+                at.dire(texte);
+            }
+            vue.message = Some(message);
+        }
+        if !ouverte {
+            self.basculer_automate();
+        }
+    }
+
     /// La fenêtre du banc d'essai (Ctrl+T) : le texte du banc, enregistré avec le projet à
     /// chaque frappe, et ce qu'a donné le dernier essai, ligne par ligne.
     fn fenetre_du_banc(
@@ -1148,7 +1288,7 @@ mod tests {
         let t = texte_de(Rubrique::Raccourcis);
         for r in [
             "F1", "Ctrl+P", "Ctrl+G", "Ctrl+Z", "Espace", "Échap", "Ctrl+C", "Ctrl+V", "Ctrl+E",
-            "Ctrl+T",
+            "Ctrl+T", "R :", "Ctrl+K",
         ] {
             assert!(t.contains(r), "{r}");
         }

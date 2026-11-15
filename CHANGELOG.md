@@ -1,5 +1,11 @@
 # Journal des modifications
 
+## Prochaine version
+
+- **Retourner une pièce (R)** : une porte, une brique, un interrupteur ou une lampe se retourne de gauche à droite, entrées à droite et sorties à gauche. Les fils suivent, et un signal qui revient en arrière (une boucle de mémoire, un retour de bus) n'a plus à faire le tour. Aussi dans la barre de la sélection ; Ctrl+Z l'annule.
+- **Éditeur d'automates (Ctrl+K)** : décris des états en quelques lignes (« état attente : voitures », « si bouton -> orange »…) et l'application fabrique la brique qui fait la même chose, en portes NAND et en bascules D : les sorties de chaque état, la logique de l'état suivant simplifiée par Quine-McCluskey, une entrée `raz` pour revenir au départ, et une sortie `etat` pour voir où il en est. Vérifié par un test qui compare la brique à l'automate sur des centaines de fronts tirés au hasard.
+- Format des projets et de l'avancement : `projet/5` et `parcours/4` (champ facultatif `miroir` des éléments). Les fichiers des versions précédentes s'ouvrent comme avant ; une version plus ancienne refuse clairement un fichier du nouveau format.
+
 ## 0.10.0 — 15 novembre 2026
 
 - **Une branche « Dépannage »** : quatre circuits déjà construits (OU exclusif, demi-additionneur, multiplexeur, additionneur complet), chacun avec un seul fil mal branché. Il faut essayer les entrées, trouver les cas faux, remonter le courant jusqu'à la porte fautive et la rebrancher. La panne est calculée à partir du corrigé : un seul fil change, et la table de vérité devient fausse (vérifié par un test pour chaque quête).

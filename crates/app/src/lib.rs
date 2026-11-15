@@ -41,6 +41,7 @@
 pub mod accueil;
 pub mod app;
 pub mod apparence;
+pub mod automate;
 pub mod brique;
 pub mod calques;
 pub mod depannage;

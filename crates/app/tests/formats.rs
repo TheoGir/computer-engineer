@@ -64,12 +64,15 @@ fn projet_complet() -> Projet {
     // Les aspects : un bouton poussoir et un afficheur 7 segments, dans le plan principal et
     // dans une brique.
     let mut affichage = Document::nouveau();
-    affichage.poser(Element::poussoir("p"), Point::nouveau(40.0, 40.0));
+    let p = affichage.poser(Element::poussoir("p"), Point::nouveau(40.0, 40.0));
+    affichage.element_mut(p).expect("poussoir").miroir = true;
     affichage.poser(
         Element::afficheur("seg", "chiffre"),
         Point::nouveau(240.0, 40.0),
     );
-    principal.poser(Element::poussoir("ok"), Point::nouveau(40.0, 600.0));
+    let ok = principal.poser(Element::poussoir("ok"), Point::nouveau(40.0, 600.0));
+    // Un élément retourné, dans le plan principal et dans une brique.
+    principal.element_mut(ok).expect("poussoir").miroir = true;
     principal.poser(
         Element::afficheur("chiffre", ""),
         Point::nouveau(600.0, 600.0),
