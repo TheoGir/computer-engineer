@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## Prochaine version
+## 0.11.0 — 15 novembre 2026
 
 - **Retourner une pièce (R)** : une porte, une brique, un interrupteur ou une lampe se retourne de gauche à droite, entrées à droite et sorties à gauche. Les fils suivent, et un signal qui revient en arrière (une boucle de mémoire, un retour de bus) n'a plus à faire le tour. Aussi dans la barre de la sélection ; Ctrl+Z l'annule.
 - **Éditeur d'automates (Ctrl+K)** : décris des états en quelques lignes (« état attente : voitures », « si bouton -> orange »…) et l'application fabrique la brique qui fait la même chose, en portes NAND et en bascules D : les sorties de chaque état, la logique de l'état suivant simplifiée par Quine-McCluskey, une entrée `raz` pour revenir au départ, et une sortie `etat` pour voir où il en est. Vérifié par un test qui compare la brique à l'automate sur des centaines de fronts tirés au hasard.
