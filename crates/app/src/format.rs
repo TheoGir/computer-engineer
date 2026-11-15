@@ -33,8 +33,12 @@ pub struct Format {
 pub const PROJET: Format = Format {
     genre: "projet",
     prefixe: "computer-engineer/projet/",
-    actuel: 3,
-    migrations: &[|v| programme_des_memoires(v, "modeles"), rien_a_changer],
+    actuel: 4,
+    migrations: &[
+        |v| programme_des_memoires(v, "modeles"),
+        rien_a_changer,
+        rien_a_changer,
+    ],
 };
 
 /// Le format de l'avancement dans le parcours (`parcours.json`).
@@ -49,6 +53,9 @@ pub const PARCOURS: Format = Format {
 /// `aspect` (bouton poussoir, afficheur 7 segments). Absent, il vaut « normal » : un fichier
 /// du format 2 se lit tel quel. Le numéro change pour qu'une version plus ancienne refuse
 /// clairement un fichier qui en contient, au lieu d'en perdre l'aspect.
+///
+/// Migration 3 → 4 (projets seulement) : le projet gagne le champ facultatif `bancs`, les
+/// bancs d'essai écrits par l'utilisateur. Absent, il n'y en a aucun ; même raison.
 fn rien_a_changer(_: &mut Value) -> Result<(), String> {
     Ok(())
 }

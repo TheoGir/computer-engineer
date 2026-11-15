@@ -1045,12 +1045,13 @@ impl Application {
             Ecran::Atelier => self.image_atelier(ui, dt),
         }
         self.fondre(ui, debut, avant);
-        // F1 partout ; Ctrl+P et Ctrl+E dans l'atelier, sauf pendant une saisie.
-        let (f1, ctrl_p, ctrl_e) = ui.input(|i| {
+        // F1 partout ; Ctrl+P, Ctrl+E et Ctrl+T dans l'atelier, sauf pendant une saisie.
+        let (f1, ctrl_p, ctrl_e, ctrl_t) = ui.input(|i| {
             (
                 i.key_pressed(Key::F1),
                 i.modifiers.command && i.key_pressed(Key::P),
                 i.modifiers.command && i.key_pressed(Key::E),
+                i.modifiers.command && i.key_pressed(Key::T),
             )
         });
         if f1 {
@@ -1062,6 +1063,9 @@ impl Application {
         }
         if ctrl_e && self.ecran == Ecran::Atelier && !saisie {
             self.fenetres.basculer_analyse(&self.atelier);
+        }
+        if ctrl_t && self.ecran == Ecran::Atelier && !saisie {
+            self.fenetres.basculer_banc(&self.atelier);
         }
         let atelier = self.ecran == Ecran::Atelier;
         if self.photo.is_some() {
@@ -1140,7 +1144,9 @@ impl Application {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(rappel));
                 return;
             }
-            Suite::Renoncer => "La capture du plan n'est pas arrivée : rien n'a été exporté.".to_owned(),
+            Suite::Renoncer => {
+                "La capture du plan n'est pas arrivée : rien n'a été exporté.".to_owned()
+            }
             Suite::Terminer(image, zone) => self.ecrire_la_photo(&image, ecran, zone),
         };
         if let Some(photo) = self.photo.take() {
@@ -1178,10 +1184,10 @@ impl Application {
                 // L'image est écrite : ne pas pouvoir montrer le dossier n'est pas un échec.
                 let _ = montrer_le_dossier(&dossier);
                 format!(
-                "Plan exporté en image : {}, dans le dossier « exports » de tes données.",
-                fichier
-                    .file_name()
-                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+                    "Plan exporté en image : {}, dans le dossier « exports » de tes données.",
+                    fichier
+                        .file_name()
+                        .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
                 )
             }
             Err(e) => format!("L'export en image a échoué : {e}"),
@@ -1306,7 +1312,10 @@ impl Application {
 
         if self.photo.is_some() {
             // Le plan seul, sur toute la fenêtre, le temps de la photo.
-            let seul = Disposition { libre: d.ecran, ..d };
+            let seul = Disposition {
+                libre: d.ecran,
+                ..d
+            };
             self.plan.montrer(
                 ui,
                 &self.apparence,

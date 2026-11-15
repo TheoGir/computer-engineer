@@ -48,6 +48,7 @@ pub mod dessin;
 pub mod disposition;
 pub mod document;
 pub mod economie;
+pub mod essai;
 pub mod etat;
 pub mod exemples;
 pub mod export;

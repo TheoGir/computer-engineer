@@ -78,6 +78,13 @@ fn projet_complet() -> Projet {
     projet.ajouter(brique::modele_du_plan(&affichage, "AFFICHAGE"));
     projet.principal = principal;
     projet.quete = Some(PARCOURS[0].cle.to_owned());
+    // Les bancs d'essai : celui du plan principal et celui d'une brique.
+    projet
+        .bancs
+        .insert(String::new(), "ok -> chiffre\n0 -> -\n".to_owned());
+    projet
+        .bancs
+        .insert("DEMI".to_owned(), "a b -> s\n1 1 -> 0\n".to_owned());
     // L'atelier de l'ordinateur apporte les briques à plusieurs niveaux, découpeurs et
     // jonctions compris.
     let ordi = exemples::atelier_de_l_ordinateur(
@@ -181,7 +188,12 @@ fn le_corpus_du_format_actuel_existe() {
         &ici.join("projet-demi-additionneur.json"),
         &Projet::nouveau("Demi-additionneur", Document::demi_additionneur()).en_json(),
     );
-    ecrire_si_demande(&ici.join("parcours.json"), &parcours_complet().en_json());
+    // L'avancement a son propre numéro : son corpus va dans le dossier de ce numéro.
+    let ici_parcours = donnees().join(format!("format-{}", format::PARCOURS.actuel));
+    ecrire_si_demande(
+        &ici_parcours.join("parcours.json"),
+        &parcours_complet().en_json(),
+    );
     // Les réglages n'ont pas de numéro : un seul exemplaire, dans format-1, suffit.
     assert!(corpus("projet")
         .iter()

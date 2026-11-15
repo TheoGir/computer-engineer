@@ -5,6 +5,7 @@ use egui::{Align, Color32, Layout, RichText, ScrollArea, TextEdit};
 
 use crate::apparence::Apparence;
 use crate::dessin::Police;
+use crate::essai::{jouer, modele_de_banc, LigneJouee};
 use crate::etat::Atelier;
 use crate::logique::{analyser, Analyse};
 use crate::programme::{PROGRAMMES, TAILLE_MAXIMALE};
@@ -114,6 +115,43 @@ impl VueAnalyse {
     }
 }
 
+/// Le banc d'essai du plan affiché (Ctrl+T), écrit par l'utilisateur ([`crate::essai`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct VueBanc {
+    /// Le plan essayé : `None` pour le plan principal, le nom de la brique sinon.
+    pub lieu: Option<String>,
+    /// Le nom affiché du plan.
+    pub nom: String,
+    /// Le texte du banc.
+    pub texte: String,
+    /// Ce qu'a donné le dernier essai, et la version du projet à ce moment-là.
+    pub resultat: Option<(Result<Vec<LigneJouee>, String>, u64)>,
+}
+
+impl VueBanc {
+    /// Le banc du plan affiché : celui qui est enregistré, ou un banc tout prêt à compléter.
+    pub fn de(at: &Atelier) -> VueBanc {
+        let lieu = at.lieu().map(str::to_owned);
+        let texte = at
+            .projet
+            .bancs
+            .get(lieu.as_deref().unwrap_or(""))
+            .cloned()
+            .unwrap_or_else(|| modele_de_banc(&at.doc));
+        VueBanc {
+            nom: lieu.clone().unwrap_or_else(|| at.projet.nom.clone()),
+            lieu,
+            texte,
+            resultat: None,
+        }
+    }
+
+    /// Joue le banc sur le plan affiché.
+    pub fn jouer(&mut self, at: &Atelier) {
+        self.resultat = Some((jouer(&at.projet, &at.doc, &self.texte), at.version));
+    }
+}
+
 /// Les fenêtres ouvertes.
 #[derive(Debug, Default)]
 pub struct Fenetres {
@@ -125,6 +163,8 @@ pub struct Fenetres {
     pub editeur: Option<Editeur>,
     /// L'analyse du plan (Ctrl+E).
     pub analyse: Option<VueAnalyse>,
+    /// Le banc d'essai du plan (Ctrl+T).
+    pub banc: Option<VueBanc>,
     /// Vrai quand « Exporter en Verilog » vient d'être demandé : l'application écrit le
     /// fichier, car elle seule connaît le dossier des données.
     pub exporter: bool,
@@ -193,6 +233,7 @@ const RACCOURCIS: &str = "# Partout
 - Ctrl+D : dupliquer la sélection.
 - Ctrl+C, Ctrl+X, Ctrl+V : copier, couper, coller la sélection, avec ses fils et ses briques, dans ce projet ou dans un autre. Ce qui est copié peut aussi se coller sous forme de texte, pour l'envoyer à quelqu'un.
 - Ctrl+E : analyser le circuit : sa table de vérité, l'expression simplifiée de chaque lampe, et l'export en Verilog.
+- Ctrl+T : le banc d'essai du plan : écris les essais (valeurs des interrupteurs, ce que doivent afficher les lampes) et lance-les tous d'un coup.
 - Ctrl+P : écrire le programme de la mémoire morte de l'ordinateur.
 - Échap : lâcher la sélection, puis remonter d'une brique.
 - F : recadrer le plan.
@@ -451,9 +492,20 @@ impl Fenetres {
         };
     }
 
+    /// Ouvre ou ferme le banc d'essai du plan affiché.
+    pub fn basculer_banc(&mut self, at: &Atelier) {
+        self.banc = match self.banc {
+            Some(_) => None,
+            None => Some(VueBanc::de(at)),
+        };
+    }
+
     /// Vrai si une fenêtre est ouverte.
     pub fn ouvertes(&self) -> bool {
-        self.aide.is_some() || self.editeur.is_some() || self.analyse.is_some()
+        self.aide.is_some()
+            || self.editeur.is_some()
+            || self.analyse.is_some()
+            || self.banc.is_some()
     }
 
     /// Dessine les fenêtres ouvertes. L'éditeur n'apparaît que dans l'atelier.
@@ -564,6 +616,7 @@ impl Fenetres {
             return;
         }
         self.fenetre_d_analyse(ctx, at, a, cadre);
+        self.fenetre_du_banc(ctx, at, a, cadre);
         let Some(editeur) = &mut self.editeur else {
             return;
         };
@@ -668,6 +721,151 @@ impl Fenetres {
 }
 
 impl Fenetres {
+    /// La fenêtre du banc d'essai (Ctrl+T) : le texte du banc, enregistré avec le projet à
+    /// chaque frappe, et ce qu'a donné le dernier essai, ligne par ligne.
+    fn fenetre_du_banc(
+        &mut self,
+        ctx: &egui::Context,
+        at: &mut Atelier,
+        a: &Apparence,
+        cadre: egui::Frame,
+    ) {
+        let Some(vue) = &mut self.banc else {
+            return;
+        };
+        // On est entré dans une brique ou on en est sorti : le banc suit le plan affiché.
+        if vue.lieu.as_deref() != at.lieu() {
+            *vue = VueBanc::de(at);
+        }
+        let c = a.palette();
+        let e = a.formes.echelle_texte;
+        let mono = |t: &str, couleur: Color32| {
+            RichText::new(t)
+                .font(Police::Mono.taille(a.typo.corps * e))
+                .color(couleur)
+        };
+        let principal = egui::Button::new(
+            RichText::new("Lancer le banc")
+                .font(Police::CorpsDemi.taille(a.typo.corps * e))
+                .color(Color32::WHITE),
+        )
+        .fill(c.accent.c())
+        .stroke(egui::Stroke::NONE)
+        .min_size(egui::vec2(0.0, a.formes.controle + 4.0));
+        let mut ouverte = true;
+        let mut lancer = false;
+        let mut change = false;
+        egui::Window::new(format!("Banc d'essai de « {} »", vue.nom))
+            .id(egui::Id::unique("fenetre-banc"))
+            .open(&mut ouverte)
+            .collapsible(false)
+            .resizable(true)
+            .default_size([560.0, 520.0])
+            .frame(cadre)
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new("Une ligne par essai : les valeurs des interrupteurs, « -> », puis ce que les lampes doivent afficher. « - » : laisser l'interrupteur, ou peu importe la lampe. Les lignes se jouent dans l'ordre, mémoire comprise ; « attendre 50 » laisse passer le temps.")
+                        .color(c.doux.c()),
+                );
+                ui.add_space(4.0);
+                ScrollArea::vertical()
+                    .id_salt("texte-banc")
+                    .max_height((ui.available_height() * 0.45).max(120.0))
+                    .show(ui, |ui| {
+                        let reponse = ui.add(
+                            TextEdit::multiline(&mut vue.texte)
+                                .code_editor()
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(10),
+                        );
+                        change = reponse.changed();
+                    });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.add(principal).clicked() {
+                        lancer = true;
+                    }
+                    if let Some((Ok(lignes), _)) = &vue.resultat {
+                        let justes = lignes.iter().filter(|l| l.juste()).count();
+                        let (texte, couleur) = if justes == lignes.len() {
+                            (
+                                format!(
+                                    "Tout est juste : {justes} essai{}.",
+                                    if justes > 1 { "s" } else { "" }
+                                ),
+                                c.un.c(),
+                            )
+                        } else {
+                            (
+                                format!(
+                                    "{} essai{} faux sur {}.",
+                                    lignes.len() - justes,
+                                    if lignes.len() - justes > 1 { "s" } else { "" },
+                                    lignes.len()
+                                ),
+                                c.danger.c(),
+                            )
+                        };
+                        ui.label(RichText::new(texte).color(couleur));
+                    }
+                });
+                let Some((resultat, version)) = &vue.resultat else {
+                    return;
+                };
+                if *version != at.version {
+                    ui.label(
+                        RichText::new("Le circuit ou le banc a changé depuis : relance-le.")
+                            .color(c.discret.c()),
+                    );
+                }
+                ui.add_space(4.0);
+                match resultat {
+                    Err(raison) => {
+                        ui.label(RichText::new(raison).color(c.danger.c()));
+                    }
+                    Ok(lignes) => {
+                        ScrollArea::vertical()
+                            .id_salt("resultat-banc")
+                            .show(ui, |ui| {
+                                for l in lignes {
+                                    ui.horizontal_wrapped(|ui| {
+                                        // Les polices de l'application n'ont pas de coche :
+                                        // un mot, en couleur.
+                                        if l.juste() {
+                                            ui.label(mono("juste", c.un.c()));
+                                        } else {
+                                            ui.label(mono("faux ", c.danger.c()));
+                                        }
+                                        ui.label(mono(
+                                            &format!("{:>3}  {}", l.numero, l.texte),
+                                            c.texte.c(),
+                                        ));
+                                        if !l.juste() {
+                                            ui.label(
+                                                RichText::new(l.ecarts.join(" · "))
+                                                    .color(c.danger.c()),
+                                            );
+                                        }
+                                    });
+                                }
+                            });
+                    }
+                }
+            });
+        if change {
+            // Le banc fait partie du projet : il s'enregistre avec lui.
+            let cle = vue.lieu.clone().unwrap_or_default();
+            at.projet.bancs.insert(cle, vue.texte.clone());
+            at.version += 1;
+        }
+        if lancer {
+            vue.jouer(at);
+        }
+        if !ouverte {
+            self.banc = None;
+        }
+    }
+
     /// La fenêtre « Analyser le circuit » (Ctrl+E) : expressions, table de vérité, export.
     fn fenetre_d_analyse(
         &mut self,
@@ -950,6 +1148,7 @@ mod tests {
         let t = texte_de(Rubrique::Raccourcis);
         for r in [
             "F1", "Ctrl+P", "Ctrl+G", "Ctrl+Z", "Espace", "Échap", "Ctrl+C", "Ctrl+V", "Ctrl+E",
+            "Ctrl+T",
         ] {
             assert!(t.contains(r), "{r}");
         }

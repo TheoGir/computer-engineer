@@ -4,6 +4,8 @@
 
 - **Une branche « Dépannage »** : quatre circuits déjà construits (OU exclusif, demi-additionneur, multiplexeur, additionneur complet), chacun avec un seul fil mal branché. Il faut essayer les entrées, trouver les cas faux, remonter le courant jusqu'à la porte fautive et la rebrancher. La panne est calculée à partir du corrigé : un seul fil change, et la table de vérité devient fausse (vérifié par un test pour chaque quête).
 - **Exporter le plan en image** : le bouton appareil photo, à côté du zoom, écrit le circuit affiché en PNG dans le dossier `exports`, sans les panneaux, cadré sur tout le circuit, avec les valeurs du moment. Pour un exposé, un cahier, ou le montrer à quelqu'un.
+- **Bancs d'essai (Ctrl+T)** : écris tes propres essais, une ligne par cas (`a b -> s c`, puis `1 1 -> 0 1`…), et lance-les tous d'un coup : chaque ligne dit si elle est juste, et sinon ce qui était attendu et ce qui est sorti. Les lignes se jouent dans l'ordre, mémoire comprise : un interrupteur peut servir d'horloge, et `attendre 50` laisse passer le temps. Chaque plan et chaque brique a son banc, enregistré avec le projet.
+- Format des projets : `projet/4` (champ facultatif `bancs`). Les projets des versions précédentes s'ouvrent comme avant ; une version plus ancienne refuse clairement un projet du nouveau format au lieu d'en perdre les bancs. L'avancement reste en `parcours/3`.
 
 ## 0.9.0 — 15 novembre 2026
 

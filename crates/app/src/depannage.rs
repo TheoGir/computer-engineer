@@ -60,9 +60,9 @@ pub fn plan_a_plat(bib: &Bibliotheque, nom: &str) -> Result<Document, String> {
         .collect();
     for (k, p) in net.portes.iter().enumerate() {
         for (i, e) in [p.e0, p.e1].into_iter().enumerate() {
-            let source = source_de
-                .get(&e)
-                .ok_or_else(|| format!("une entrée de porte de « {nom} » n'est pilotée par rien"))?;
+            let source = source_de.get(&e).ok_or_else(|| {
+                format!("une entrée de porte de « {nom} » n'est pilotée par rien")
+            })?;
             plan.relier(
                 *source,
                 Fil {
@@ -77,7 +77,13 @@ pub fn plan_a_plat(bib: &Bibliotheque, nom: &str) -> Result<Document, String> {
         let source = source_de
             .get(&b.nets[0])
             .ok_or_else(|| format!("la sortie {} de « {nom} » n'est pilotée par rien", b.nom))?;
-        plan.relier(*source, Fil { puits: id, entree: 0 });
+        plan.relier(
+            *source,
+            Fil {
+                puits: id,
+                entree: 0,
+            },
+        );
         sorties.push(id);
     }
     crate::importer::disposer(&mut plan, &entrees, &sorties);
@@ -96,7 +102,11 @@ fn table(plan: &Document) -> Option<Vec<Vec<ce_moteur::Valeur>>> {
 /// `None` si ce n'est pas une quête de dépannage.
 pub fn plan_en_panne(fiche: &Fiche) -> Option<Result<Document, String>> {
     let &(_, depart) = PANNES.iter().find(|(c, _)| *c == fiche.cle)?;
-    Some(plan_en_panne_de(crate::quete::corriges(), fiche.corrige, depart))
+    Some(plan_en_panne_de(
+        crate::quete::corriges(),
+        fiche.corrige,
+        depart,
+    ))
 }
 
 fn plan_en_panne_de(bib: &Bibliotheque, corrige: &str, depart: usize) -> Result<Document, String> {
