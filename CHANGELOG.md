@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## Prochaine version
+## 0.8.0 — 15 novembre 2026
 
 De nouvelles pièces pour voir et toucher ses circuits.
 
@@ -8,6 +8,7 @@ De nouvelles pièces pour voir et toucher ses circuits.
 - **Afficheur 7 segments** : une lampe de 7 bits (8 avec le point) qui dessine son chiffre. La quête « L'afficheur 7 segments » le montre directement sur sa sortie.
 - **Les briques se décrivent** : une description, écrite dans le panneau de la brique, s'affiche au survol dans la palette ; le panneau dit aussi où la brique est utilisée.
 - Format des projets et de l'avancement : `projet/3` et `parcours/3` (champ facultatif `aspect` des interrupteurs et des lampes). Les fichiers des versions précédentes s'ouvrent comme avant ; une version plus ancienne refuse clairement un fichier du nouveau format au lieu d'en perdre une partie.
+- Le guide précise que la fenêtre de l'installateur peut mettre quelques secondes à apparaître après l'avertissement de Windows.
 
 ## 0.7.0 — 15 novembre 2026
 
