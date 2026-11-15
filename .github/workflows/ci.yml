@@ -84,11 +84,15 @@ jobs:
           # ~/.cargo/bin n'est pas mis en cache : zipsign a son propre cache, et rien d'autre n'y
           # est installé.
           cache-bin: false
-      - name: Icarus Verilog
+      # Icarus Verilog pour les exports, et Vulkan logiciel (lavapipe) : sans carte graphique,
+      # wgpu ne trouve sinon aucun adaptateur et les tests qui rendent une image (photo du plan)
+      # échouent.
+      - name: Icarus Verilog et Vulkan logiciel
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends iverilog
+          sudo apt-get install -y -qq --no-install-recommends iverilog mesa-vulkan-drivers
           iverilog -V | head -1
+          ls /usr/share/vulkan/icd.d/ | grep -q lvp
       - name: Contrôles
         run: outils/verifier.sh
 
