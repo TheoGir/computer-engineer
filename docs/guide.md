@@ -92,6 +92,8 @@ fin:    HLT
 - **Exporter en Verilog** (dans la même fenêtre) écrit le plan, briques mises à plat, dans le
   dossier `exports` de tes données : on peut le simuler avec un autre outil ou le charger
   dans un vrai circuit programmable (FPGA).
+- **Exporter en image** : le bouton appareil photo, à côté du zoom, écrit le plan affiché en
+  PNG dans le dossier `exports`, sans les panneaux et cadré sur tout le circuit.
 - **Copier, coller** : Ctrl+C copie la sélection avec ses fils et ses briques ; Ctrl+V la
   colle ici ou dans un autre projet, en y ajoutant les briques qui manquent. Ce qui est copié
   est aussi du texte : colle-le dans un message pour l'envoyer, la personne qui le reçoit le

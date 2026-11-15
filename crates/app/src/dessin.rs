@@ -621,6 +621,22 @@ impl<'a> Toile<'a> {
                 ligne(&[(5.5, 4.5), (5.5, 8.5)], false);
                 ligne(&[(7.0, 10.0), (13.0, 10.0)], false);
             }
+            Icone::Photo => {
+                ligne(
+                    &[
+                        (2.5, 6.5),
+                        (6.5, 6.5),
+                        (8.0, 4.0),
+                        (12.0, 4.0),
+                        (13.5, 6.5),
+                        (17.5, 6.5),
+                        (17.5, 16.0),
+                        (2.5, 16.0),
+                    ],
+                    true,
+                );
+                cercle(10.0, 11.0, 3.2);
+            }
             Icone::Ecran => {
                 ligne(&[(3.0, 4.0), (17.0, 4.0), (17.0, 14.0), (3.0, 14.0)], true);
                 ligne(&[(7.0, 17.5), (13.0, 17.5)], false);
@@ -798,6 +814,8 @@ pub enum Icone {
     Poussoir,
     /// Un afficheur 7 segments.
     Segments,
+    /// Un appareil photo : exporter le plan en image.
+    Photo,
     /// Un clavier.
     Clavier,
     /// Un découpeur de bus.

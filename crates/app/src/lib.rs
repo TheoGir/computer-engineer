@@ -61,6 +61,7 @@ pub mod logique;
 pub mod mise_a_jour;
 pub mod panneaux;
 pub mod parcours;
+pub mod photo;
 pub mod plan;
 pub mod pont;
 pub mod programme;

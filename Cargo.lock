@@ -352,6 +352,7 @@ dependencies = [
  "eframe",
  "egui",
  "egui_kittest",
+ "image",
  "quine-mc_cluskey",
  "self_update",
  "serde",

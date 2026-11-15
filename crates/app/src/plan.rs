@@ -556,6 +556,15 @@ impl Plan {
         }
     }
 
+    /// La place de tout le circuit à l'écran, avec sa marge, en points.
+    pub fn zone_du_circuit(&self, at: &Atelier) -> Rect {
+        let b = Self::boite(at);
+        Rect::from_min_max(
+            self.cam.ecran(Point::nouveau(b.min.x, b.min.y)),
+            self.cam.ecran(Point::nouveau(b.max.x, b.max.y)),
+        )
+    }
+
     /// La boîte qui contient tout le circuit, en unités du plan.
     fn boite(at: &Atelier) -> Rect {
         let mut r = Rect::NOTHING;

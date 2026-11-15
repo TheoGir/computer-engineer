@@ -232,3 +232,34 @@ fn capture_depannage() {
         .save(format!("{dossier}/p3-depannage.png"))
         .expect("écriture de la capture");
 }
+
+#[test]
+fn le_plan_s_exporte_en_image() {
+    let racine = std::env::temp_dir().join(format!("ce-photo-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&racine);
+    let app = Application::nouvelle(Apparence::default(), Surveillance::default())
+        .avec_dossier(ce_app::sauvegarde::Dossier::dans(&racine));
+    let mut b = Harness::builder()
+        .with_size(Vec2::new(1280.0, 800.0))
+        .with_pixels_per_point(1.0)
+        .with_step_dt(1.0 / 60.0)
+        .wgpu()
+        .build_ui_state(|ui, app: &mut Application| app.image(ui), app);
+    b.run_steps(120);
+    let camera = b.state().plan.cam;
+    b.state_mut().panneaux.photo_demandee = true;
+    b.run_steps(20);
+    assert_eq!(b.state().plan.cam, camera, "la vue revient comme avant");
+    let fichier = racine.join("exports").join(format!(
+        "{}.png",
+        ce_app::export::identifiant(&b.state().atelier.projet.nom)
+    ));
+    let image = image::open(&fichier).expect("l'image est écrite");
+    let (l, h) = (image.width(), image.height());
+    assert!(l > 100 && h > 50 && l <= 1280 && h <= 800, "{l} × {h}");
+    if let Ok(dossier) = std::env::var("CE_CAPTURES") {
+        std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+        std::fs::copy(&fichier, format!("{dossier}/p3-photo.png")).expect("copie");
+    }
+    let _ = std::fs::remove_dir_all(&racine);
+}
