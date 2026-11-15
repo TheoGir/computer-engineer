@@ -1466,6 +1466,7 @@ impl Application {
                 tout: cmd && i.key_pressed(Key::A),
                 regrouper: cmd && i.key_pressed(Key::G),
                 dupliquer: cmd && i.key_pressed(Key::D),
+                retourner: !cmd && !vers_le_circuit && i.key_pressed(Key::R),
                 cadrer: !cmd && !vers_le_circuit && i.key_pressed(Key::F),
                 echap: i.key_pressed(Key::Escape),
                 fleche,
@@ -1538,6 +1539,9 @@ impl Application {
         if k.dupliquer {
             self.atelier.dupliquer_selection(a);
         }
+        if k.retourner && self.atelier.selection.is_some() {
+            self.atelier.retourner_selection(a);
+        }
         if k.cadrer {
             self.plan.cadrer(false);
         }
@@ -1573,6 +1577,7 @@ struct Touches {
     tout: bool,
     regrouper: bool,
     dupliquer: bool,
+    retourner: bool,
     cadrer: bool,
     echap: bool,
     fleche: Option<(f32, f32)>,

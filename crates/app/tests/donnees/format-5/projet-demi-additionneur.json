@@ -1,0 +1,266 @@
+{
+  "format": "computer-engineer/projet/5",
+  "nom": "Demi-additionneur",
+  "modeles": [],
+  "principal": {
+    "elements": [
+      {
+        "id": 1,
+        "genre": "entree",
+        "nom": "a",
+        "pos": {
+          "x": 61.0,
+          "y": 135.0
+        },
+        "entrees": [],
+        "broches_e": [],
+        "broches_s": [
+          {
+            "nom": "s",
+            "largeur": 1
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "genre": "entree",
+        "nom": "b",
+        "pos": {
+          "x": 61.0,
+          "y": 345.0
+        },
+        "entrees": [],
+        "broches_e": [],
+        "broches_s": [
+          {
+            "nom": "s",
+            "largeur": 1
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "genre": "nand",
+        "nom": "g1",
+        "pos": {
+          "x": 260.0,
+          "y": 240.0
+        },
+        "entrees": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ]
+        ],
+        "broches_e": [
+          {
+            "nom": "a",
+            "largeur": 1
+          },
+          {
+            "nom": "b",
+            "largeur": 1
+          }
+        ],
+        "broches_s": [
+          {
+            "nom": "s",
+            "largeur": 1
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "genre": "nand",
+        "nom": "g2",
+        "pos": {
+          "x": 460.0,
+          "y": 150.0
+        },
+        "entrees": [
+          [
+            1,
+            0
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "broches_e": [
+          {
+            "nom": "a",
+            "largeur": 1
+          },
+          {
+            "nom": "b",
+            "largeur": 1
+          }
+        ],
+        "broches_s": [
+          {
+            "nom": "s",
+            "largeur": 1
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "genre": "nand",
+        "nom": "g3",
+        "pos": {
+          "x": 460.0,
+          "y": 330.0
+        },
+        "entrees": [
+          [
+            3,
+            0
+          ],
+          [
+            2,
+            0
+          ]
+        ],
+        "broches_e": [
+          {
+            "nom": "a",
+            "largeur": 1
+          },
+          {
+            "nom": "b",
+            "largeur": 1
+          }
+        ],
+        "broches_s": [
+          {
+            "nom": "s",
+            "largeur": 1
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "genre": "nand",
+        "nom": "g4",
+        "pos": {
+          "x": 660.0,
+          "y": 240.0
+        },
+        "entrees": [
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ]
+        ],
+        "broches_e": [
+          {
+            "nom": "a",
+            "largeur": 1
+          },
+          {
+            "nom": "b",
+            "largeur": 1
+          }
+        ],
+        "broches_s": [
+          {
+            "nom": "s",
+            "largeur": 1
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "genre": "nand",
+        "nom": "g5",
+        "pos": {
+          "x": 460.0,
+          "y": 460.0
+        },
+        "entrees": [
+          [
+            3,
+            0
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "broches_e": [
+          {
+            "nom": "a",
+            "largeur": 1
+          },
+          {
+            "nom": "b",
+            "largeur": 1
+          }
+        ],
+        "broches_s": [
+          {
+            "nom": "s",
+            "largeur": 1
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "genre": "sortie",
+        "nom": "s",
+        "legende": "s · somme",
+        "pos": {
+          "x": 836.0,
+          "y": 240.0
+        },
+        "entrees": [
+          [
+            6,
+            0
+          ]
+        ],
+        "broches_e": [
+          {
+            "nom": "e",
+            "largeur": 1
+          }
+        ],
+        "broches_s": []
+      },
+      {
+        "id": 9,
+        "genre": "sortie",
+        "nom": "c",
+        "legende": "c · retenue",
+        "pos": {
+          "x": 836.0,
+          "y": 460.0
+        },
+        "entrees": [
+          [
+            7,
+            0
+          ]
+        ],
+        "broches_e": [
+          {
+            "nom": "e",
+            "largeur": 1
+          }
+        ],
+        "broches_s": []
+      }
+    ],
+    "prochain_id": 10,
+    "prochaine_porte": 6
+  }
+}

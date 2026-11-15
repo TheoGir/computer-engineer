@@ -237,6 +237,7 @@ const RACCOURCIS: &str = "# Partout
 - Ctrl+P : écrire le programme de la mémoire morte de l'ordinateur.
 - Échap : lâcher la sélection, puis remonter d'une brique.
 - F : recadrer le plan.
+- R : retourner la sélection de gauche à droite (entrées à droite, sorties à gauche), pour ramener un signal vers la gauche sans détour.
 - Flèches : déplacer la sélection.
 - Molette : zoomer ; glisser le fond : se déplacer.
 - Double-clic sur une brique : entrer dedans.
@@ -1148,7 +1149,7 @@ mod tests {
         let t = texte_de(Rubrique::Raccourcis);
         for r in [
             "F1", "Ctrl+P", "Ctrl+G", "Ctrl+Z", "Espace", "Échap", "Ctrl+C", "Ctrl+V", "Ctrl+E",
-            "Ctrl+T",
+            "Ctrl+T", "R :",
         ] {
             assert!(t.contains(r), "{r}");
         }

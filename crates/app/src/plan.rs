@@ -1351,8 +1351,14 @@ impl Plan {
                 } else {
                     -21.0
                 };
+                // L'étiquette suit le fil : à gauche de la sortie d'un élément retourné.
+                let x = if e.miroir {
+                    port.x - 6.0 - largeur / k
+                } else {
+                    port.x + 6.0
+                };
                 let r = Rect::from_min_size(
-                    cam.ecran(Point::nouveau(port.x + 6.0, port.y + dy - 10.0)),
+                    cam.ecran(Point::nouveau(x, port.y + dy - 10.0)),
                     Vec2::new(largeur, 20.0 * k),
                 );
                 t.p.rect(
@@ -1407,9 +1413,20 @@ impl Plan {
             };
             let fixe = bout(depuis);
             let libre = aimant.map_or(cam.monde(pointeur), bout);
+            // Le sens de l'élément d'où part le fil (retourné ou non), et celui de l'élément
+            // visé quand l'aimant en a trouvé un.
+            let sens = |port: Port| {
+                let id = match port {
+                    Port::Sortie(s) => s.id,
+                    Port::Entree(f) => f.puits,
+                };
+                at.doc.element(id).map_or(1.0, Element::sens)
+            };
+            let s_fixe = sens(depuis);
+            let s_libre = aimant.map_or(s_fixe, sens);
             let sommets = match depuis {
-                Port::Sortie(_) => routage::itineraire(fixe, libre, 0.0),
-                Port::Entree(_) => routage::itineraire(libre, fixe, 0.0),
+                Port::Sortie(_) => routage::itineraire_oriente(fixe, s_fixe, libre, s_libre, None),
+                Port::Entree(_) => routage::itineraire_oriente(libre, s_libre, fixe, s_fixe, None),
             };
             let ligne = routage::arrondir(&sommets, f.rayon_fil);
             let longueur = routage::longueur(&ligne);
@@ -1653,6 +1670,8 @@ impl Plan {
             meler(u64::from(pos.x.to_bits()) << 32 | u64::from(pos.y.to_bits()));
             meler(u64::from(e.largeur().to_bits()) << 32 | u64::from(e.hauteur().to_bits()));
             meler((e.broches_e.len() as u64) << 32 | e.broches_s.len() as u64);
+            // Retourner un élément change le côté de ses broches, donc ses fils.
+            meler(u64::from(e.miroir));
             hc = (hc ^ u64::from(e.id)).wrapping_mul(PREMIER);
             for s in &e.entrees {
                 let x = s.map_or(u64::MAX, |s| u64::from(s.id) << 16 | s.sortie as u64);
@@ -1877,9 +1896,25 @@ impl Plan {
         } else {
             t
         };
-        let q = |x: f32, y: f32| Pos2::new(centre.x + x * s, centre.y + y * s);
-        let r =
-            |x: f32, y: f32, l: f32, h: f32| Rect::from_min_size(q(x, y), Vec2::new(l * s, h * s));
+        // L'élément se dessine dans son repère, puis un élément retourné passe dans un miroir :
+        // les abscisses changent de signe, les textes restent à l'endroit et changent de côté.
+        let sx = e.sens();
+        let q = |x: f32, y: f32| Pos2::new(centre.x + sx * x * s, centre.y + y * s);
+        let r = |x: f32, y: f32, l: f32, h: f32| Rect::from_two_pos(q(x, y), q(x + l, y + h));
+        let cote = |a: Align2| {
+            if e.miroir {
+                Align2([
+                    match a.x() {
+                        egui::Align::Min => egui::Align::Max,
+                        egui::Align::Max => egui::Align::Min,
+                        centre => centre,
+                    },
+                    a.y(),
+                ])
+            } else {
+                a
+            }
+        };
         // Le contour de la sélection s'allume et s'éteint en douceur.
         let selection = if choisi {
             anims.vers_depuis(cle("choisi"), 0.0, 1.0, dt, m.lissage_ui)
@@ -1900,7 +1935,7 @@ impl Plan {
             t.p.add(ombre.as_shape(rect, rayon));
         };
         // Le rectangle du corps, relatif au centre.
-        let (cg, ch, cd, cb) = e.corps(Point::default());
+        let (cg, ch, cd, cb) = e.corps_local();
         let corps = r(cg, ch, cd - cg, cb - ch);
         let trait_corps = Stroke::new((2.0 + selection) * s, contour.c());
         let couleur_de = |v: Valeur| match symbole(v) {
@@ -2301,7 +2336,7 @@ impl Plan {
                         });
                         t.texte(
                             q(cg + 11.0, e.decalage_entree(i)),
-                            Align2::LEFT_CENTER,
+                            cote(Align2::LEFT_CENTER),
                             &b.nom,
                             Police::Mono,
                             11.0 * s,
@@ -2312,7 +2347,7 @@ impl Plan {
                         let v = at.valeur(Source::nouvelle(e.id, j));
                         t.texte(
                             q(cd - 11.0, e.decalage_sortie(j)),
-                            Align2::RIGHT_CENTER,
+                            cote(Align2::RIGHT_CENTER),
                             &b.nom,
                             Police::Mono,
                             11.0 * s,
@@ -2378,7 +2413,7 @@ impl Plan {
                     for (i, b) in e.broches_e.iter().enumerate() {
                         t.texte(
                             q(cg + 9.0, e.decalage_entree(i)),
-                            Align2::LEFT_CENTER,
+                            cote(Align2::LEFT_CENTER),
                             &b.nom,
                             Police::Mono,
                             10.0 * s,
@@ -2487,7 +2522,7 @@ impl Plan {
                         for (j, b) in e.broches_s.iter().enumerate() {
                             t.texte(
                                 q(13.0, e.decalage_sortie(j) - 8.0),
-                                Align2::LEFT_CENTER,
+                                cote(Align2::LEFT_CENTER),
                                 &b.nom,
                                 Police::Mono,
                                 9.0 * s,
@@ -2498,7 +2533,7 @@ impl Plan {
                         for (i, b) in e.broches_e.iter().enumerate() {
                             t.texte(
                                 q(-13.0, e.decalage_entree(i) - 8.0),
-                                Align2::RIGHT_CENTER,
+                                cote(Align2::RIGHT_CENTER),
                                 &b.nom,
                                 Police::Mono,
                                 9.0 * s,

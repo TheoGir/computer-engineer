@@ -190,6 +190,10 @@ pub struct Element {
     /// Pour un interrupteur ou une lampe : son aspect (poussoir, afficheur 7 segments).
     #[serde(default, skip_serializing_if = "Aspect::est_normal")]
     pub aspect: Aspect,
+    /// Retourné de gauche à droite : les entrées à droite, les sorties à gauche. Pour faire
+    /// revenir un signal vers la gauche sans détour (une boucle, un retour de bus).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub miroir: bool,
 }
 
 /// Demi-période d'une horloge qu'on vient de poser.
@@ -212,6 +216,7 @@ impl Element {
             param: 0,
             plages: Vec::new(),
             aspect: Aspect::Normal,
+            miroir: false,
         }
     }
 
@@ -415,8 +420,33 @@ impl Element {
         }
     }
 
+    /// `-1` pour un élément retourné, `1` sinon : le signe des abscisses relatives au centre.
+    pub fn sens(&self) -> f32 {
+        if self.miroir {
+            -1.0
+        } else {
+            1.0
+        }
+    }
+
     /// Le rectangle du corps `(gauche, haut, droite, bas)` pour un élément placé en `pos`.
     pub fn corps(&self, pos: Point) -> (f32, f32, f32, f32) {
+        let (g, h, d, b) = self.corps_droit(pos);
+        if self.miroir {
+            // Retourné autour de son centre : la gauche et la droite s'échangent.
+            (2.0 * pos.x - d, h, 2.0 * pos.x - g, b)
+        } else {
+            (g, h, d, b)
+        }
+    }
+
+    /// Le corps relatif au centre, tel qu'il est dessiné avant d'être retourné.
+    pub fn corps_local(&self) -> (f32, f32, f32, f32) {
+        self.corps_droit(Point::default())
+    }
+
+    /// Le corps tel qu'il est sans retournement.
+    fn corps_droit(&self, pos: Point) -> (f32, f32, f32, f32) {
         let (l, h) = (self.largeur(), self.hauteur());
         match self.genre {
             Genre::Nand => (pos.x - 45.0, pos.y - 32.0, pos.x + 35.0, pos.y + 32.0),
@@ -441,7 +471,7 @@ impl Element {
 
     /// Vrai si le point `p` est sur l'élément placé en `pos`.
     pub fn contient(&self, pos: Point, p: Point) -> bool {
-        let (dx, dy) = (p.x - pos.x, p.y - pos.y);
+        let (dx, dy) = ((p.x - pos.x) * self.sens(), p.y - pos.y);
         match self.genre {
             Genre::Nand => (-47.0..=37.0).contains(&dx) && dy.abs() <= 34.0,
             Genre::Entree | Genre::Horloge => dx.abs() <= 33.0 && dy.abs() <= 28.0,
@@ -451,8 +481,8 @@ impl Element {
                 dx.abs() <= 14.0 && dy.abs() <= self.hauteur() / 2.0 + 2.0
             }
             _ => {
-                let (g, h, d, b) = self.corps(pos);
-                (g..=d).contains(&p.x) && (h..=b).contains(&p.y)
+                let (g, h, d, b) = self.corps_droit(pos);
+                (g..=d).contains(&(pos.x + dx)) && (h..=b).contains(&p.y)
             }
         }
     }
@@ -482,7 +512,7 @@ impl Element {
             Genre::Sortie if !self.est_afficheur() => -28.0,
             _ => -self.largeur() / 2.0,
         };
-        Point::nouveau(pos.x + x, pos.y + self.decalage_entree(i))
+        Point::nouveau(pos.x + x * self.sens(), pos.y + self.decalage_entree(i))
     }
 
     /// Position du point de la sortie `j` tel qu'il est dessiné sur l'élément.
@@ -491,7 +521,7 @@ impl Element {
             Genre::Nand => 40.0,
             _ => self.largeur() / 2.0,
         };
-        Point::nouveau(pos.x + x, pos.y + self.decalage_sortie(j))
+        Point::nouveau(pos.x + x * self.sens(), pos.y + self.decalage_sortie(j))
     }
 
     /// Position d'où part le fil de la sortie `j` pour un élément placé en `pos`.
@@ -499,7 +529,7 @@ impl Element {
         let p = self.point_sortie(pos, j);
         match self.genre {
             Genre::Entree | Genre::Horloge => p,
-            _ => Point::nouveau(p.x + 5.0, p.y),
+            _ => Point::nouveau(p.x + 5.0 * self.sens(), p.y),
         }
     }
 }
@@ -1148,6 +1178,49 @@ impl Historique {
             self.defaire.push(courant);
         }
         Some(apres)
+    }
+}
+
+#[cfg(test)]
+mod tests_miroir {
+    use super::*;
+
+    #[test]
+    fn un_element_retourne_echange_ses_cotes() {
+        let pos = Point::nouveau(100.0, 50.0);
+        for mut e in [
+            Element::nand("g"),
+            Element::entree("a", 1),
+            Element::sortie("s", "s", 1),
+            Element::brique(
+                "b",
+                "ADD",
+                vec![Broche::nouvelle("a", 1), Broche::nouvelle("b", 1)],
+                vec![Broche::nouvelle("s", 1)],
+            ),
+        ] {
+            let droit = e.clone();
+            e.miroir = true;
+            for i in 0..e.broches_e.len() {
+                let (d, m) = (droit.entree_en(pos, i), e.entree_en(pos, i));
+                assert_eq!((m.x - pos.x, m.y), (pos.x - d.x, d.y), "{:?}", e.genre);
+            }
+            for j in 0..e.broches_s.len() {
+                let (d, m) = (droit.sortie_en(pos, j), e.sortie_en(pos, j));
+                assert_eq!((m.x - pos.x, m.y), (pos.x - d.x, d.y), "{:?}", e.genre);
+            }
+            let (g, h, dr, b) = droit.corps(pos);
+            assert_eq!(e.corps(pos), (2.0 * pos.x - dr, h, 2.0 * pos.x - g, b));
+            // On le touche là où il est dessiné : au miroir de l'élément à l'endroit.
+            for (dx, dy) in [(-44.0, 0.0), (34.0, 10.0), (0.0, 0.0), (-60.0, 0.0)] {
+                assert_eq!(
+                    e.contient(pos, Point::nouveau(pos.x - dx, pos.y + dy)),
+                    droit.contient(pos, Point::nouveau(pos.x + dx, pos.y + dy)),
+                    "{:?} {dx}",
+                    e.genre
+                );
+            }
+        }
     }
 }
 

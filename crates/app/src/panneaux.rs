@@ -224,6 +224,8 @@ pub enum Action {
     Supprimer,
     /// Poser ou retirer le point d'arrêt sur le fil sélectionné.
     Arret,
+    /// Retourner la sélection de gauche à droite.
+    Retourner,
 }
 
 impl Cadre<'_, '_> {
@@ -3996,6 +3998,12 @@ impl Panneaux {
                 Icone::Dupliquer,
                 "Copier juste à côté (Ctrl+D)",
             ));
+            actions.push((
+                Action::Retourner,
+                "Retourner",
+                Icone::Miroir,
+                "Entrées à droite, sorties à gauche (touche R)",
+            ));
         }
         let supprimable = match &at.selection {
             Some(Selection::Elements(ids)) => ids.iter().any(|id| at.supprimable(*id)),
@@ -4095,6 +4103,7 @@ impl Panneaux {
                 Action::Dupliquer => "dupliquer",
                 Action::Supprimer => "supprimer",
                 Action::Arret => "point-d-arret",
+                Action::Retourner => "retourner",
             };
             k.reperes.push(("action", *action as usize, rect));
             let touche = k.toucher(rect, egui::Id::unique(cle), bulle, Sense::click());
@@ -4149,6 +4158,9 @@ impl Panneaux {
                 at.supprimer_selection(k.a);
             }
             Some(Action::Arret) => at.basculer_point_d_arret(),
+            Some(Action::Retourner) => {
+                at.retourner_selection(k.a);
+            }
             None => {}
         }
     }

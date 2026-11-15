@@ -45,6 +45,9 @@ des plus anciennes ; l'original d'un projet mis au nouveau format est gardé dan
   0 dès que tu le lâches. L'afficheur est une lampe de 7 bits (8 avec le point) : bit 0 = a en
   haut, puis b à f dans le sens des aiguilles d'une montre, bit 6 = g au milieu. Branche-le
   sur la sortie de ton décodeur 7 segments pour voir tes chiffres.
+- **Retourner (R)** : une pièce sélectionnée se retourne de gauche à droite, entrées à droite
+  et sorties à gauche. Pratique pour une boucle de mémoire : le signal revient vers la gauche
+  sans faire le tour.
 - **Les briques** : sélectionne plusieurs éléments (Maj + glisser), puis Ctrl+G. La brique va
   dans la palette ; double-clic pour entrer dedans, Échap pour remonter. Sélectionne une
   brique posée pour lui écrire une description (elle s'affiche au survol dans la palette) et
@@ -125,6 +128,7 @@ fin:    HLT
 | Ctrl+C / Ctrl+X / Ctrl+V | copier / couper / coller, dans ce projet ou dans un autre |
 | Ctrl+E | analyser le circuit : table de vérité, expressions, export Verilog |
 | Ctrl+T | banc d'essai du plan : écrire et lancer ses essais |
+| R | retourner la sélection de gauche à droite |
 | Ctrl+P | programme de la mémoire morte |
 | Suppr | supprimer |
 | Échap | lâcher la sélection, puis remonter d'une brique |

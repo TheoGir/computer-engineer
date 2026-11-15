@@ -14,7 +14,7 @@ use crate::document::{Broche, Document, Element, Fil, Genre, Id, Point, Source};
 use crate::format::{self, Lecture};
 
 /// Identifiant du format de fichier d'un projet.
-pub const FORMAT: &str = "computer-engineer/projet/4";
+pub const FORMAT: &str = "computer-engineer/projet/5";
 
 /// Un circuit enregistré sous un nom, réutilisable comme brique.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

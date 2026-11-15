@@ -319,3 +319,98 @@ fn le_banc_d_essai_s_ecrit_s_enregistre_et_se_joue() {
             .expect("écriture de la capture");
     }
 }
+
+#[test]
+fn retourner_une_piece_echange_ses_cotes_et_s_annule() {
+    use ce_app::document::{Document, Fil, Source};
+    use ce_app::etat::Selection;
+    let captures = std::env::var("CE_CAPTURES").ok();
+    let mut b = banc(captures.is_some());
+    // Un verrou : m met à 1, r remet à 0 (tous deux actifs à 0). La seconde porte, sous la
+    // première, est retournée : elle renvoie le signal vers la gauche, sans détour, et r
+    // arrive par la droite.
+    let mut plan = Document::nouveau();
+    let m = plan.poser(Element::entree("m", 1), Point::nouveau(80.0, 85.0));
+    let g1 = plan.poser(Element::nand("g1"), Point::nouveau(320.0, 100.0));
+    let g2 = plan.poser(Element::nand("g2"), Point::nouveau(320.0, 260.0));
+    let r = plan.poser(Element::entree("r", 1), Point::nouveau(560.0, 275.0));
+    let q = plan.poser(Element::sortie("q", "q", 1), Point::nouveau(560.0, 100.0));
+    plan.relier(
+        Source::de(m),
+        Fil {
+            puits: g1,
+            entree: 0,
+        },
+    );
+    plan.relier(
+        Source::de(g2),
+        Fil {
+            puits: g1,
+            entree: 1,
+        },
+    );
+    plan.relier(
+        Source::de(r),
+        Fil {
+            puits: g2,
+            entree: 1,
+        },
+    );
+    plan.relier(
+        Source::de(g1),
+        Fil {
+            puits: g2,
+            entree: 0,
+        },
+    );
+    plan.relier(
+        Source::de(g1),
+        Fil {
+            puits: q,
+            entree: 0,
+        },
+    );
+    {
+        let app = b.state_mut();
+        let projet = ce_app::brique::Projet::nouveau("Verrou", plan);
+        app.atelier = ce_app::etat::Atelier::avec(projet, &app.apparence);
+        app.atelier.selection = Some(Selection::Elements(vec![g2, r]));
+    }
+    b.run_steps(30);
+    assert!(b
+        .state()
+        .panneaux
+        .repere("action", ce_app::panneaux::Action::Retourner as usize)
+        .is_some());
+    b.key_press(egui::Key::R);
+    b.run_steps(10);
+    let retourne = |b: &Banc, id| b.state().atelier.doc.element(id).expect("élément").miroir;
+    assert!(retourne(&b, g2) && retourne(&b, r) && !retourne(&b, g1));
+    // Retourner ne change que le dessin : le verrou marche toujours (banc d'essai).
+    {
+        let at = &b.state().atelier;
+        let lignes = ce_app::essai::jouer(
+            &at.projet,
+            &at.doc,
+            "m r -> q\n0 1 -> 1\n1 1 -> 1\n1 0 -> 0\n1 1 -> 0\n",
+        )
+        .expect("banc");
+        assert!(lignes.iter().all(|l| l.juste()), "{lignes:?}");
+    }
+    b.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    b.run_steps(10);
+    assert!(!retourne(&b, g2), "Ctrl+Z remet la pièce à l'endroit");
+    b.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Y);
+    b.run_steps(10);
+    assert!(retourne(&b, g2));
+    if let Some(dossier) = captures {
+        b.state_mut().atelier.selection = None;
+        b.key_press(egui::Key::F);
+        b.run_steps(90);
+        let image = b.render().expect("rendu");
+        std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+        image
+            .save(format!("{dossier}/p4-miroir.png"))
+            .expect("écriture de la capture");
+    }
+}

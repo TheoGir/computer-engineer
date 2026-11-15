@@ -1593,6 +1593,22 @@ impl Atelier {
         self.apres_modification(a)
     }
 
+    /// Retourne les éléments sélectionnés de gauche à droite (ou les remet à l'endroit).
+    /// Renvoie `true` si le plan a changé.
+    pub fn retourner_selection(&mut self, a: &Apparence) -> bool {
+        let ids = self.elements_selectionnes().to_vec();
+        if ids.is_empty() {
+            self.dire("Sélectionne d'abord ce que tu veux retourner.");
+            return false;
+        }
+        for id in ids {
+            if let Some(e) = self.doc.element_mut(id) {
+                e.miroir = !e.miroir;
+            }
+        }
+        self.apres_modification(a)
+    }
+
     /// Copie les éléments sélectionnés, un peu décalés, et sélectionne les copies.
     pub fn dupliquer_selection(&mut self, a: &Apparence) -> bool {
         let ids = self.elements_selectionnes().to_vec();
