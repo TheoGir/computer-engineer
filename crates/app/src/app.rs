@@ -873,6 +873,7 @@ impl Application {
                 }
             }
             Demande::RecommencerParcours => self.recommencer_le_parcours(),
+            Demande::Documentation => self.fenetres.basculer_documentation(None),
             Demande::Quitter => {
                 self.enregistrer();
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -1085,10 +1086,11 @@ impl Application {
             Ecran::Atelier => self.image_atelier(ui, dt),
         }
         self.fondre(ui, debut, avant);
-        // F1 partout ; Ctrl+P, Ctrl+E et Ctrl+T dans l'atelier, sauf pendant une saisie.
-        let (f1, ctrl_p, ctrl_e, ctrl_t, ctrl_k) = ui.input(|i| {
+        // F1 et F2 partout ; Ctrl+P, Ctrl+E et Ctrl+T dans l'atelier, sauf pendant une saisie.
+        let (f1, f2, ctrl_p, ctrl_e, ctrl_t, ctrl_k) = ui.input(|i| {
             (
                 i.key_pressed(Key::F1),
+                i.key_pressed(Key::F2),
                 i.modifiers.command && i.key_pressed(Key::P),
                 i.modifiers.command && i.key_pressed(Key::E),
                 i.modifiers.command && i.key_pressed(Key::T),
@@ -1097,6 +1099,19 @@ impl Application {
         });
         if f1 {
             self.fenetres.basculer_aide();
+        }
+        if f2 {
+            // Dans l'atelier, la page de l'élément sélectionné, s'il est seul.
+            let page = match (&self.ecran, &self.atelier.selection) {
+                (Ecran::Atelier, Some(crate::etat::Selection::Elements(ids))) if ids.len() == 1 => {
+                    self.atelier
+                        .doc
+                        .element(ids[0])
+                        .map(crate::documentation::page_d_element)
+                }
+                _ => None,
+            };
+            self.fenetres.basculer_documentation(page);
         }
         let saisie = self.panneaux.en_saisie() || ctx.egui_wants_keyboard_input();
         if ctrl_p && self.ecran == Ecran::Atelier && !self.panneaux.en_saisie() {
@@ -1118,6 +1133,9 @@ impl Application {
         }
         self.fenetres
             .montrer(&ctx, &mut self.atelier, &self.apparence, atelier);
+        if let Some(quoi) = self.fenetres.ouvrir.take() {
+            self.ouvrir(quoi);
+        }
         if std::mem::take(&mut self.fenetres.exporter) {
             self.exporter_en_verilog();
         }

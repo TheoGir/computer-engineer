@@ -2,7 +2,8 @@
 
 Computer Engineer fait construire un ordinateur complet à partir d'une seule porte logique, la
 NAND. Ce guide dit comment l'installer, s'en servir et régler les problèmes. Dans
-l'application, **F1** ouvre la même aide.
+l'application, **F1** ouvre la même aide, et **F2** la documentation de chaque pièce et de
+chaque brique.
 
 ## Installer
 
@@ -139,12 +140,21 @@ fin:    HLT
   colle dans son application.
 - **F1** contient aussi un lexique de près de cinquante mots, l'algèbre de Boole (De Morgan,
   tables de Karnaugh) et une recherche dans toute l'aide.
+- **La documentation (F2)**, aussi dans le menu de l'accueil, a une page pour chaque pièce de
+  la palette, chaque notion qui revient (les quatre valeurs d'un fil, le temps, les bus, le
+  binaire, la mémoire, l'horloge et ses fronts…) et chaque brique de la bibliothèque. La page
+  d'une brique donne son rôle, ses broches, sa table de vérité ou son chronogramme (simulés sur
+  le corrigé), son nombre de portes NAND, son temps de réponse, les briques qui la composent
+  (cachées tant que sa quête n'est pas réussie), celles qui s'en servent, et ses quêtes. Dans
+  l'atelier, F2 ouvre directement la page de l'élément sélectionné ; Alt+← et Alt+→ naviguent
+  entre les pages, et une recherche parcourt toute la documentation.
 
 ## Raccourcis
 
 | Touche | Effet |
 |---|---|
 | F1 | aide |
+| F2 | documentation, sur la page de l'élément sélectionné |
 | Espace | lecture ou pause |
 | Ctrl+Z / Ctrl+Y | annuler / rétablir |
 | Ctrl+A, Ctrl+G, Ctrl+D | tout sélectionner, regrouper en brique, dupliquer |

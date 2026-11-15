@@ -80,6 +80,8 @@ pub enum Demande {
     OuvrirDossier,
     /// Effacer l'avancement dans le parcours (une copie est gardée dans le dossier).
     RecommencerParcours,
+    /// Ouvrir la documentation (F2).
+    Documentation,
     /// Fermer l'application.
     Quitter,
     /// Une action choisie dans un message.
@@ -947,6 +949,56 @@ impl Accueil {
             }
             if touche.clic {
                 voulue = Some(rubrique);
+            }
+        }
+        // La documentation s'ouvre en fenêtre par-dessus : ce n'est pas une rubrique.
+        {
+            let rect = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 36.0));
+            k.reperer("documentation", 0, rect);
+            let nom = tr!("Documentation");
+            let touche = k.toucher(
+                rect,
+                egui::Id::unique("menu-documentation"),
+                if d.compact { nom } else { "" },
+                Sense::click(),
+            );
+            if touche.chaud > 0.01 {
+                k.t.p.rect_filled(
+                    touche.rect,
+                    k.a.formes.rayon_bouton,
+                    c.survol.alpha(touche.chaud),
+                );
+            }
+            let encre = c.doux.vers(c.texte, touche.chaud).c();
+            let encre_icone = c.discret.vers(c.texte, touche.chaud).c();
+            if d.compact {
+                k.t.icone(Icone::Infos, touche.rect.center(), 18.0, encre_icone);
+            } else {
+                k.t.icone(
+                    Icone::Infos,
+                    Pos2::new(touche.rect.left() + 20.0, rect.center().y),
+                    17.0,
+                    encre_icone,
+                );
+                k.t.texte(
+                    Pos2::new(touche.rect.left() + 40.0, rect.center().y),
+                    Align2::LEFT_CENTER,
+                    nom,
+                    Police::CorpsMoyen,
+                    k.a.typo.fort,
+                    encre,
+                );
+                k.t.texte(
+                    Pos2::new(touche.rect.right() - 10.0, rect.center().y),
+                    Align2::RIGHT_CENTER,
+                    "F2",
+                    Police::Mono,
+                    k.a.typo.legende,
+                    c.discret.c(),
+                );
+            }
+            if touche.clic {
+                demandes.push(Demande::Documentation);
             }
         }
 

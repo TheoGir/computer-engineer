@@ -560,6 +560,7 @@ pub fn textes_des_donnees() -> Vec<String> {
         crate::automate::EXEMPLE,
     ]);
     textes.extend(commentaires_des_programmes());
+    textes.extend(crate::documentation::textes());
     let mut tous: Vec<String> = textes.into_iter().map(str::to_owned).collect();
     tous.extend(
         crate::quete::corriges()
