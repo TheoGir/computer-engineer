@@ -14,10 +14,12 @@
 //! - [`parcours`] : l'avancement, les quêtes réussies et les briques gagnées ;
 //! - [`brique`] : le projet et ses briques réutilisables, emboîtables ;
 //! - [`pont`] : la traduction du plan vers `ce-circuit`, qui le met à plat pour le moteur ;
+//! - [`export`] : le plan en Verilog, pour un autre simulateur ou un FPGA ;
 //! - [`importer`] et [`exemples`] : des composants `ce-circuit` devenus projets, dont
 //!   l'ordinateur miniature ;
 //! - [`format`](mod@format) : formats de fichier numérotés et migrations ;
 //! - [`programme`] : le programme de la mémoire morte, écrit dans l'application ;
+//! - [`logique`] : table de vérité et expressions simplifiées d'un plan, indices des quêtes ;
 //! - [`sauvegarde`] : les projets enregistrés sur le disque ;
 //! - [`mise_a_jour`] : les mises à jour automatiques (`self_update`, signatures `zipsign`) ;
 //! - [`incident`] : rapports de plantage et d'échec au démarrage ;
@@ -46,12 +48,14 @@ pub mod disposition;
 pub mod document;
 pub mod etat;
 pub mod exemples;
+pub mod export;
 pub mod fenetres;
 pub mod format;
 pub mod importer;
 pub mod incident;
 pub mod installation;
 pub mod licences;
+pub mod logique;
 pub mod mise_a_jour;
 pub mod panneaux;
 pub mod parcours;

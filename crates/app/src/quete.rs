@@ -1352,7 +1352,7 @@ pub struct Quete {
 }
 
 /// Les corrigés : la bibliothèque de référence et les composants de l'ordinateur.
-fn corriges() -> &'static Bibliotheque {
+pub(crate) fn corriges() -> &'static Bibliotheque {
     static BIB: OnceLock<Bibliotheque> = OnceLock::new();
     BIB.get_or_init(ce_circuit::classiques::bibliotheque)
 }

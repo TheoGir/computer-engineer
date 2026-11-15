@@ -1,5 +1,15 @@
 # Journal des modifications
 
+## Prochaine version
+
+Comprendre son circuit, s'en sortir quand on bloque, et partager ce qu'on construit.
+
+- **Des indices dans chaque quête.** Sous « Comprendre ce composant », « Un indice » en révèle un à la fois, du plus léger au plus précis : par où commencer, les briques qu'assemble le corrigé, puis, pour un circuit sans mémoire, l'expression attendue de chaque lampe.
+- **Analyser le circuit (Ctrl+E).** Pour un plan sans mémoire : sa table de vérité complète, calculée en simulant chaque combinaison, et l'expression simplifiée de chaque lampe (`·` ET, `+` OU, `¬` NON), avec le moins de produits possible (méthode de Quine-McCluskey, bibliothèque `quine-mc_cluskey`). Un circuit à mémoire ou à horloge est refusé avec la raison.
+- **Exporter en Verilog**, depuis la même fenêtre : le plan, briques mises à plat, une primitive `nand` par porte, dans le dossier `exports`. Pour un autre simulateur ou un vrai circuit programmable (FPGA).
+- **Copier, couper, coller (Ctrl+C, Ctrl+X, Ctrl+V)**, avec les fils entre les éléments copiés et les briques dont ils ont besoin, dans le même projet ou dans un autre. Une brique de même nom mais différente n'est jamais écrasée : la brique collée prend un nom libre. Ce qui est copié est aussi mis en texte dans le presse-papiers : on peut le coller après avoir relancé l'application, ou l'envoyer à quelqu'un.
+- **L'aide grandit.** Une rubrique « Algèbre de Boole » (lois, De Morgan, pourquoi la NAND suffit, de la table au circuit, tables de Karnaugh, Quine-McCluskey), un lexique de 48 mots, et une recherche dans toute l'aide, sans se soucier des accents. Les lois écrites dans l'aide sont vérifiées par un test, pour toutes les valeurs.
+
 ## 0.5.0 — 15 novembre 2026
 
 Un vrai installateur, comme pour toute application Windows.

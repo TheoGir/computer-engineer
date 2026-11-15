@@ -6531,6 +6531,12 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ========================================================================
+Pour : quine-mc_cluskey 0.2.4 (sans fichier)
+========================================================================
+
+Licence : MIT. Le paquet ne joint pas de texte : le texte standard de cette licence figure ailleurs dans ce document.
+
+========================================================================
 Pour : range-alloc 0.1.5 (LICENSE.MIT)
 ========================================================================
 
