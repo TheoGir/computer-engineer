@@ -33,17 +33,25 @@ pub struct Format {
 pub const PROJET: Format = Format {
     genre: "projet",
     prefixe: "computer-engineer/projet/",
-    actuel: 2,
-    migrations: &[|v| programme_des_memoires(v, "modeles")],
+    actuel: 3,
+    migrations: &[|v| programme_des_memoires(v, "modeles"), rien_a_changer],
 };
 
 /// Le format de l'avancement dans le parcours (`parcours.json`).
 pub const PARCOURS: Format = Format {
     genre: "avancement",
     prefixe: "computer-engineer/parcours/",
-    actuel: 2,
-    migrations: &[|v| programme_des_memoires(v, "briques")],
+    actuel: 3,
+    migrations: &[|v| programme_des_memoires(v, "briques"), rien_a_changer],
 };
+
+/// Migration 2 → 3 (projets et avancement) : les éléments gagnent le champ facultatif
+/// `aspect` (bouton poussoir, afficheur 7 segments). Absent, il vaut « normal » : un fichier
+/// du format 2 se lit tel quel. Le numéro change pour qu'une version plus ancienne refuse
+/// clairement un fichier qui en contient, au lieu d'en perdre l'aspect.
+fn rien_a_changer(_: &mut Value) -> Result<(), String> {
+    Ok(())
+}
 
 /// Migration 1 → 2 (projets et avancement) : les briques gagnent le champ `programme`. Une
 /// mémoire morte livrée avec l'application, reconnue à son circuit, retrouve le programme dont

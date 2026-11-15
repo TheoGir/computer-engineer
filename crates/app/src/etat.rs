@@ -883,6 +883,22 @@ impl Atelier {
         self.observer();
     }
 
+    /// Enfonce (`true`) ou relâche un bouton poussoir : il vaut 1 tant qu'il est enfoncé.
+    pub fn appuyer(&mut self, poussoir: Id, enfonce: bool) {
+        if self.dans_un_exemplaire(poussoir) {
+            return;
+        }
+        let v = u64::from(enfonce);
+        if self.session.entrees.get(&poussoir) == Some(&v) {
+            return;
+        }
+        self.vue_t = None;
+        self.invite = false;
+        self.reste = 0.0;
+        self.session.regler(&self.doc, poussoir, v);
+        self.observer();
+    }
+
     /// Bascule un seul bit d'un interrupteur de plusieurs bits.
     pub fn basculer_bit(&mut self, entree: Id, bit: u32) {
         if self.dans_un_exemplaire(entree) {
@@ -1407,6 +1423,27 @@ impl Atelier {
         }
     }
 
+    /// Change la description de la brique `modele` : ce qu'elle fait, en une phrase.
+    pub fn decrire_modele(&mut self, modele: &str, description: &str) {
+        let description = description.trim().trim_matches('—').trim();
+        if self.projet.decrire(modele, description) {
+            self.version += 1;
+        }
+    }
+
+    /// Où la brique `modele` est posée, en clair : « plan principal (2), ADD8 (1) ».
+    pub fn usages_du_modele(&self, modele: &str) -> String {
+        let usages = self.projet.usages(modele);
+        if usages.is_empty() {
+            return "nulle part pour l'instant".to_owned();
+        }
+        usages
+            .iter()
+            .map(|(ou, n)| format!("{} ({n})", ou.unwrap_or("plan principal")))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
     /// Remplace le programme de la mémoire morte `modele` par `texte` ([`crate::programme`]),
     /// puis redémarre la simulation : l'ordinateur repart de zéro sur son nouveau programme.
     /// En cas d'erreur (assemblage), rien ne change.
@@ -1589,7 +1626,9 @@ impl Atelier {
         match e.genre {
             Genre::Nand => "NAND",
             Genre::Entree if e.param > 0 => "démarrage",
+            Genre::Entree if e.est_poussoir() => "poussoir",
             Genre::Entree => "interrupteur",
+            Genre::Sortie if e.est_afficheur() => "afficheur",
             Genre::Sortie => "lampe",
             Genre::Brique => &e.modele,
             Genre::Horloge => "horloge",

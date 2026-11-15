@@ -281,6 +281,8 @@ pub struct Plan {
     t_vu: u64,
     dernier_clic: Option<(f64, Pos2)>,
     dernier_clic_element: Option<(f64, Id)>,
+    /// Le bouton poussoir enfoncé en ce moment : il remonte quand on lâche.
+    poussoir: Option<Id>,
     /// Le plan tel qu'il était avant de tirer un élément depuis la palette.
     avant_pose: Option<Document>,
     lieu_vu: u64,
@@ -321,6 +323,7 @@ impl Default for Plan {
             t_vu: 0,
             dernier_clic: None,
             dernier_clic_element: None,
+            poussoir: None,
             avant_pose: None,
             lieu_vu: 0,
             dessines: (0, 0),
@@ -858,6 +861,10 @@ impl Plan {
                     if !at.est_selectionne(id) {
                         at.selectionner(id);
                     }
+                    if at.doc.element(id).is_some_and(Element::est_poussoir) {
+                        at.appuyer(id, true);
+                        self.poussoir = Some(id);
+                    }
                     let pos = self.position(at, id);
                     Geste::Element {
                         id,
@@ -932,6 +939,11 @@ impl Plan {
             }
         }
 
+        if !enfonce {
+            if let Some(id) = self.poussoir.take() {
+                at.appuyer(id, false);
+            }
+        }
         if !enfonce && self.geste != Geste::Aucun {
             self.terminer(a, at, sur_plan.then_some(p), vitesse, maintenant);
         }
@@ -1013,9 +1025,9 @@ impl Plan {
                         .dernier_clic_element
                         .is_some_and(|(t, e)| e == id && maintenant - t < 0.45);
                     self.dernier_clic_element = (!double).then_some((maintenant, id));
-                    match at.doc.element(id).map(|e| e.genre) {
-                        Some(Genre::Entree) => at.basculer(id),
-                        Some(Genre::Brique) if double => self.entree_demandee = Some(id),
+                    match at.doc.element(id).map(|e| (e.genre, e.est_poussoir())) {
+                        Some((Genre::Entree, false)) => at.basculer(id),
+                        Some((Genre::Brique, _)) if double => self.entree_demandee = Some(id),
                         _ => {}
                     }
                 } else {
@@ -1965,6 +1977,82 @@ impl Plan {
                     );
                 }
             }
+            Genre::Sortie if e.est_afficheur() => {
+                let lecture = at.lecture_lue(Fil {
+                    puits: e.id,
+                    entree: 0,
+                });
+                let rayon = 12.0 * s;
+                ombre(corps, rayon);
+                if choisi || chaud > 0.02 {
+                    t.p.rect_stroke(
+                        corps.expand(5.0 * s),
+                        rayon + 5.0 * s,
+                        Stroke::new(
+                            2.0 * s,
+                            c.accent_clair.alpha(if choisi { 1.0 } else { chaud * 0.6 }),
+                        ),
+                        StrokeKind::Middle,
+                    );
+                }
+                t.p.rect(corps, rayon, c.carte.c(), trait_corps, StrokeKind::Middle);
+                // Les sept segments, a en haut puis b à f dans le sens des aiguilles d'une
+                // montre, g au milieu ; le point (8e bit) en bas à droite.
+                const SEGMENTS: [((f32, f32), (f32, f32)); 7] = [
+                    ((-12.0, -38.0), (12.0, -38.0)),
+                    ((17.0, -33.0), (17.0, -11.0)),
+                    ((17.0, -1.0), (17.0, 21.0)),
+                    ((-12.0, 26.0), (12.0, 26.0)),
+                    ((-17.0, -1.0), (-17.0, 21.0)),
+                    ((-17.0, -33.0), (-17.0, -11.0)),
+                    ((-12.0, -6.0), (12.0, -6.0)),
+                ];
+                for (k, ((x0, y0), (x1, y1))) in SEGMENTS.into_iter().enumerate() {
+                    let allume = anims.vers(
+                        egui::Id::unique(("segment", e.id, k)),
+                        if lecture.uns >> k & 1 == 1 { 1.0 } else { 0.0 },
+                        dt,
+                        m.allumage,
+                    );
+                    let flou = lecture.flous >> k & 1 == 1;
+                    let (a0, a1) = (q(x0, y0), q(x1, y1));
+                    if allume > 0.01 && detail {
+                        t.p.line_segment(
+                            [a0, a1],
+                            Stroke::new(11.0 * s, c.un.alpha(0.22 * allume)),
+                        );
+                    }
+                    let couleur = if flou {
+                        c.x.alpha(0.55)
+                    } else {
+                        c.bord.vers(c.un, allume).c()
+                    };
+                    t.p.line_segment([a0, a1], Stroke::new(6.0 * s, couleur));
+                }
+                if lecture.largeur == 8 {
+                    let allume = lecture.uns >> 7 & 1 == 1;
+                    t.p.circle_filled(
+                        q(25.0, 27.0),
+                        3.6 * s,
+                        if allume { c.un.c() } else { c.bord.c() },
+                    );
+                }
+                if s * 14.0 >= 6.0 {
+                    let legende = if e.legende.is_empty() {
+                        &e.nom
+                    } else {
+                        &e.legende
+                    };
+                    t.texte(
+                        q(0.0, 68.0),
+                        Align2::CENTER_CENTER,
+                        legende,
+                        Police::CorpsDemi,
+                        14.0 * s,
+                        c.doux.c(),
+                    );
+                }
+            }
             Genre::Entree | Genre::Sortie | Genre::Horloge => {
                 let lecture = if e.genre == Genre::Sortie {
                     at.lecture_lue(Fil {
@@ -2103,6 +2191,14 @@ impl Plan {
                         q(16.0, y(true)),
                     ];
                     t.p.add(Shape::line(pts, Stroke::new(2.0 * s, couleur)));
+                }
+                if e.est_poussoir() && detail {
+                    // Bouton poussoir : un capuchon rond, enfoncé tant qu'on appuie.
+                    t.p.circle_stroke(
+                        centre,
+                        (if symb == '1' { 17.0 } else { 19.5 }) * s,
+                        Stroke::new(2.0 * s, couleur),
+                    );
                 }
                 if e.genre == Genre::Entree && e.param > 0 && detail {
                     // Bouton de démarrage : une petite flèche de mise en route.

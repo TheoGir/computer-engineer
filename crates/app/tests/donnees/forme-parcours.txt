@@ -1,9 +1,10 @@
-# computer-engineer/parcours/2
+# computer-engineer/parcours/3
 briques
 briques[].description
 briques[].nom
 briques[].plan
 briques[].plan.elements
+briques[].plan.elements[].aspect
 briques[].plan.elements[].broches_e
 briques[].plan.elements[].broches_e[].largeur
 briques[].plan.elements[].broches_e[].nom
@@ -15,6 +16,7 @@ briques[].plan.elements[].broches_s[].origine
 briques[].plan.elements[].entrees
 briques[].plan.elements[].genre
 briques[].plan.elements[].id
+briques[].plan.elements[].legende
 briques[].plan.elements[].modele
 briques[].plan.elements[].nom
 briques[].plan.elements[].plages

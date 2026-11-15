@@ -15,7 +15,7 @@ use crate::format::{self, Lecture};
 use crate::quete::{Epreuve, Fiche, Quete, PARCOURS};
 
 /// Identifiant du format du fichier d'avancement.
-pub const FORMAT: &str = "computer-engineer/parcours/2";
+pub const FORMAT: &str = "computer-engineer/parcours/3";
 
 /// Ce que l'utilisateur a accompli dans le parcours.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

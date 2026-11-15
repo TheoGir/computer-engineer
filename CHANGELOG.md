@@ -1,5 +1,14 @@
 # Journal des modifications
 
+## Prochaine version
+
+De nouvelles pièces pour voir et toucher ses circuits.
+
+- **Bouton poussoir** : vaut 1 tant qu'on appuie dessus, 0 dès qu'on le lâche. Pour une sonnette, un compteur qu'on fait avancer à la main, un « Entrée » d'ordinateur.
+- **Afficheur 7 segments** : une lampe de 7 bits (8 avec le point) qui dessine son chiffre. La quête « L'afficheur 7 segments » le montre directement sur sa sortie.
+- **Les briques se décrivent** : une description, écrite dans le panneau de la brique, s'affiche au survol dans la palette ; le panneau dit aussi où la brique est utilisée.
+- Format des projets et de l'avancement : `projet/3` et `parcours/3` (champ facultatif `aspect` des interrupteurs et des lampes). Les fichiers des versions précédentes s'ouvrent comme avant ; une version plus ancienne refuse clairement un fichier du nouveau format au lieu d'en perdre une partie.
+
 ## 0.7.0 — 15 novembre 2026
 
 Comprendre son circuit, s'en sortir quand on bloque, et partager ce qu'on construit.
