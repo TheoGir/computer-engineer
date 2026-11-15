@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## Prochaine version
+## 0.10.0 — 15 novembre 2026
 
 - **Une branche « Dépannage »** : quatre circuits déjà construits (OU exclusif, demi-additionneur, multiplexeur, additionneur complet), chacun avec un seul fil mal branché. Il faut essayer les entrées, trouver les cas faux, remonter le courant jusqu'à la porte fautive et la rebrancher. La panne est calculée à partir du corrigé : un seul fil change, et la table de vérité devient fausse (vérifié par un test pour chaque quête).
 - **Exporter le plan en image** : le bouton appareil photo, à côté du zoom, écrit le circuit affiché en PNG dans le dossier `exports`, sans les panneaux, cadré sur tout le circuit, avec les valeurs du moment. Pour un exposé, un cahier, ou le montrer à quelqu'un.
