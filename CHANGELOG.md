@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## Prochaine version
+## 0.13.0 — 15 novembre 2026
 
 - **Les noms des briques et des broches s'affichent en anglais** dans l'interface anglaise : `ET` devient `AND`, `OU_X` devient `XOR`, `raz` devient `reset`, `retenue` devient `carry`… Partout où un nom de circuit se lit : le plan, la palette, l'inspecteur, les tables de vérité des quêtes, le chronogramme, les sondes, l'analyse (Ctrl+E), les messages, et les consignes des quêtes, réécrites avec ces noms. Seul l'affichage change : le projet enregistre toujours les noms d'origine, si bien qu'un projet fait en anglais s'ouvre à l'identique en français, et inversement. Un banc d'essai (Ctrl+T) accepte les deux écritures (`reset` ou `raz`), et renommer une brique sans changer le nom affiché ne la renomme pas. Une brique garde la même taille sur le plan dans les deux langues. Les noms choisis par l'utilisateur ne sont jamais traduits.
 
