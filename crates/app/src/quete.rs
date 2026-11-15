@@ -218,7 +218,7 @@ pub const PARCOURS: &[Fiche] = &[
         cle: "multiplexeur-4",
         chapitre: "Aiguillages et codes",
         titre: "Le multiplexeur à 4 voies",
-        consigne: "s recopie le bit de d choisi par sel (de 0 à 3). Trois multiplexeurs à deux voies : deux choisissent avec sel[0], le dernier avec sel[1].",
+        consigne: "s recopie le bit de d choisi par sel (de 0 à 3). d (4 bits) et sel (2 bits) sont des bus : branche chacun sur un découpeur (palette, à côté de la jonction) pour avoir un fil par bit. Puis trois multiplexeurs à deux voies : deux choisissent avec sel[0], le dernier avec sel[1].",
         felicitations: "",
         corrige: "MUX4",
         brique: "MUX4",

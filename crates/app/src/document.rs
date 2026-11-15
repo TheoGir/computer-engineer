@@ -839,10 +839,27 @@ impl Document {
         match e.genre {
             // Une lampe affiche ce qu'on lui donne.
             Genre::Sortie => true,
-            // Un découpeur s'élargit tant que ses plages tiennent dans le bus.
-            Genre::Decoupe => e.plages.iter().all(|&(a, b)| a.max(b) < largeur),
+            // Un découpeur s'élargit tant que ses plages tiennent dans le bus ; tant qu'aucune
+            // de ses sorties n'est branchée, il se refait aussi à la taille d'un bus plus étroit
+            // (un fil par bit) : le découpeur posé par défaut en a 4, un bus de 2 bits doit
+            // pouvoir y entrer.
+            Genre::Decoupe => {
+                Self::plages_tiennent(&e.plages, largeur) || !self.sorties_branchees(fil.puits)
+            }
             _ => false,
         }
+    }
+
+    fn plages_tiennent(plages: &[(u32, u32)], largeur: u32) -> bool {
+        plages.iter().all(|&(a, b)| a.max(b) < largeur)
+    }
+
+    /// Vrai si un fil part d'une des sorties de l'élément `id`.
+    fn sorties_branchees(&self, id: Id) -> bool {
+        self.elements
+            .iter()
+            .flat_map(|e| e.entrees.iter())
+            .any(|s| s.is_some_and(|s| s.id == id))
     }
 
     /// Branche la sortie `source` sur l'arrivée `fil`, à la place de ce qui s'y trouvait.
@@ -852,6 +869,15 @@ impl Document {
             return false;
         }
         let largeur = self.largeur_source(source).unwrap_or(1);
+        // Un découpeur trop large pour ce bus (et dont aucune sortie n'est branchée, voir
+        // `verifier`) se refait en un fil par bit.
+        let trop_large = self.element(fil.puits).is_some_and(|e| {
+            e.genre == Genre::Decoupe && !Self::plages_tiennent(&e.plages, largeur)
+        });
+        if trop_large {
+            let un_par_bit: Vec<(u32, u32)> = (0..largeur.min(64)).map(|i| (i, i)).collect();
+            self.redefinir_decoupe(fil.puits, largeur, &un_par_bit);
+        }
         let Some(e) = self.element_mut(fil.puits) else {
             return false;
         };
@@ -1281,6 +1307,63 @@ mod tests {
                 entree: 0
             }
         ));
+    }
+
+    #[test]
+    fn un_bus_de_deux_bits_entre_dans_le_decoupeur_pose_par_defaut() {
+        // Le découpeur de la palette a 4 sorties d'un bit. Le sel de 2 bits du multiplexeur à
+        // 4 voies doit pouvoir y entrer : il se refait alors en deux sorties.
+        let mut d = Document::nouveau();
+        let sel = d.poser(Element::entree("sel", 2), Point::default());
+        let dec = d.poser(
+            Element::decoupe("", 4, &[(0, 0), (1, 1), (2, 2), (3, 3)]),
+            Point::default(),
+        );
+        let g = d.ajouter_porte(Point::default());
+        let vers_dec = Fil {
+            puits: dec,
+            entree: 0,
+        };
+        assert_eq!(d.verifier(Source::de(sel), vers_dec), Ok(()));
+        assert!(d.relier(Source::de(sel), vers_dec));
+        let e = d.element(dec).unwrap();
+        assert_eq!(e.plages, [(0, 0), (1, 1)]);
+        assert_eq!(e.broches_s.len(), 2);
+        assert_eq!(e.broches_e[0].largeur, 2);
+        // Ses deux bits se branchent sur une porte.
+        for sortie in 0..2 {
+            assert!(d.relier(
+                Source { id: dec, sortie },
+                Fil {
+                    puits: g,
+                    entree: sortie
+                }
+            ));
+        }
+        // Un découpeur dont une sortie est branchée ne se refait pas dans le dos de l'élève.
+        let un = d.poser(Element::entree("un", 1), Point::default());
+        assert_eq!(
+            d.verifier(Source::de(un), vers_dec),
+            Err(Refus::Largeur {
+                source: 1,
+                entree: 2
+            })
+        );
+        // Un bus plus large garde ses plages.
+        let mut d = Document::nouveau();
+        let bus = d.poser(Element::entree("bus", 8), Point::default());
+        let dec = d.poser(
+            Element::decoupe("", 4, &[(0, 0), (1, 1), (2, 2), (3, 3)]),
+            Point::default(),
+        );
+        assert!(d.relier(
+            Source::de(bus),
+            Fil {
+                puits: dec,
+                entree: 0
+            }
+        ));
+        assert_eq!(d.element(dec).unwrap().plages.len(), 4);
     }
 
     #[test]

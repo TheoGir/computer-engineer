@@ -1,5 +1,12 @@
 # Journal des modifications
 
+## 0.11.1 — 15 novembre 2026
+
+Correctif : brancher un bus de 2 ou 3 bits sur un découpeur.
+
+- Le découpeur de la palette a quatre sorties d'un bit et refusait tout bus plus étroit : impossible, par exemple, de séparer le `sel` de 2 bits du multiplexeur à 4 voies ou l'adresse du décodeur 2 vers 4. Tant qu'aucune de ses sorties n'est branchée, il se refait maintenant à la taille du bus qu'on y branche, un fil par bit.
+- La consigne du multiplexeur à 4 voies, première quête avec des bus, explique qu'un découpeur sépare `d` et `sel` en fils d'un bit.
+
 ## 0.11.0 — 15 novembre 2026
 
 - **Retourner une pièce (R)** : une porte, une brique, un interrupteur ou une lampe se retourne de gauche à droite, entrées à droite et sorties à gauche. Les fils suivent, et un signal qui revient en arrière (une boucle de mémoire, un retour de bus) n'a plus à faire le tour. Aussi dans la barre de la sélection ; Ctrl+Z l'annule.
