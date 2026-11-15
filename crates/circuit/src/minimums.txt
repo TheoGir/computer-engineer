@@ -1,0 +1,28 @@
+# Constructions minimales établies pour les corrigés des quêtes.
+# Colonnes : composant, NAND de la meilleure construction connue, borne basse prouvée,
+# construction plus petite que le corrigé (« - » : le corrigé est la meilleure connue).
+# Borne basse = nombre de NAND : minimum prouvé. Produit par outils/minimum_nand.py (SAT) ;
+# chaque construction est revérifiée par crates/circuit/tests/minimums.rs.
+#
+# VERROU_SR 2 2 : preuve à la main. Ses sorties q et q_n diffèrent l'une de l'autre et de
+# chaque entrée dans un état atteignable ; sans constante, un signal qui n'est pas une
+# entrée sort d'une NAND : il faut donc deux NAND au moins, et le corrigé en a deux.
+VERROU_SR 2 2 -
+NON 1 1 -
+ET 2 2 -
+OU 3 3 -
+NON_OU 4 4 -
+OU_X 4 4 -
+EQUIV 5 5 -
+MAJORITE 6 6 -
+MUX 4 4 -
+DEMUX 4 4 g0=a0,a1;g1=a0,g0;g2=g1,g1;g3=g0,g0;s=g2,g3
+DEMI_ADD 5 5 -
+ADD_COMPLET 9 9 -
+DECODEUR2 9 9 g0=a0,a0;g1=a1,g0;g2=g0,g1;g3=g2,g2;g4=g1,g1;g5=a0,a1;g6=g5,g5;g7=a0,g5;g8=g7,g7;s=g3,g8,g4,g6
+ENCODEUR4 10 10 g0=a3,a3;g1=a2,g0;g2=g0,g1;g3=g2,g2;g4=a1,g3;g5=a0,g4;g6=g3,g4;g7=g6,g6;g8=g0,g4;g9=g5,g7;s=g8,g2,g9
+PREMIER 8 8 g0=a1,a2;g1=a0,g0;g2=a3,g1;g3=a0,a2;g4=a1,g0;g5=g3,g4;g6=g2,g5;g7=g6,g6;s=g7
+GRAY 12 12 -
+# HAMMING_CODE : borne basse par SAT (12 portes impossibles) ; la construction de 20 portes est
+# faite à la main (a0⊕a3 partagé par deux parités), SAT n'a pas conclu à 20 et 21.
+HAMMING_CODE 20 13 g0=a0,a3;g1=a0,g0;g2=a3,g0;g3=g1,g2;g4=g3,a1;g5=g3,g4;g6=a1,g4;g7=g5,g6;g8=g3,a2;g9=g3,g8;g10=a2,g8;g11=g9,g10;g12=a1,a2;g13=a1,g12;g14=a2,g12;g15=g13,g14;g16=g15,a3;g17=g15,g16;g18=a3,g16;g19=g17,g18;s=g7,g11,a0,g19,a1,a2,a3

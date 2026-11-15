@@ -25,6 +25,7 @@ pub mod classiques;
 pub mod elaboration;
 pub mod erreur;
 pub mod grands;
+pub mod minimum;
 pub mod modele;
 pub mod ordinateur;
 pub mod reference;

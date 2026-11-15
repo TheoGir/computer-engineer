@@ -390,6 +390,36 @@ impl<'a> Toile<'a> {
         }
     }
 
+    /// Une étoile à cinq branches de rayon `rayon`, pleine ou en contour seulement.
+    pub fn etoile(&self, centre: Pos2, rayon: f32, pleine: bool, couleur: Color32) {
+        let interieur = rayon * 0.45;
+        let point = |i: usize| {
+            let r = if i.is_multiple_of(2) {
+                rayon
+            } else {
+                interieur
+            };
+            let t = (-90.0 + 36.0 * i as f32).to_radians();
+            Pos2::new(centre.x + r * t.cos(), centre.y + r * t.sin())
+        };
+        let pts: Vec<Pos2> = (0..10).map(point).collect();
+        if pleine {
+            // Une étoile n'est pas convexe : le pentagone du milieu, puis une pointe par branche.
+            let milieu: Vec<Pos2> = (0..5).map(|i| pts[2 * i + 1]).collect();
+            self.p
+                .add(Shape::convex_polygon(milieu, couleur, Stroke::NONE));
+            for i in 0..5 {
+                let pointe = vec![pts[(2 * i + 9) % 10], pts[2 * i], pts[2 * i + 1]];
+                self.p
+                    .add(Shape::convex_polygon(pointe, couleur, Stroke::NONE));
+            }
+        }
+        self.p.add(Shape::closed_line(
+            pts,
+            Stroke::new((rayon * 0.16).max(1.0), couleur),
+        ));
+    }
+
     /// Dessine une icône de 20 unités de côté, centrée, à l'échelle `taille / 20`.
     pub fn icone(&self, icone: Icone, centre: Pos2, taille: f32, couleur: Color32) {
         let k = taille / 20.0;
