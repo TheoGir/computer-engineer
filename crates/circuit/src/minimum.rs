@@ -236,3 +236,114 @@ pub fn minimum_d_une_fonction(n: u32, table: u64) -> Option<u64> {
     }
     Some(minimums_a_trois_entrees()[f].0)
 }
+
+/// La construction rangée de `nom`, écrite comme un composant de mêmes broches que son corrigé
+/// (`corrige`), ou `None` si aucune construction plus petite que le corrigé n'est rangée.
+pub fn composant_minimal(
+    nom: &str,
+    corrige: &crate::modele::Composant,
+) -> Option<crate::modele::Composant> {
+    use crate::modele::{Composant, Sens};
+    let ecrit = Ecrit::lire(etablis().get(nom)?.circuit.as_deref()?)?;
+    // Le nom de chaque bit d'entrée puis de sortie, dans l'ordre des broches.
+    let bits = |sens: Sens| -> Vec<String> {
+        corrige
+            .broches
+            .iter()
+            .filter(|b| b.sens == sens)
+            .flat_map(|b| (0..b.largeur).map(move |i| format!("{}[{i}]", b.nom)))
+            .collect()
+    };
+    let (entrees, sorties) = (bits(Sens::Entree), bits(Sens::Sortie));
+    if ecrit.entrees > entrees.len() || ecrit.sorties.len() != sorties.len() {
+        return None;
+    }
+    let mut c = Composant::nouveau(&format!(
+        "{} (plus petite construction connue : {} NAND)",
+        corrige.description,
+        ecrit.portes.len()
+    ));
+    for b in &corrige.broches {
+        c = match b.sens {
+            Sens::Entree => c.entree(&b.nom, b.largeur),
+            Sens::Sortie => c.sortie(&b.nom, b.largeur),
+        };
+    }
+    let signal = |s: Signal| match s {
+        Signal::Entree(i) => entrees[i].clone(),
+        Signal::Porte(j) => format!("g{j}.s"),
+    };
+    for (j, &(a, b)) in ecrit.portes.iter().enumerate() {
+        c = c
+            .inst(&format!("g{j}"), "NAND")
+            .fil(&[signal(a), format!("g{j}.a")])
+            .fil(&[signal(b), format!("g{j}.b")]);
+    }
+    for (k, &s) in ecrit.sorties.iter().enumerate() {
+        c = c.fil(&[signal(s), sorties[k].clone()]);
+    }
+    Some(c)
+}
+
+/// La bibliothèque des solutions : les corrigés, chacun remplacé par sa plus petite
+/// construction connue quand elle est plus petite. Les composants qui en utilisent un autre
+/// (une mémoire et son décodeur) en profitent aussi. Les quêtes restent vérifiées contre les
+/// corrigés ; le test `chaque_solution_reussit_sa_quete` de l'application vérifie que chaque
+/// solution de cette bibliothèque réussit la sienne.
+pub fn bibliotheque_des_solutions() -> &'static Bibliotheque {
+    static BIB: OnceLock<Bibliotheque> = OnceLock::new();
+    BIB.get_or_init(|| {
+        let mut bib = crate::classiques::bibliotheque();
+        let remplacements: Vec<(String, crate::modele::Composant)> = etablis()
+            .keys()
+            .filter_map(|nom| {
+                let corrige = bib.composants.get(nom)?;
+                Some((nom.clone(), composant_minimal(nom, corrige)?))
+            })
+            .collect();
+        for (nom, c) in remplacements {
+            bib.ajouter(&nom, c);
+        }
+        if bib.composants.contains_key("COMPTEUR4") {
+            bib.ajouter("COMPTEUR4", compteur_sans_constante());
+        }
+        bib
+    })
+}
+
+/// Le compteur 4 bits sans la constante 1 du corrigé, que la palette n'a pas : ajouter 1 au
+/// bit 0, c'est l'inverser, et sa retenue est le bit lui-même ; le dernier bit n'a pas besoin
+/// de retenue, un OU exclusif suffit. Remise à zéro synchrone par un ET avec `raz` inversé.
+fn compteur_sans_constante() -> crate::modele::Composant {
+    let mut c = crate::modele::Composant::nouveau(
+        "Compteur 4 bits : à chaque front montant de clk, q devient 0 si raz = 1, q + 1 sinon",
+    )
+    .entree("raz", 1)
+    .entree("clk", 1)
+    .sortie("q", 4)
+    .inst("nraz", "NON")
+    .inst("inc0", "NON")
+    .inst("inc1", "DEMI_ADD")
+    .inst("inc2", "DEMI_ADD")
+    .inst("inc3", "OU_X")
+    .fil(&["raz", "nraz.a"])
+    .fil(&["inc0.s", "et0.a"])
+    .fil(&["b0.q", "inc0.a", "inc1.b", "q[0]"])
+    .fil(&["b1.q", "inc1.a", "q[1]"])
+    .fil(&["inc1.s", "et1.a"])
+    .fil(&["inc1.r", "inc2.b"])
+    .fil(&["b2.q", "inc2.a", "q[2]"])
+    .fil(&["inc2.s", "et2.a"])
+    .fil(&["inc2.r", "inc3.b"])
+    .fil(&["b3.q", "inc3.a", "q[3]"])
+    .fil(&["inc3.s", "et3.a"])
+    .fil(&["nraz.s", "et0.b", "et1.b", "et2.b", "et3.b"])
+    .fil(&["clk", "b0.clk", "b1.clk", "b2.clk", "b3.clk"]);
+    for i in 0..4 {
+        c = c
+            .inst(&format!("et{i}"), "ET")
+            .inst(&format!("b{i}"), "BASCULE_D")
+            .fil(&[format!("et{i}.s"), format!("b{i}.d")]);
+    }
+    c
+}

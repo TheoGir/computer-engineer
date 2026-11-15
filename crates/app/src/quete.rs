@@ -2263,67 +2263,7 @@ mod tests {
 
     /// Branche deux ordinateurs par une boîte aux lettres, comme le dit la consigne.
     fn brancher_les_deux(p: &mut Projet) {
-        importer_le_corrige(p, "REGISTRE8");
-        let registre = p.modele("REGISTRE8").unwrap().instance();
-        let non = p.modele("NON").unwrap().instance();
-        let plan = &mut p.principal;
-        let id = |plan: &Document, nom: &str| plan.nomme(nom).unwrap().id;
-        let boite = plan.poser(registre, Point::nouveau(700.0, 300.0));
-        let nraz = plan.poser(non, Point::nouveau(300.0, 200.0));
-        let (a, b, raz, clavier, ecran) = (
-            id(plan, "a"),
-            id(plan, "b"),
-            id(plan, "raz"),
-            id(plan, "clavier"),
-            id(plan, "ecran"),
-        );
-        let entree = |plan: &Document, e: Id, nom: &str| Fil {
-            puits: e,
-            entree: plan
-                .element(e)
-                .unwrap()
-                .broches_e
-                .iter()
-                .position(|b| b.nom == nom)
-                .unwrap(),
-        };
-        let sortie = |plan: &Document, e: Id, nom: &str| {
-            let j = plan
-                .element(e)
-                .unwrap()
-                .broches_s
-                .iter()
-                .position(|b| b.nom == nom)
-                .unwrap();
-            Source::nouvelle(e, j)
-        };
-        let liens = [
-            (Source::de(raz), entree(plan, a, "raz")),
-            (Source::de(raz), entree(plan, b, "raz")),
-            (Source::de(raz), entree(plan, nraz, "a")),
-            (Source::de(clavier), entree(plan, a, "clavier")),
-            (sortie(plan, a, "ecran"), entree(plan, boite, "d")),
-            (sortie(plan, a, "ecran_ecrit"), entree(plan, boite, "clk")),
-            (sortie(plan, nraz, "s"), entree(plan, boite, "charge")),
-            (sortie(plan, boite, "q"), entree(plan, b, "clavier")),
-            (
-                sortie(plan, b, "ecran"),
-                Fil {
-                    puits: ecran,
-                    entree: 0,
-                },
-            ),
-            (
-                sortie(plan, b, "ecran_ecrit"),
-                Fil {
-                    puits: ecran,
-                    entree: 1,
-                },
-            ),
-        ];
-        for (source, fil) in liens {
-            assert!(plan.relier(source, fil), "{source:?} vers {fil:?}");
-        }
+        crate::solution::brancher_les_deux(p).expect("les deux ordinateurs se branchent");
     }
 
     #[test]
@@ -2443,62 +2383,5 @@ mod tests {
         crate::exemples::tests::brancher_l_atelier(&mut projet);
         let v = q.verifier(&projet).clone();
         assert!(v.reussi, "{}", v.texte);
-    }
-
-    /// Ce que la construction de référence ajoute à l'atelier d'un ordinateur ou d'un grand
-    /// projet (`economie::AJOUTS`) est bien ce qu'ajoutent les solutions des tests, et ces
-    /// solutions passent leur vérification.
-    #[test]
-    fn les_ajouts_de_reference_sont_ceux_des_solutions() {
-        use crate::economie::{cible_de_la_quete, de_la_quete, fournies, AJOUTS};
-        use crate::parcours::Parcours;
-        let ordinateurs: Vec<&Fiche> = PARCOURS.iter().filter(|f| f.epreuve.ordinateur()).collect();
-        assert_eq!(ordinateurs.len(), AJOUTS.len());
-        let mut parcours = Parcours::default();
-        for cle in ["processeur", "memoire-vive-16"] {
-            let mut q = Quete::de_cle(cle).unwrap();
-            let projet = resolue_avec(&q, Quete::fiche(cle).unwrap().corrige, &[]);
-            assert!(q.verifier(&projet).reussi, "{cle}");
-            parcours.gagner(&q, &projet);
-        }
-        for f in ordinateurs {
-            let mut p = parcours.projet(f, "essai").unwrap();
-            let depart = p.nb_portes(&p.principal);
-            assert_eq!(depart, fournies(f), "{}", f.cle);
-            match f.epreuve {
-                Epreuve::Systeme {
-                    atelier: Atelier::Deux { .. },
-                    ..
-                } => brancher_les_deux(&mut p),
-                Epreuve::Systeme {
-                    atelier: Atelier::GrandeMemoire { .. },
-                    ..
-                } => {
-                    importer_le_corrige(&mut p, "RAM256");
-                    let mut ram = p.modele("RAM256").unwrap().instance();
-                    ram.nom = "ram".to_owned();
-                    p.principal.poser(ram, Point::nouveau(820.0, 520.0));
-                    crate::exemples::tests::brancher_l_atelier(&mut p);
-                }
-                Epreuve::Ordinateur { complet: true, .. } => {
-                    for (modele, nom) in [("PROCESSEUR", "cpu"), ("RAM16", "ram")] {
-                        let mut b = p.modele(modele).unwrap().instance();
-                        b.nom = nom.to_owned();
-                        p.principal.poser(b, Point::nouveau(600.0, 300.0));
-                    }
-                    crate::exemples::tests::brancher_l_atelier(&mut p);
-                }
-                _ => crate::exemples::tests::brancher_l_atelier(&mut p),
-            }
-            let mut q = Quete::de_fiche(f);
-            let v = q.verifier(&p).clone();
-            assert!(v.reussi, "{} : {}", f.cle, v.texte);
-            let ajoutees = p.nb_portes(&p.principal) - depart;
-            let (cible, _) = cible_de_la_quete(f).unwrap();
-            assert_eq!(ajoutees, cible.nand(), "{}", f.cle);
-            let e = de_la_quete(&q, &p, &p.principal).unwrap();
-            assert_eq!(e.tiennes, ajoutees, "{}", f.cle);
-            assert_eq!(e.etoiles(), 3, "{}", f.cle);
-        }
     }
 }

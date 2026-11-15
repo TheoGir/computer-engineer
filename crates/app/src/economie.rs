@@ -105,15 +105,7 @@ impl Ecart {
 
     /// Le titre court : la cible et ce qu'on en sait.
     pub fn titre(&self) -> String {
-        let n = self.cible.nand();
-        match self.cible {
-            Cible::Connue(m) => match m.statut {
-                Statut::Prouve => tr!("Minimum prouvé : {n} {v}", n = n, v = portes(n)),
-                Statut::Encadre { .. } => tr!("Meilleure connue : {n} {v}", n = n, v = portes(n)),
-                Statut::Reference => tr!("Référence : {n} {v}", n = n, v = portes(n)),
-            },
-            Cible::AuMoins(_) => tr!("Au moins {n} {v}", n = n, v = portes(n)),
-        }
+        ligne_de_la_cible(self.cible)
     }
 
     /// La phrase qui dit où l'on en est, pour une construction juste.
@@ -144,7 +136,21 @@ impl Ecart {
     }
 }
 
-fn portes(n: u64) -> &'static str {
+/// La cible telle qu'on l'écrit, avec son statut : « Minimum prouvé : 4 portes ».
+pub fn ligne_de_la_cible(cible: Cible) -> String {
+    let n = cible.nand();
+    match cible {
+        Cible::Connue(m) => match m.statut {
+            Statut::Prouve => tr!("Minimum prouvé : {n} {v}", n = n, v = portes(n)),
+            Statut::Encadre { .. } => tr!("Meilleure connue : {n} {v}", n = n, v = portes(n)),
+            Statut::Reference => tr!("Référence : {n} {v}", n = n, v = portes(n)),
+        },
+        Cible::AuMoins(_) => tr!("Au moins {n} {v}", n = n, v = portes(n)),
+    }
+}
+
+/// « porte » ou « portes ».
+pub fn portes(n: u64) -> &'static str {
     if n > 1 {
         tr!("portes")
     } else {
@@ -159,7 +165,7 @@ pub fn minimum_du_corrige(nom: &str) -> Option<Minimum> {
     if let Some(m) = cache.lock().ok().and_then(|c| c.get(nom).copied()) {
         return m;
     }
-    let m = minimum::minimum(corriges(), nom);
+    let m = minimum::minimum(minimum::bibliotheque_des_solutions(), nom);
     if let Ok(mut c) = cache.lock() {
         c.insert(nom.to_owned(), m);
     }
@@ -168,7 +174,7 @@ pub fn minimum_du_corrige(nom: &str) -> Option<Minimum> {
 
 /// Ce que la construction de référence ajoute à l'atelier d'un ordinateur ou d'un grand
 /// projet : les briques posées en plus du câblage (le test
-/// `les_ajouts_de_reference_sont_ceux_des_solutions` le vérifie sur les solutions).
+/// `chaque_solution_reussit_sa_quete` le vérifie sur les solutions).
 pub const AJOUTS: &[(&str, &[&str])] = &[
     ("ordinateur", &["NON", "NON", "ET"]),
     ("ordinateur-majuscules", &["NON", "NON", "ET"]),
