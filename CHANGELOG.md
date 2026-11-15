@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## Prochaine version
+## 0.12.0 — 15 novembre 2026
 
 - **L'application parle anglais** : toute l'interface, l'aide (F1), le lexique, les 100 quêtes et leurs fiches « Comprendre », les exemples et les commentaires des programmes livrés existent en anglais. Au premier lancement, l'application prend la langue du système (le français si le système est en français, l'anglais sinon) ; elle se change ensuite dans les paramètres, ligne « Langue / Language ». Les pluriels et la virgule décimale suivent la langue. Les noms des briques et des broches (`ET`, `raz`, `clk`…) sont des noms de circuit et restent les mêmes dans les deux langues, pour que les projets s'échangent.
 - L'éditeur d'automates (Ctrl+K) et les bancs d'essai (Ctrl+T) comprennent aussi les mots-clés anglais : `inputs`, `outputs`, `state`, `if`, `and`, `not`, `wait`.
