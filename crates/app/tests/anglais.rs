@@ -110,7 +110,9 @@ fn textes(b: &Banc) -> Vec<String> {
 /// Les mots qui trahissent du français dans ce texte (hors chemins de fichiers), noms de
 /// briques et de broches compris.
 fn francais(texte: &str, noms: &std::collections::BTreeSet<String>) -> Vec<String> {
-    if texte.starts_with('/') {
+    // Un chemin absolu, sous Linux (/tmp/…) ou sous Windows (C:\Users\…).
+    let chemin_windows = texte.as_bytes().get(1..3) == Some(b":\\".as_slice());
+    if texte.starts_with('/') || chemin_windows {
         return Vec::new();
     }
     // « in front of » est de l'anglais, pas la broche `front`.
@@ -366,4 +368,27 @@ fn captures_en_anglais() {
     drop(b);
     let _ = std::fs::remove_dir_all(&racine);
     langue::choisir_pour_ce_fil(None);
+}
+
+/// Les noms ne sont traduits qu'à l'affichage : un exemple ouvert en anglais enregistre
+/// exactement les mêmes briques et le même plan qu'en français (seul le nom du projet suit la
+/// langue), et un projet s'échange donc d'une langue à l'autre.
+#[test]
+fn un_projet_est_le_meme_dans_les_deux_langues() {
+    let ouvrir = |langue_choisie: Langue| {
+        langue::choisir_pour_ce_fil(Some(langue_choisie));
+        let mut app = Application::nouvelle(Apparence::default(), Surveillance::default());
+        app.ouvrir(Ouverture::Exemple(0));
+        let p = &app.atelier.projet;
+        let valeur = (
+            serde_json::to_value(&p.principal).expect("plan"),
+            serde_json::to_value(&p.modeles).expect("briques"),
+        );
+        langue::choisir_pour_ce_fil(None);
+        valeur
+    };
+    let francais = ouvrir(Langue::Francais);
+    let anglais = ouvrir(Langue::Anglais);
+    assert_eq!(francais, anglais);
+    assert!(francais.1.to_string().contains("\"PROCESSEUR\""));
 }

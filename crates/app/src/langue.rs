@@ -260,6 +260,7 @@ pub const NOMS_ANGLAIS: &[(&str, &str)] = &[
     ("ecran", "screen"),
     ("ecran_ecrit", "screen_wr"),
     ("ecrire", "write"),
+    ("ecrit", "wr"),
     ("ecrit_a", "wrote_a"),
     ("ecrit_ram", "ram_wr"),
     ("egal", "eq"),
@@ -306,6 +307,7 @@ pub const NOMS_ANGLAIS: &[(&str, &str)] = &[
     ("sortie", "out"),
     ("sup", "greater"),
     ("tic", "tick"),
+    ("touche", "key"),
     ("valide", "valid"),
     ("valider", "confirm"),
     ("vert", "green"),
@@ -361,6 +363,15 @@ pub fn nom_affiche(nom: &str) -> Cow<'_, str> {
         Cow::Owned(sortie)
     } else {
         Cow::Borrowed(nom)
+    }
+}
+
+/// La légende d'une lampe telle qu'on l'affiche : traduite si c'est un texte livré
+/// (« compteur de programme »), ou un nom de circuit livré, sinon telle quelle.
+pub fn legende_affichee(legende: &str) -> Cow<'_, str> {
+    match traduire_texte(legende) {
+        Cow::Borrowed(t) if std::ptr::eq(t, legende) => nom_affiche(legende),
+        autre => autre,
     }
 }
 
@@ -559,6 +570,8 @@ pub fn textes_des_donnees() -> Vec<String> {
     for e in &crate::exemples::EXEMPLES {
         if let Ok(projet) = crate::exemples::ordinateur(e.nom, e.programme) {
             tous.extend(projet.modeles.iter().map(|m| m.description.clone()));
+            // Les légendes des lampes de l'exemple, enregistrées en français.
+            tous.extend(projet.principal.elements.iter().map(|e| e.legende.clone()));
         }
     }
     tous.retain(|t| !t.trim().is_empty());

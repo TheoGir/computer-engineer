@@ -2184,7 +2184,11 @@ impl Panneaux {
             texte.push_str(&tr!(
                 " en tout, sur {niveaux} niveau{v} de briques emboîtées.",
                 niveaux = niveaux,
-                v = if niveaux > 1 { "x" } else { "" }
+                v = match crate::langue::s(niveaux) {
+                    "" => "",
+                    _ if crate::langue::en_francais() => "x",
+                    _ => "s",
+                }
             ));
         } else {
             texte.push('.');

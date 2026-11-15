@@ -2,6 +2,10 @@
 
 ## Prochaine version
 
+- **Les noms des briques et des broches s'affichent en anglais** dans l'interface anglaise : `ET` devient `AND`, `OU_X` devient `XOR`, `raz` devient `reset`, `retenue` devient `carry`… Partout où un nom de circuit se lit : le plan, la palette, l'inspecteur, les tables de vérité des quêtes, le chronogramme, les sondes, l'analyse (Ctrl+E), les messages, et les consignes des quêtes, réécrites avec ces noms. Seul l'affichage change : le projet enregistre toujours les noms d'origine, si bien qu'un projet fait en anglais s'ouvre à l'identique en français, et inversement. Un banc d'essai (Ctrl+T) accepte les deux écritures (`reset` ou `raz`), et renommer une brique sans changer le nom affiché ne la renomme pas. Une brique garde la même taille sur le plan dans les deux langues. Les noms choisis par l'utilisateur ne sont jamais traduits.
+
+## 0.12.0 — 15 novembre 2026
+
 - **L'application parle anglais** : toute l'interface, l'aide (F1), le lexique, les 100 quêtes et leurs fiches « Comprendre », les exemples et les commentaires des programmes livrés existent en anglais. Au premier lancement, l'application prend la langue du système (le français si le système est en français, l'anglais sinon) ; elle se change ensuite dans les paramètres, ligne « Langue / Language ». Les pluriels et la virgule décimale suivent la langue. Les noms des briques et des broches (`ET`, `raz`, `clk`…) sont des noms de circuit et restent les mêmes dans les deux langues, pour que les projets s'échangent.
 - L'éditeur d'automates (Ctrl+K) et les bancs d'essai (Ctrl+T) comprennent aussi les mots-clés anglais : `inputs`, `outputs`, `state`, `if`, `and`, `not`, `wait`.
 - Le réglage de la langue s'ajoute à `reglages.json` (champ facultatif `langue`) ; un fichier de réglages d'une version précédente se lit comme avant. Les formats des projets et de l'avancement ne changent pas.

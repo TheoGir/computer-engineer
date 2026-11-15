@@ -2082,7 +2082,7 @@ impl Plan {
                     let legende = if e.legende.is_empty() {
                         &*crate::langue::nom_affiche(&e.nom)
                     } else {
-                        &*crate::langue::nom_affiche(&e.legende)
+                        &*crate::langue::legende_affichee(&e.legende)
                     };
                     t.texte(
                         q(0.0, 68.0),
@@ -2254,7 +2254,7 @@ impl Plan {
                         let legende = if e.legende.is_empty() {
                             &*crate::langue::nom_affiche(&e.nom)
                         } else {
-                            &*crate::langue::nom_affiche(&e.legende)
+                            &*crate::langue::legende_affichee(&e.legende)
                         };
                         t.texte(
                             q(0.0, 46.0),
