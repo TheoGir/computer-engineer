@@ -343,6 +343,17 @@ fn couleur_valeur(c: &Palette, v: Valeur) -> Color32 {
     }
 }
 
+/// La couleur du trait d'un fil qui porte `v` (le X et le Z, dessinés en tirets ailleurs,
+/// gardent ici leur couleur seule).
+fn couleur_trait(c: &Palette, v: Valeur) -> Color32 {
+    match symbole(v) {
+        '1' => c.un.c(),
+        '0' => c.zero.c(),
+        _ if v == Valeur::Z => c.z.c(),
+        _ => c.x.c(),
+    }
+}
+
 fn arrondi(v: f32, pas: f32) -> f32 {
     (v / pas).round() * pas
 }
@@ -1169,6 +1180,7 @@ impl Plan {
         let duree_front = (at.duree_pas(a) * a.mouvement.part_front).clamp(0.12, 0.9);
         let fil_choisi = at.fil_selectionne();
         let mut courant = false;
+        let mut ponts_dessus: Vec<(Vec<Pos2>, f32, Color32)> = Vec::new();
         for (faisceau, boites) in faisceaux.iter().zip(&boites) {
             if faisceau.fils.is_empty() {
                 continue;
@@ -1180,18 +1192,27 @@ impl Plan {
             });
             let p = (((maintenant - onde.debut) as f32) / duree_front).clamp(0.0, 1.0);
             let bus = at.doc.largeur_source(faisceau.source).unwrap_or(1) > 1;
+            // Survoler un fil met en évidence tout le signal : la source et toutes ses arrivées.
+            let reseau_survole = self.geste == Geste::Aucun
+                && matches!(self.survol, Survol::Fil(s) if faisceau.fils.iter().any(|(g, _)| *g == s));
             let mut vu = false;
-            for ((fil, sommets), boite) in faisceau.fils.iter().zip(boites) {
+            for (((fil, sommets), boite), ponts) in
+                faisceau.fils.iter().zip(boites).zip(&faisceau.ponts)
+            {
                 if !boite.intersects(vue) {
                     // Hors de l'écran : pas dessiné, mais toujours là pour le pointeur.
                     continue;
                 }
                 vu = true;
                 dessines.1 += 1;
-                let mut ligne = if detail {
-                    routage::arrondir(sommets, f.rayon_fil)
+                let (mut ligne, arcs) = if detail {
+                    routage::enjamber(
+                        &routage::arrondir(sommets, f.rayon_fil),
+                        ponts,
+                        f.rayon_pont,
+                    )
                 } else {
-                    sommets.clone()
+                    (sommets.clone(), Vec::new())
                 };
                 let ne = (!self.fils_nes.is_empty())
                     .then(|| self.fils_nes.get(&(faisceau.source, *fil)))
@@ -1218,7 +1239,7 @@ impl Plan {
                         );
                     }
                 }
-                let survole = self.survol == Survol::Fil(*fil) && self.geste == Geste::Aucun;
+                let survole = reseau_survole;
                 // Un fil que personne ne survole n'a pas besoin d'animation.
                 let cle = egui::Id::unique(("fil", fil.puits, fil.entree));
                 let tau = a.mouvement.lissage_ui;
@@ -1239,17 +1260,48 @@ impl Plan {
                     detail,
                     maintenant,
                 );
+                if ne.is_none() {
+                    // Les ponts passent par-dessus tous les fils : on les redessine à la fin.
+                    let largeur = ((if bus { f.fil * 1.6 } else { f.fil }) + 3.0 * gras) * k;
+                    let front = p * routage::longueur(&ligne);
+                    for arc in arcs {
+                        let avant = routage::longueur(&ligne[..=arc.start]);
+                        let v = if avant < front { onde.vers } else { onde.de };
+                        ponts_dessus.push((
+                            ligne[arc].iter().map(|q| cam.ecran(*q)).collect(),
+                            largeur.max(1.0),
+                            couleur_trait(c, v),
+                        ));
+                    }
+                }
             }
             if vu && p < 1.0 {
                 self.en_mouvement = true;
             }
             if vu && detail {
                 let v = if p >= 0.5 { onde.vers } else { onde.de };
-                let rayon = f.fil * if bus { 1.35 } else { 0.95 } * k;
+                // Une vraie jonction : une pastille nettement plus large que le fil, cerclée
+                // du fond pour se détacher, à ne pas confondre avec un croisement (pont).
+                let gros = if reseau_survole { 1.25 } else { 1.0 };
+                let rayon = f.fil * f.pastille * gros * if bus { 1.35 } else { 1.0 } * k;
                 for j in &faisceau.jonctions {
-                    t.p.circle_filled(cam.ecran(*j), rayon, couleur_valeur(c, v));
+                    t.p.circle(
+                        cam.ecran(*j),
+                        rayon,
+                        couleur_valeur(c, v),
+                        Stroke::new((1.5 * k).max(0.75), c.fond.c()),
+                    );
                 }
             }
+        }
+        for (arc, largeur, couleur) in &ponts_dessus {
+            // Un liseré du fond de part et d'autre du pont : le fil enjambé s'interrompt
+            // dessous, on voit qu'ils ne se touchent pas.
+            t.p.add(Shape::line(
+                arc.clone(),
+                Stroke::new(largeur + 5.0 * k, c.fond.c()),
+            ));
+            t.p.add(Shape::line(arc.clone(), Stroke::new(*largeur, *couleur)));
         }
         if courant && anime {
             self.en_mouvement = true;
@@ -1757,6 +1809,15 @@ impl Plan {
             t.p.add(Shape::line(
                 tout.clone(),
                 Stroke::new((epaisseur + 5.0) * k, c.zero.vers(c.accent_clair, 0.6).c()),
+            ));
+        } else if gras > 0.01 {
+            // Le signal survolé : un halo d'accent sur tout son tracé.
+            t.p.add(Shape::line(
+                tout.clone(),
+                Stroke::new(
+                    (epaisseur + 9.0) * k * gras,
+                    c.accent_clair.alpha(0.28 * gras),
+                ),
             ));
         }
         t.p.add(Shape::line(tout, Stroke::new(largeur, c.zero.c())));

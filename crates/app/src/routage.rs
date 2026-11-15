@@ -113,6 +113,9 @@ pub struct Faisceau {
     pub fils: Vec<(Fil, Vec<Point>)>,
     /// Pastilles de jonction.
     pub jonctions: Vec<Point>,
+    /// Pour chaque fil (dans l'ordre de `fils`), les points où un fil d'une autre source le
+    /// croise sans s'y relier : le fil y fait un petit pont ([`enjamber`]).
+    pub ponts: Vec<Vec<Point>>,
     /// Vrai si l'étiquette du signal se place sous la sortie plutôt qu'au-dessus.
     pub etiquette_dessous: bool,
     /// Position de la sortie.
@@ -151,51 +154,339 @@ pub fn tracer(doc: &Document, position: impl Fn(Id) -> Point) -> Vec<Faisceau> {
             faisceaux.push(faisceau(source, p1, s.sens(), arrivees));
         }
     }
+    let nombre: usize = faisceaux
+        .iter()
+        .flat_map(|f| &f.fils)
+        .map(|(_, pts)| pts.len())
+        .sum();
+    let lisible = nombre <= TRONCONS_MAX;
+    if lisible {
+        separer_voies(&mut faisceaux, true);
+        separer_voies(&mut faisceaux, false);
+    }
+    for f in &mut faisceaux {
+        finir(f);
+    }
+    if lisible {
+        chercher_ponts(&mut faisceaux);
+    }
     faisceaux
 }
 
 fn faisceau(source: Source, p1: Point, s1: f32, arrivees: Vec<(Fil, Point, f32)>) -> Faisceau {
-    {
-        // L'arrivée la plus proche dans le sens où part le fil : le tronc commun s'arrête à
-        // mi-chemin d'elle.
-        let plus_proche = arrivees
-            .iter()
-            .filter(|(_, p2, s2)| {
-                *s2 == s1 && (p2.x - p1.x) * s1 >= AVANCE_MIN && (p2.y - p1.y).abs() > 0.5
-            })
-            .map(|(_, p2, _)| (p2.x - p1.x) * s1)
-            .fold(f32::INFINITY, f32::min);
-        let tronc = plus_proche
-            .is_finite()
-            .then(|| p1.x + s1 * (plus_proche / 2.0).max(22.0));
-        let fils: Vec<(Fil, Vec<Point>)> = arrivees
-            .into_iter()
-            .map(|(f, p2, s2)| (f, itineraire_oriente(p1, s1, p2, s2, tronc)))
-            .collect();
-        let mut jonctions: Vec<Point> = Vec::new();
-        for i in 0..fils.len() {
-            for j in i + 1..fils.len() {
-                if let Some(q) = divergence(&fils[i].1, &fils[j].1) {
-                    if !jonctions.iter().any(|p| p.distance(q) < 0.5) {
-                        jonctions.push(q);
-                    }
+    // L'arrivée la plus proche dans le sens où part le fil : le tronc commun s'arrête à
+    // mi-chemin d'elle.
+    let plus_proche = arrivees
+        .iter()
+        .filter(|(_, p2, s2)| {
+            *s2 == s1 && (p2.x - p1.x) * s1 >= AVANCE_MIN && (p2.y - p1.y).abs() > 0.5
+        })
+        .map(|(_, p2, _)| (p2.x - p1.x) * s1)
+        .fold(f32::INFINITY, f32::min);
+    let tronc = plus_proche
+        .is_finite()
+        .then(|| p1.x + s1 * (plus_proche / 2.0).max(22.0));
+    let fils: Vec<(Fil, Vec<Point>)> = arrivees
+        .into_iter()
+        .map(|(f, p2, s2)| (f, itineraire_oriente(p1, s1, p2, s2, tronc)))
+        .collect();
+    Faisceau {
+        source,
+        ponts: vec![Vec::new(); fils.len()],
+        fils,
+        jonctions: Vec::new(),
+        etiquette_dessous: false,
+        depart: p1,
+    }
+}
+
+/// Pastilles de jonction et place de l'étiquette, une fois les itinéraires fixés.
+fn finir(f: &mut Faisceau) {
+    let fils = &f.fils;
+    let mut jonctions: Vec<Point> = Vec::new();
+    for i in 0..fils.len() {
+        for j in i + 1..fils.len() {
+            if let Some(q) = divergence(&fils[i].1, &fils[j].1) {
+                if !jonctions.iter().any(|p| p.distance(q) < 0.5) {
+                    jonctions.push(q);
                 }
             }
         }
-        let monte = fils
-            .iter()
-            .any(|(_, pts)| pts.iter().any(|p| p.y < p1.y - 1.0));
-        let descend = fils
-            .iter()
-            .any(|(_, pts)| pts.iter().any(|p| p.y > p1.y + 1.0));
-        Faisceau {
-            source,
-            fils,
-            jonctions,
-            etiquette_dessous: monte && !descend,
-            depart: p1,
+    }
+    let y = f.depart.y;
+    let monte = fils
+        .iter()
+        .any(|(_, pts)| pts.iter().any(|p| p.y < y - 1.0));
+    let descend = fils
+        .iter()
+        .any(|(_, pts)| pts.iter().any(|p| p.y > y + 1.0));
+    f.jonctions = jonctions;
+    f.etiquette_dessous = monte && !descend;
+}
+
+/// Écart entre deux voies parallèles, quand des fils de sources différentes passeraient l'un
+/// sur l'autre. Un fil fait 6 unités : il reste 6 unités de fond entre les deux.
+pub const ECART_VOIES: f32 = 12.0;
+/// Deux tronçons parallèles plus proches que cela se confondent à l'écran.
+const CONFONDUS: f32 = 3.0;
+/// Deux tronçons alignés dont les bouts sont à moins de cela l'un de l'autre semblent se
+/// toucher.
+const PRESQUE: f32 = 6.0;
+/// Longueur minimale qu'un tronçon voisin garde quand on décale une voie.
+const VOISIN_MIN: f32 = 8.0;
+/// Au-delà de ce nombre de tronçons, ni voies ni ponts : le plan est trop grand pour que ça
+/// se lise de toute façon, et le tracé doit rester rapide.
+pub const TRONCONS_MAX: usize = 60_000;
+
+/// Un tronçon droit à l'intérieur d'un fil : du sommet `i` au sommet `i + 1`.
+#[derive(Clone, Copy, Debug)]
+struct Troncon {
+    faisceau: usize,
+    fil: usize,
+    i: usize,
+    /// Abscisse d'un tronçon vertical, ordonnée d'un tronçon horizontal.
+    pos: f32,
+    /// Étendue dans l'autre sens.
+    de: f32,
+    a: f32,
+}
+
+fn le_long(p: Point, vertical: bool) -> f32 {
+    if vertical {
+        p.y
+    } else {
+        p.x
+    }
+}
+
+fn en_travers(p: Point, vertical: bool) -> f32 {
+    if vertical {
+        p.x
+    } else {
+        p.y
+    }
+}
+
+/// Les tronçons verticaux (ou horizontaux) de tous les fils. Avec `interieurs`, seulement ceux
+/// qui ne touchent pas une broche : on peut les décaler sans débrancher le fil.
+fn troncons(faisceaux: &[Faisceau], vertical: bool, interieurs: bool) -> Vec<Troncon> {
+    let mut liste = Vec::new();
+    for (k, f) in faisceaux.iter().enumerate() {
+        for (n, (_, pts)) in f.fils.iter().enumerate() {
+            let fin = pts.len().saturating_sub(1);
+            for i in 0..fin {
+                if interieurs && (i == 0 || i + 1 == fin) {
+                    continue;
+                }
+                let (p, q) = (pts[i], pts[i + 1]);
+                if (en_travers(p, vertical) - en_travers(q, vertical)).abs() > 0.01
+                    || (le_long(p, vertical) - le_long(q, vertical)).abs() < 0.5
+                {
+                    continue;
+                }
+                let (u, v) = (le_long(p, vertical), le_long(q, vertical));
+                liste.push(Troncon {
+                    faisceau: k,
+                    fil: n,
+                    i,
+                    pos: en_travers(p, vertical),
+                    de: u.min(v),
+                    a: u.max(v),
+                });
+            }
         }
     }
+    liste
+}
+
+/// Le décalage de la voie `rang` : 0, puis +1, -1, +2, -2… écarts.
+fn decalage(rang: usize) -> f32 {
+    let n = rang.div_ceil(2) as f32;
+    if rang % 2 == 1 {
+        n * ECART_VOIES
+    } else {
+        -n * ECART_VOIES
+    }
+}
+
+/// Quand des fils de sources différentes empruntent le même couloir (même abscisse pour des
+/// tronçons verticaux, même ordonnée pour des horizontaux) et se chevauchent, on les écarte sur
+/// des voies parallèles : sinon deux signaux distincts ont l'air d'un seul fil. Les fils d'une
+/// même source restent ensemble (ils partagent leur tronc), et un tronçon qui touche une
+/// broche ne bouge jamais.
+fn separer_voies(faisceaux: &mut [Faisceau], vertical: bool) {
+    let mut liste = troncons(faisceaux, vertical, true);
+    if liste.len() < 2 {
+        return;
+    }
+    liste.sort_by(|a, b| a.pos.total_cmp(&b.pos));
+    let mut debut = 0;
+    while debut < liste.len() {
+        let mut fin = debut + 1;
+        while fin < liste.len() && liste[fin].pos - liste[fin - 1].pos <= CONFONDUS {
+            fin += 1;
+        }
+        let groupe = &liste[debut..fin];
+        debut = fin;
+        if groupe.iter().all(|t| t.faisceau == groupe[0].faisceau) {
+            continue;
+        }
+        // L'étendue de chaque source dans ce couloir.
+        let mut sources: Vec<(usize, f32, f32)> = Vec::new();
+        for t in groupe {
+            match sources.iter_mut().find(|s| s.0 == t.faisceau) {
+                Some(s) => {
+                    s.1 = s.1.min(t.de);
+                    s.2 = s.2.max(t.a);
+                }
+                None => sources.push((t.faisceau, t.de, t.a)),
+            }
+        }
+        let touche = |a: &(usize, f32, f32), b: &(usize, f32, f32)| {
+            a.1 < b.2 + PRESQUE && b.1 < a.2 + PRESQUE
+        };
+        if !sources
+            .iter()
+            .enumerate()
+            .any(|(i, a)| sources[i + 1..].iter().any(|b| touche(a, b)))
+        {
+            continue;
+        }
+        sources.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+        let mut places: Vec<((usize, f32, f32), usize)> = Vec::new();
+        for s in sources {
+            let prises: Vec<usize> = places
+                .iter()
+                .filter(|(autre, _)| touche(autre, &s))
+                .map(|(_, rang)| *rang)
+                .collect();
+            let siens: Vec<&Troncon> = groupe.iter().filter(|t| t.faisceau == s.0).collect();
+            let possible = |rang: usize| {
+                let d = decalage(rang);
+                siens.iter().all(|t| {
+                    let pts = &faisceaux[t.faisceau].fils[t.fil].1;
+                    let ici = en_travers(pts[t.i], vertical) + d;
+                    let (avant, apres) = (
+                        en_travers(pts[t.i - 1], vertical),
+                        en_travers(pts[t.i + 2], vertical),
+                    );
+                    let garde = |de: f32, vers_avant: f32, vers_apres: f32| {
+                        vers_avant.abs() >= 0.5
+                            && (vers_apres - de) * vers_avant.signum() >= VOISIN_MIN
+                    };
+                    garde(avant, t.pos - avant, ici) && garde(ici, apres - t.pos, apres)
+                })
+            };
+            let rang = (0..8)
+                .find(|r| !prises.contains(r) && (*r == 0 || possible(*r)))
+                .unwrap_or(0);
+            if rang > 0 {
+                let d = decalage(rang);
+                for t in &siens {
+                    let pts = &mut faisceaux[t.faisceau].fils[t.fil].1;
+                    for q in &mut pts[t.i..=t.i + 1] {
+                        if vertical {
+                            q.x += d;
+                        } else {
+                            q.y += d;
+                        }
+                    }
+                }
+            }
+            places.push((s, rang));
+        }
+    }
+}
+
+/// Les croisements sans connexion : là où un tronçon horizontal d'un fil coupe un tronçon
+/// vertical d'un fil d'une autre source, le fil horizontal fait un pont.
+fn chercher_ponts(faisceaux: &mut [Faisceau]) {
+    const CASE: f32 = 128.0;
+    let verticaux = troncons(faisceaux, true, false);
+    let horizontaux = troncons(faisceaux, false, false);
+    if verticaux.is_empty() || horizontaux.is_empty() {
+        return;
+    }
+    let case = |v: f32| (v / CASE).floor() as i32;
+    let mut grille: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
+    for (n, v) in verticaux.iter().enumerate() {
+        for cy in case(v.de)..=case(v.a) {
+            grille.entry((case(v.pos), cy)).or_default().push(n);
+        }
+    }
+    for h in &horizontaux {
+        let cy = case(h.pos);
+        let ponts = &mut faisceaux[h.faisceau].ponts[h.fil];
+        for cx in case(h.de)..=case(h.a) {
+            let Some(dans) = grille.get(&(cx, cy)) else {
+                continue;
+            };
+            for &n in dans {
+                let v = &verticaux[n];
+                if v.faisceau == h.faisceau
+                    || v.pos <= h.de + 0.5
+                    || v.pos >= h.a - 0.5
+                    || h.pos <= v.de + 0.5
+                    || h.pos >= v.a - 0.5
+                {
+                    continue;
+                }
+                let q = Point::nouveau(v.pos, h.pos);
+                if !ponts.iter().any(|p| p.distance(q) < 0.5) {
+                    ponts.push(q);
+                }
+            }
+        }
+    }
+}
+
+/// Une ligne (déjà arrondie) qui enjambe chaque point de `ponts` par un demi-cercle de rayon
+/// `r` tourné vers le haut. Un pont trop près d'un coude ou d'un autre pont est omis.
+/// Renvoie aussi, pour chaque pont tracé, la plage de ses sommets dans la ligne : on le
+/// redessine par-dessus les autres fils.
+pub fn enjamber(
+    ligne: &[Point],
+    ponts: &[Point],
+    r: f32,
+) -> (Vec<Point>, Vec<std::ops::Range<usize>>) {
+    let mut arcs = Vec::new();
+    if ponts.is_empty() || ligne.len() < 2 || r <= 0.0 {
+        return (ligne.to_vec(), arcs);
+    }
+    const PAS: usize = 10;
+    let mut sortie = vec![ligne[0]];
+    for w in ligne.windows(2) {
+        let (p, q) = (w[0], w[1]);
+        let dx = q.x - p.x;
+        if (q.y - p.y).abs() < 0.01 && dx.abs() > 2.0 * r {
+            let sens = dx.signum();
+            let mut ici: Vec<f32> = ponts
+                .iter()
+                .filter(|c| {
+                    (c.y - p.y).abs() < 0.5 && (c.x - p.x) * sens > r && (q.x - c.x) * sens > r
+                })
+                .map(|c| c.x)
+                .collect();
+            ici.sort_by(|a, b| ((a - p.x) * sens).total_cmp(&((b - p.x) * sens)));
+            let mut libre: Option<f32> = None;
+            for x in ici {
+                if libre.is_some_and(|l| (x - sens * r - l) * sens < 0.0) {
+                    continue;
+                }
+                arcs.push(sortie.len()..sortie.len() + PAS + 1);
+                for k in 0..=PAS {
+                    let phi = std::f32::consts::PI * k as f32 / PAS as f32;
+                    sortie.push(Point::nouveau(
+                        x - sens * r * phi.cos(),
+                        p.y - r * phi.sin(),
+                    ));
+                }
+                libre = Some(x + sens * r);
+            }
+        }
+        sortie.push(q);
+    }
+    (sortie, arcs)
 }
 
 /// Remplace chaque coude d'une ligne brisée par un arc, et renvoie la ligne fine obtenue.
@@ -429,5 +720,123 @@ mod tests {
         assert_eq!(point_a(&l, 25.0), None);
         assert_eq!(distance_a(&l, p(5.0, 3.0)), 3.0);
         assert_eq!(distance_a(&l, p(13.0, 14.0)), 5.0);
+    }
+
+    /// Quatre interrupteurs empilés lus dans le désordre par une colonne de portes : leurs
+    /// troncs tombent tous sur la même abscisse.
+    fn colonne_melangee() -> Document {
+        use crate::document::Element;
+        let mut d = Document::nouveau();
+        let e: Vec<Id> = (0..4)
+            .map(|i| {
+                d.poser(
+                    Element::entree(&format!("e{i}"), 1),
+                    p(61.0, 120.0 + 90.0 * i as f32),
+                )
+            })
+            .collect();
+        let g: Vec<Id> = (0..4)
+            .map(|i| d.poser(Element::nand(""), p(330.0, 120.0 + 90.0 * i as f32)))
+            .collect();
+        for (puits, entree, source) in [
+            (0, 0, 0),
+            (0, 1, 2),
+            (1, 0, 1),
+            (1, 1, 3),
+            (2, 0, 0),
+            (2, 1, 3),
+            (3, 0, 2),
+            (3, 1, 1),
+        ] {
+            assert!(d.relier(
+                Source::de(e[source]),
+                Fil {
+                    puits: g[puits],
+                    entree
+                }
+            ));
+        }
+        d
+    }
+
+    /// Les tronçons de deux sources différentes ne se recouvrent jamais.
+    fn sans_recouvrement(f: &[Faisceau]) {
+        for vertical in [true, false] {
+            let t = troncons(f, vertical, false);
+            for (n, a) in t.iter().enumerate() {
+                for b in &t[n + 1..] {
+                    if a.faisceau != b.faisceau && (a.pos - b.pos).abs() <= CONFONDUS {
+                        assert!(
+                            a.a <= b.de + 0.5 || b.a <= a.de + 0.5,
+                            "deux signaux l'un sur l'autre : {a:?} et {b:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn des_signaux_differents_ne_partagent_pas_un_couloir() {
+        let d = colonne_melangee();
+        let f = tracer(&d, |id| d.element(id).unwrap().pos);
+        sans_recouvrement(&f);
+        // Les fils restent en angle droit, partent de la sortie et arrivent sur l'entrée.
+        for fx in f.iter().filter(|x| !x.fils.is_empty()) {
+            for (fil, pts) in &fx.fils {
+                verifier(pts, 1.0, 1.0);
+                assert_eq!(pts[0], fx.depart);
+                let e = d.element(fil.puits).unwrap();
+                assert_eq!(*pts.last().unwrap(), e.entree_en(e.pos, fil.entree));
+            }
+            // Chaque source garde son tronc commun : une pastille où ses deux fils se séparent.
+            assert_eq!(fx.fils.len(), 2);
+            assert_eq!(fx.jonctions.len(), 1, "{:?}", fx.fils);
+        }
+        // Les fils se croisent sans se relier : chaque croisement porte un pont.
+        let ponts: usize = f.iter().flat_map(|x| &x.ponts).map(Vec::len).sum();
+        assert!(ponts >= 4, "{ponts} ponts");
+        for fx in &f {
+            for ((_, pts), ponts) in fx.fils.iter().zip(&fx.ponts) {
+                for q in ponts {
+                    assert!(distance_a(pts, *q) < 0.01, "le pont est sur son fil");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn les_fils_d_une_seule_source_ne_bougent_pas() {
+        // Le demi-additionneur n'a aucun couloir partagé : ses tracés sont ceux d'avant.
+        let d = Document::demi_additionneur();
+        let f = tracer(&d, |id| d.element(id).unwrap().pos);
+        sans_recouvrement(&f);
+    }
+
+    #[test]
+    fn enjamber_fait_un_demi_cercle_au_dessus_du_croisement() {
+        let l = vec![p(0.0, 0.0), p(100.0, 0.0)];
+        let (pont, arcs) = enjamber(&l, &[p(50.0, 0.0)], 9.0);
+        assert_eq!(arcs.len(), 1);
+        assert_eq!(pont[0], l[0]);
+        assert_eq!(*pont.last().unwrap(), l[1]);
+        let haut = pont.iter().map(|q| q.y).fold(f32::INFINITY, f32::min);
+        assert!((haut + 9.0).abs() < 0.01, "le pont monte de son rayon");
+        // Le sommet du pont est juste au-dessus du croisement.
+        let sommet = pont.iter().find(|q| (q.y + 9.0).abs() < 0.01).unwrap();
+        assert!((sommet.x - 50.0).abs() < 0.01);
+        assert!((longueur(&pont) - (100.0 - 18.0 + std::f32::consts::PI * 9.0)).abs() < 0.2);
+        // Dans l'autre sens aussi, et rien près d'un bout ni sur un tronçon vertical.
+        let (retour, arcs) = enjamber(&[p(100.0, 0.0), p(0.0, 0.0)], &[p(50.0, 0.0)], 9.0);
+        assert_eq!(arcs.len(), 1);
+        assert!(retour.iter().all(|q| q.y <= 1e-4));
+        assert!(enjamber(&l, &[p(4.0, 0.0)], 9.0).1.is_empty());
+        assert!(
+            enjamber(&[p(0.0, 0.0), p(0.0, 100.0)], &[p(0.0, 50.0)], 9.0)
+                .1
+                .is_empty()
+        );
+        // Deux croisements trop serrés : un seul pont.
+        assert_eq!(enjamber(&l, &[p(50.0, 0.0), p(55.0, 0.0)], 9.0).1.len(), 1);
     }
 }

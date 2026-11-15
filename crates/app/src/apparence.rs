@@ -268,6 +268,11 @@ pub struct Formes {
     pub opacite_lueur: f32,
     /// Rayon des coudes des fils.
     pub rayon_fil: f32,
+    /// Rayon du petit pont qu'un fil fait pour enjamber un fil d'une autre source qu'il croise
+    /// sans s'y relier. 0 : pas de pont.
+    pub rayon_pont: f32,
+    /// Rayon des pastilles de jonction (là où un fil se sépare en deux), en épaisseurs de fil.
+    pub pastille: f32,
     /// Espace entre deux perles de courant.
     pub pas_perles: f32,
     /// Rayon d'une perle.
@@ -305,6 +310,8 @@ impl Default for Formes {
             lueur_fil: 17.0,
             opacite_lueur: 0.14,
             rayon_fil: 14.0,
+            rayon_pont: 9.0,
+            pastille: 1.25,
             pas_perles: 24.0,
             rayon_perle: 1.5,
             pas_grille: 28.0,

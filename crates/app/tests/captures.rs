@@ -1341,3 +1341,104 @@ fn captures_solutions() {
         enregistrer(&mut b, &dossier, nom);
     }
 }
+
+/// Fils qui se croisent et se superposent : quatre interrupteurs lus dans le désordre par une
+/// colonne de portes, puis deux portes qui croisent leurs entrées. `f1` au repos, `f2` en
+/// survolant un fil (tout son signal s'allume), `f3` de près, `f4` en mode clair.
+#[test]
+fn captures_fils_croises() {
+    use ce_app::brique::Projet;
+    use ce_app::document::{Document, Element, Fil, Point};
+
+    let Ok(dossier) = std::env::var("CE_CAPTURES") else {
+        eprintln!("CE_CAPTURES n'est pas défini : captures ignorées.");
+        return;
+    };
+    let mut plan = Document::nouveau();
+    let entree = |plan: &mut Document, nom: &str, y: f32| {
+        plan.poser(Element::entree(nom, 1), Point::nouveau(61.0, y))
+    };
+    let a = entree(&mut plan, "a", 120.0);
+    let bb = entree(&mut plan, "b", 210.0);
+    let c = entree(&mut plan, "c", 300.0);
+    let d = entree(&mut plan, "d", 390.0);
+    let porte =
+        |plan: &mut Document, x: f32, y: f32| plan.poser(Element::nand(""), Point::nouveau(x, y));
+    let g1 = porte(&mut plan, 330.0, 120.0);
+    let g2 = porte(&mut plan, 330.0, 210.0);
+    let g3 = porte(&mut plan, 330.0, 300.0);
+    let g4 = porte(&mut plan, 330.0, 390.0);
+    let g5 = porte(&mut plan, 560.0, 165.0);
+    let g6 = porte(&mut plan, 560.0, 345.0);
+    let s1 = plan.poser(Element::sortie("s1", "", 1), Point::nouveau(760.0, 165.0));
+    let s2 = plan.poser(Element::sortie("s2", "", 1), Point::nouveau(760.0, 345.0));
+    for (puits, entree, source) in [
+        (g1, 0, a),
+        (g1, 1, c),
+        (g2, 0, bb),
+        (g2, 1, d),
+        (g3, 0, a),
+        (g3, 1, d),
+        (g4, 0, c),
+        (g4, 1, bb),
+        (g5, 0, g1),
+        (g5, 1, g4),
+        (g6, 0, g2),
+        (g6, 1, g3),
+        (s1, 0, g5),
+        (s2, 0, g6),
+    ] {
+        assert!(plan.relier(Source::de(source), Fil { puits, entree }));
+    }
+    let ouvrir = |b: &mut Harness<'static, Application>, plan: Document| {
+        let app = b.state_mut();
+        let ap = app.apparence.clone();
+        app.atelier
+            .ouvrir(Projet::nouveau("Fils croisés", plan), &ap);
+    };
+    let mut clair = banc(
+        1440.0,
+        900.0,
+        Apparence {
+            mode: Mode::Clair,
+            ..Apparence::default()
+        },
+    );
+    ouvrir(&mut clair, plan.clone());
+    clair.run_steps(300);
+    enregistrer(&mut clair, &dossier, "f4-clair");
+    drop(clair);
+
+    let mut b = banc(1440.0, 900.0, Apparence::default());
+    ouvrir(&mut b, plan);
+    b.run_steps(300);
+    enregistrer(&mut b, &dossier, "f1-fils-croises");
+
+    // Survoler le dernier tronçon du fil de a vers g3.
+    let (c1, c3) = {
+        let app = b.state();
+        (
+            app.plan.centre_ecran(&app.atelier, g1),
+            app.plan.centre_ecran(&app.atelier, g3),
+        )
+    };
+    let k = (c3.y - c1.y) / 180.0;
+    let p = c3 + egui::Vec2::new(-90.0, -15.0) * k;
+    b.hover_at(p);
+    b.run_steps(40);
+    enregistrer(&mut b, &dossier, "f2-survol-d-un-signal");
+
+    // De près : molette vers l'avant au croisement des entrées.
+    let milieu = c1 + (c3 - c1) * 0.5 + egui::Vec2::new(-100.0 * k, 0.0);
+    b.hover_at(milieu);
+    b.step();
+    b.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::Vec2::new(0.0, 6.0 * 50.0),
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
+        modifiers: egui::Modifiers::NONE,
+    });
+    b.run_steps(90);
+    enregistrer(&mut b, &dossier, "f3-de-pres");
+}
