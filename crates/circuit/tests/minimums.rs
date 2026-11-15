@@ -144,3 +144,39 @@ fn une_fonction_de_moins_de_trois_entrees_garde_son_minimum() {
     assert_eq!(minimum_d_une_fonction(3, 0b1001_0110), Some(8)); // parité de 3 bits
     assert_eq!(minimum_d_une_fonction(4, 0), None);
 }
+
+#[test]
+fn la_bibliotheque_des_solutions_calcule_comme_les_corriges() {
+    let corriges = ce_circuit::classiques::bibliotheque();
+    let solutions = minimum::bibliotheque_des_solutions();
+    for e in etablis().values() {
+        let n = nb_nand(&Circuit::elaborer(solutions, &e.composant).unwrap());
+        assert_eq!(n, e.nand, "{}", e.composant);
+        if e.circuit.is_none() {
+            continue;
+        }
+        let eq = ce_circuit::analyse::equivalence(&corriges, &e.composant, solutions, &e.composant)
+            .unwrap();
+        assert!(
+            matches!(eq, ce_circuit::analyse::Equivalence::Prouvee { .. }),
+            "{} : {eq:?}",
+            e.composant
+        );
+    }
+}
+
+/// Le compteur des solutions se pose avec la palette : aucune constante, et moins de portes
+/// que le corrigé, qui a besoin d'un 1 pour son premier demi-additionneur.
+#[test]
+fn le_compteur_des_solutions_n_a_pas_de_constante() {
+    let solutions = minimum::bibliotheque_des_solutions();
+    let c = &solutions.composants["COMPTEUR4"];
+    assert!(c
+        .instances
+        .iter()
+        .all(|i| i.genre != "UN" && i.genre != "ZERO"));
+    let corriges = ce_circuit::classiques::bibliotheque();
+    let n = nb_nand(&Circuit::elaborer(solutions, "COMPTEUR4").unwrap());
+    let m = nb_nand(&Circuit::elaborer(&corriges, "COMPTEUR4").unwrap());
+    assert!(n < m, "{n} portes, corrigé {m}");
+}

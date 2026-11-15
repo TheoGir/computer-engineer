@@ -84,6 +84,7 @@ pub mod routage;
 pub mod sauvegarde;
 pub mod savoir;
 pub mod simulation;
+pub mod solution;
 
 // Les traductions de `locales/`, intégrées à l'exécutable (voir [`langue`]).
 rust_i18n::i18n!("locales");

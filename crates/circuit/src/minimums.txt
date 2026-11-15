@@ -16,6 +16,7 @@ OU_X 4 4 -
 EQUIV 5 5 -
 MAJORITE 6 6 -
 MUX 4 4 -
+MUX4 11 11 g0=a4,a4;g1=a2,g0;g2=a0,g0;g3=a5,a5;g4=a1,a4;g5=a3,a4;g6=g1,g5;g7=g2,g4;g8=a5,g6;g9=g3,g7;g10=g8,g9;s=g10
 DEMUX 4 4 g0=a0,a1;g1=a0,g0;g2=g1,g1;g3=g0,g0;s=g2,g3
 DEMI_ADD 5 5 -
 ADD_COMPLET 9 9 -

@@ -486,6 +486,21 @@ impl Application {
                 }
                 None => false,
             },
+            Ouverture::Solution(cle) => match Quete::fiche(&cle) {
+                Some(fiche) => {
+                    let titre = tr!(
+                        "Solution : {titre}",
+                        titre = crate::langue::traduire(fiche.titre)
+                    );
+                    let nom = match &self.dossier {
+                        Some(d) => d.nom_libre(&titre),
+                        None => titre,
+                    };
+                    intact = true;
+                    self.atelier.ouvrir_solution(fiche, &nom, a)
+                }
+                None => false,
+            },
             Ouverture::Exemple(rang) => EXEMPLES.get(rang).is_some_and(|e| {
                 // Une copie neuve, sans écraser celle qu'on a peut-être déjà modifiée.
                 let nom = crate::langue::traduire(e.nom);

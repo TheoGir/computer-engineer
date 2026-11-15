@@ -914,6 +914,37 @@ impl Atelier {
         }
     }
 
+    /// Ouvre la solution d'une quête : la plus petite construction connue, dans un projet à
+    /// part, qui n'est pas lié à la quête.
+    pub fn ouvrir_solution(&mut self, fiche: &'static Fiche, nom: &str, a: &Apparence) -> bool {
+        match crate::solution::projet(fiche, nom) {
+            Ok(projet) => {
+                self.ouvrir(projet, a);
+                let titre = crate::langue::traduire(fiche.titre);
+                let texte = match crate::economie::cible_de_la_quete(fiche) {
+                    Some((cible, _)) if fiche.epreuve.ordinateur() => tr!(
+                        "La solution de « {titre} » : l'atelier, branché avec {n} {v} en plus. Ouvre une brique pour voir dedans.",
+                        titre = titre,
+                        n = cible.nand(),
+                        v = crate::economie::portes(cible.nand())
+                    ),
+                    Some((cible, _)) => tr!(
+                        "La solution de « {titre} ». {ligne}. Ouvre une brique pour voir dedans.",
+                        titre = titre,
+                        ligne = crate::economie::ligne_de_la_cible(cible)
+                    ),
+                    None => tr!("La solution de « {titre} ».", titre = titre),
+                };
+                self.dire_longtemps(&texte);
+                true
+            }
+            Err(e) => {
+                self.dire(&tr!("La solution n'a pas pu être ouverte : {e}", e = e));
+                false
+            }
+        }
+    }
+
     /// Avance d'un pas à la main. Revient d'abord au présent.
     pub fn pas(&mut self) {
         self.vue_t = None;

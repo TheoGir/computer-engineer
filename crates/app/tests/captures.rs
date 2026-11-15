@@ -1292,3 +1292,52 @@ fn captures_construction_minimale() {
     b.run_steps(60);
     enregistrer(&mut b, &dossier, "c5-fiche-du-plan");
 }
+
+/// La solution d'une quête : le bouton « Voir la solution », puis quelques solutions ouvertes.
+#[test]
+fn captures_solutions() {
+    let Ok(dossier) = std::env::var("CE_CAPTURES") else {
+        eprintln!("CE_CAPTURES n'est pas défini : captures ignorées.");
+        return;
+    };
+    let mut b = banc(1440.0, 900.0, Apparence::default());
+    b.run_steps(400);
+    // Le bouton est sous la vérification : on fait défiler la fiche de la quête.
+    let panneau = b.state().disposition.expect("disposition").quete.center();
+    b.hover_at(panneau);
+    b.step();
+    for _ in 0..3 {
+        b.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::Vec2::new(0.0, -100.0),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Unknown,
+            modifiers: egui::Modifiers::NONE,
+        });
+        b.run_steps(30);
+    }
+    b.run_steps(90);
+    let bouton = b
+        .state()
+        .panneaux
+        .repere("voir-la-solution", 0)
+        .expect("Voir la solution");
+    b.hover_at(bouton.center());
+    b.run_steps(30);
+    enregistrer(&mut b, &dossier, "s1-bouton");
+    b.drag_at(bouton.center());
+    b.step();
+    b.drop_at(bouton.center());
+    b.run_steps(300);
+    enregistrer(&mut b, &dossier, "s2-solution-non");
+    for (cle, nom) in [
+        ("premier", "s3-solution-premier"),
+        ("encodeur", "s4-solution-encodeur"),
+        ("ordinateur", "s5-solution-ordinateur"),
+    ] {
+        b.state_mut()
+            .ouvrir(ce_app::panneaux::Ouverture::Solution(cle.to_owned()));
+        b.run_steps(300);
+        enregistrer(&mut b, &dossier, nom);
+    }
+}

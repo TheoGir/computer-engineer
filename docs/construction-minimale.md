@@ -15,6 +15,26 @@ prouvé : 4 portes », une jauge, trois étoiles et une phrase.
   corrigé de sa quête ; n'importe quel plan sans mémoire de 3 bits d'entrée au plus se compare
   à la fonction qu'il calcule. Sinon, une ligne dit qu'aucun minimum n'est connu.
 
+## Voir la solution
+
+Chaque quête a un bouton « Voir la solution » sous la vérification. Il ouvre, dans un projet à
+part (la quête en cours reste enregistrée dans les projets), la plus petite construction
+connue :
+
+- **Quête de brique** : le plan du composant, avec les interrupteurs et les lampes de la
+  quête, et ses briques dans la palette (double-clic pour voir dedans). C'est la construction
+  rangée dans `minimums.txt` quand elle est plus petite que le corrigé (le nombre premier en
+  8 portes au lieu de 115, l'encodeur en 10 au lieu de 15…), sinon le corrigé, et les briques
+  qui en contiennent une plus petite en profitent aussi (`minimum::bibliotheque_des_solutions`).
+- **Ordinateur ou grand projet** : l'atelier de la quête, branché comme le demande la
+  consigne, avec les briques qu'il faut y ajouter (processeur, mémoire vive, boîte aux
+  lettres…) prises dans la même bibliothèque.
+
+Le test `chaque_solution_reussit_sa_quete` ouvre la solution de chacune des quêtes, la
+vérifie comme si le joueur l'avait faite, et contrôle que son nombre de portes est exactement
+la cible affichée (trois étoiles). La solution d'une brique est donc toujours aussi économe que
+ce que l'application annonce, et jamais plus.
+
 ## Ce qu'on affirme, et pourquoi c'est vrai
 
 Trois niveaux de certitude, toujours écrits tels quels à l'écran :
@@ -71,6 +91,7 @@ Les 256 fonctions de 3 entrées : toutes résolues (minimum de 0 à 10 portes ; 
 | ENCODEUR4 | 15 | **10** | prouvé |
 | GRAY | 12 | 12 | prouvé |
 | PREMIER | 115 | **8** | prouvé |
+| MUX4 | 12 | **11** | prouvé (SAT : 0 à 10 portes impossibles) |
 | HAMMING_CODE | 24 | **20** | encadré : au moins 13 (SAT) ; la construction de 20 est faite à la main (un OU exclusif partagé par deux parités) et vérifiée |
 | autres | — | corrigé | référence |
 
@@ -88,4 +109,4 @@ python3 outils/minimum_nand_enumeration.py table3.json --portes 7
 Puis ajouter la ligne dans `minimums.txt` (composant, NAND, borne basse, circuit ou `-`) et
 lancer `cargo test -p ce-circuit --test minimums`. Un ordinateur ou un grand projet se règle
 dans `crates/app/src/economie.rs` (`AJOUTS`), vérifié par le test
-`les_ajouts_de_reference_sont_ceux_des_solutions`.
+`chaque_solution_reussit_sa_quete` (dans `crates/app/src/solution.rs`).

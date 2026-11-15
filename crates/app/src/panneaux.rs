@@ -30,6 +30,8 @@ pub enum Ouverture {
     Projet(String),
     /// Une quête du parcours, par sa clé, dans un projet neuf.
     Quete(String),
+    /// La solution d'une quête, par sa clé : la plus petite construction connue, à regarder.
+    Solution(String),
 }
 
 /// Ce que les panneaux demandent à l'application et qu'ils ne peuvent pas faire eux-mêmes.
@@ -2360,8 +2362,33 @@ impl Panneaux {
             y += 8.0;
             y = Self::construction_minimale(k, ecart.as_ref(), false, x, l, y);
         }
+        y = Self::voir_la_solution(k, quete, x, l, y + 10.0, demandes);
         y += 22.0;
         self.liste_du_parcours(k, at, x, l, y, demandes)
+    }
+
+    /// Le bouton qui ouvre la solution de la quête, la plus petite construction connue, dans un
+    /// projet à part. Renvoie le bas.
+    fn voir_la_solution(
+        k: &mut Cadre,
+        quete: &Quete,
+        x: f32,
+        l: f32,
+        y: f32,
+        demandes: &mut Demandes,
+    ) -> f32 {
+        let rect = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 32.0));
+        k.reperer("voir-la-solution", 0, rect);
+        if k.bouton_second(
+            rect,
+            "voir-la-solution",
+            Icone::Lampe,
+            tr!("Voir la solution"),
+            true,
+        ) {
+            demandes.ouvrir = Some(Ouverture::Solution(quete.cle.to_owned()));
+        }
+        y + 32.0
     }
 
     /// Les étapes du chapitre, une pastille par quête : réussies, en cours, à venir. La
