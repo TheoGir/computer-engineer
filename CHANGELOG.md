@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## Prochaine version
+## 0.9.0 — 15 novembre 2026
 
 Voir l'ordinateur penser, s'arrêter au bon moment, retrouver ses briques.
 
