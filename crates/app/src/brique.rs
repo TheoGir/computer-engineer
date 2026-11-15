@@ -14,7 +14,7 @@ use crate::document::{Broche, Document, Element, Fil, Genre, Id, Point, Source};
 use crate::format::{self, Lecture};
 
 /// Identifiant du format de fichier d'un projet.
-pub const FORMAT: &str = "computer-engineer/projet/2";
+pub const FORMAT: &str = "computer-engineer/projet/3";
 
 /// Un circuit enregistré sous un nom, réutilisable comme brique.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -120,6 +120,36 @@ impl Projet {
             .iter()
             .filter(|e| e.genre == Genre::Brique)
             .map(|e| e.modele.as_str())
+    }
+
+    /// Où la brique `nom` est posée directement : le nom de chaque brique qui la contient,
+    /// et `None` pour le plan principal, avec le nombre d'exemplaires posés.
+    pub fn usages(&self, nom: &str) -> Vec<(Option<&str>, usize)> {
+        let compte = |plan: &Document| Self::poses(plan).filter(|m| *m == nom).count();
+        let mut usages = Vec::new();
+        let principal = compte(&self.principal);
+        if principal > 0 {
+            usages.push((None, principal));
+        }
+        for m in &self.modeles {
+            let n = compte(&m.plan);
+            if n > 0 {
+                usages.push((Some(m.nom.as_str()), n));
+            }
+        }
+        usages
+    }
+
+    /// Change la description de la brique `nom`. Faux si elle n'existe pas.
+    pub fn decrire(&mut self, nom: &str, description: &str) -> bool {
+        let Some(m) = self.modeles.iter_mut().find(|m| m.nom == nom) else {
+            return false;
+        };
+        if m.description != description {
+            m.description = description.to_owned();
+            self.revision += 1;
+        }
+        true
     }
 
     /// Vrai si le modèle `a` est `b` ou contient `b`, directement ou non.

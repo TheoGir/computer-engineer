@@ -40,8 +40,14 @@ des plus anciennes ; l'original d'un projet mis au nouveau format est gardé dan
 - **L'atelier** : glisse des portes NAND, des interrupteurs et des lampes depuis la palette,
   tire des fils entre les points de connexion, clique sur les interrupteurs. Le courant se
   propage porte après porte : allumé (1), éteint (0), inconnu ou en conflit (X), non piloté (Z).
+- **Bouton poussoir et afficheur 7 segments** : le poussoir vaut 1 tant que tu appuies dessus,
+  0 dès que tu le lâches. L'afficheur est une lampe de 7 bits (8 avec le point) : bit 0 = a en
+  haut, puis b à f dans le sens des aiguilles d'une montre, bit 6 = g au milieu. Branche-le
+  sur la sortie de ton décodeur 7 segments pour voir tes chiffres.
 - **Les briques** : sélectionne plusieurs éléments (Maj + glisser), puis Ctrl+G. La brique va
-  dans la palette ; double-clic pour entrer dedans, Échap pour remonter.
+  dans la palette ; double-clic pour entrer dedans, Échap pour remonter. Sélectionne une
+  brique posée pour lui écrire une description (elle s'affiche au survol dans la palette) et
+  voir où elle est utilisée.
 - **Les quêtes** : de la porte NON jusqu'à plusieurs ordinateurs, et des grands projets.
   « Vérifier » compare ton circuit à un corrigé prouvé ; chaque réussite devient une brique.
 - **L'ordinateur miniature** : dans tes projets, ouvre l'exemple « Ordinateur miniature ».

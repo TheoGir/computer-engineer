@@ -61,7 +61,21 @@ fn projet_complet() -> Projet {
     principal.poser(Element::clavier("clavier"), Point::nouveau(40.0, 400.0));
     principal.poser(Element::ecran("ecran"), Point::nouveau(600.0, 400.0));
     principal.poser(Element::impulsion("raz", 10), Point::nouveau(40.0, 500.0));
+    // Les aspects : un bouton poussoir et un afficheur 7 segments, dans le plan principal et
+    // dans une brique.
+    let mut affichage = Document::nouveau();
+    affichage.poser(Element::poussoir("p"), Point::nouveau(40.0, 40.0));
+    affichage.poser(
+        Element::afficheur("seg", "chiffre"),
+        Point::nouveau(240.0, 40.0),
+    );
+    principal.poser(Element::poussoir("ok"), Point::nouveau(40.0, 600.0));
+    principal.poser(
+        Element::afficheur("chiffre", ""),
+        Point::nouveau(600.0, 600.0),
+    );
     let mut projet = at.projet.clone();
+    projet.ajouter(brique::modele_du_plan(&affichage, "AFFICHAGE"));
     projet.principal = principal;
     projet.quete = Some(PARCOURS[0].cle.to_owned());
     // L'atelier de l'ordinateur apporte les briques à plusieurs niveaux, découpeurs et

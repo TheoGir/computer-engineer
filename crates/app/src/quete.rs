@@ -1500,10 +1500,12 @@ impl Quete {
         }
         for (i, b) in self.sorties.iter().enumerate() {
             let y = haut(self.sorties.len()) + ecart(self.sorties.len()) * i as f32;
-            d.poser(
-                Element::sortie(&b.nom, &b.nom, b.largeur),
-                Point::nouveau(900.0, y),
-            );
+            let mut lampe = Element::sortie(&b.nom, &b.nom, b.largeur);
+            // Les segments d'un chiffre se voient sur un afficheur 7 segments.
+            if b.nom == "seg" && matches!(b.largeur, 7 | 8) {
+                lampe.aspect = crate::document::Aspect::Segments;
+            }
+            d.poser(lampe, Point::nouveau(900.0, y));
         }
         d
     }

@@ -603,6 +603,24 @@ impl<'a> Toile<'a> {
                 ligne(&arc(10.0, 11.0, 6.5, -55.0, 235.0), false);
                 ligne(&[(10.0, 2.5), (10.0, 10.0)], false);
             }
+            Icone::Poussoir => {
+                ligne(&[(3.0, 16.0), (17.0, 16.0)], false);
+                ligne(
+                    &[(5.0, 16.0), (5.0, 12.0), (15.0, 12.0), (15.0, 16.0)],
+                    false,
+                );
+                ligne(&[(10.0, 12.0), (10.0, 6.0)], false);
+                ligne(&[(6.5, 4.5), (13.5, 4.5)], false);
+            }
+            Icone::Segments => {
+                ligne(&[(7.0, 3.0), (13.0, 3.0)], false);
+                ligne(&[(14.5, 4.5), (14.5, 8.5)], false);
+                ligne(&[(14.5, 11.5), (14.5, 15.5)], false);
+                ligne(&[(7.0, 17.0), (13.0, 17.0)], false);
+                ligne(&[(5.5, 11.5), (5.5, 15.5)], false);
+                ligne(&[(5.5, 4.5), (5.5, 8.5)], false);
+                ligne(&[(7.0, 10.0), (13.0, 10.0)], false);
+            }
             Icone::Ecran => {
                 ligne(&[(3.0, 4.0), (17.0, 4.0), (17.0, 14.0), (3.0, 14.0)], true);
                 ligne(&[(7.0, 17.5), (13.0, 17.5)], false);
@@ -776,6 +794,10 @@ pub enum Icone {
     Demarrage,
     /// Un écran.
     Ecran,
+    /// Un bouton poussoir.
+    Poussoir,
+    /// Un afficheur 7 segments.
+    Segments,
     /// Un clavier.
     Clavier,
     /// Un découpeur de bus.

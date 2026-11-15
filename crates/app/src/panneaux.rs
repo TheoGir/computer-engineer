@@ -52,6 +52,8 @@ enum Champ {
     Projet,
     /// Le nom d'une brique.
     Modele(String),
+    /// La description d'une brique.
+    Description(String),
     /// Le nom d'un élément du plan.
     Nom(Id),
     /// Le nombre de bits d'un interrupteur ou d'une lampe.
@@ -823,6 +825,7 @@ impl Panneaux {
             Champ::Modele(ancien) => {
                 at.renommer_modele(&ancien, texte);
             }
+            Champ::Description(modele) => at.decrire_modele(&modele, texte),
             Champ::Nom(id) => {
                 at.renommer_element(id, texte, a);
             }
@@ -1474,7 +1477,7 @@ impl Panneaux {
         y += 52.0 + 8.0;
 
         // Ce qui entoure les portes : de quoi entrer, sortir, cadencer, découper les bus.
-        let outils: [Outil; 8] = [
+        let outils: [Outil; 10] = [
             (
                 "Interrupteur",
                 Icone::Interrupteur,
@@ -1495,6 +1498,18 @@ impl Panneaux {
                 Icone::Demarrage,
                 "Vaut 1 à la mise sous tension puis retombe à 0 : pour remettre un circuit à zéro",
                 || Element::impulsion("", 20),
+            ),
+            (
+                "Poussoir",
+                Icone::Poussoir,
+                "Un bouton : vaut 1 tant qu'on appuie dessus, 0 dès qu'on le lâche",
+                || Element::poussoir(""),
+            ),
+            (
+                "Afficheur",
+                Icone::Segments,
+                "Afficheur 7 segments : une lampe de 7 bits, a (en haut) à g (au milieu)",
+                || Element::afficheur("", ""),
             ),
             (
                 "Écran",
@@ -1557,7 +1572,7 @@ impl Panneaux {
                 plan.poser_au_centre(k.a, at, fabrique());
             }
         }
-        y += 4.0 * 38.0 + 10.0;
+        y += 5.0 * 38.0 + 10.0;
 
         // Les briques du projet : tout ce qui a été regroupé ou enregistré.
         let nb = at.projet.modeles.len();
@@ -1618,14 +1633,18 @@ impl Panneaux {
             let corps = Rect::from_min_max(rect.min, Pos2::new(ouvrir.left() - 2.0, rect.bottom()));
             k.reperes.push(("modele", i, corps));
             k.reperes.push(("ouvrir-modele", i, ouvrir));
+            let description = at.projet.modeles[i].description.trim();
+            let bulle = if !posable {
+                "Une brique ne peut pas se contenir elle-même".to_owned()
+            } else if description.is_empty() {
+                "Glisse sur le plan, ou clique pour poser".to_owned()
+            } else {
+                format!("{description}\nGlisse sur le plan, ou clique pour poser")
+            };
             let touche = k.toucher(
                 corps,
                 egui::Id::unique(("modele", i)),
-                if posable {
-                    "Glisse sur le plan, ou clique pour poser"
-                } else {
-                    "Une brique ne peut pas se contenir elle-même"
-                },
+                &bulle,
                 if posable {
                     Sense::click_and_drag()
                 } else {
@@ -2941,6 +2960,13 @@ impl Panneaux {
                         f.push(sortie("Valeur".to_owned(), 0));
                         f.push(texte("Pour le rejouer", "reviens à t = 0".to_owned()));
                     }
+                    Genre::Entree if e.est_poussoir() => {
+                        f.push(sortie("Valeur".to_owned(), 0));
+                        f.push(texte(
+                            "Pour appuyer",
+                            "garde le bouton de la souris enfoncé".to_owned(),
+                        ));
+                    }
                     Genre::Entree => {
                         f.push(Rang::Saisie(
                             "Bits".to_owned(),
@@ -2959,6 +2985,12 @@ impl Panneaux {
                             "De 1 à 64 : au-delà de 1, c'est un bus",
                         ));
                         f.push(lue("Branchée sur".to_owned(), 0));
+                        if e.est_afficheur() {
+                            f.push(texte(
+                                "Segments",
+                                "bit 0 = a en haut, … bit 6 = g au milieu".to_owned(),
+                            ));
+                        }
                     }
                     Genre::Brique => {
                         f.push(Rang::Saisie(
@@ -2967,6 +2999,22 @@ impl Panneaux {
                             e.modele.clone(),
                             "Renomme la brique, partout où elle est posée",
                         ));
+                        let description = at
+                            .projet
+                            .modele(&e.modele)
+                            .map(|m| m.description.clone())
+                            .unwrap_or_default();
+                        f.push(Rang::Saisie(
+                            "Description".to_owned(),
+                            Champ::Description(e.modele.clone()),
+                            if description.is_empty() {
+                                "—".to_owned()
+                            } else {
+                                description
+                            },
+                            "Ce que fait la brique, en une phrase",
+                        ));
+                        f.push(texte("Utilisée dans", at.usages_du_modele(&e.modele)));
                         f.push(texte("Pour l'ouvrir", "double-clic".to_owned()));
                         for (i, b) in e.broches_e.iter().enumerate().take(16) {
                             f.push(lue(format!("Entrée {}", b.nom), i));

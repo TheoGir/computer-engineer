@@ -61,6 +61,26 @@ pub enum Genre {
     Jonction,
 }
 
+/// L'aspect d'un interrupteur ou d'une lampe : il change sa façon de se dessiner et de se
+/// manier, pas ce qu'il est pour le circuit (une entrée ou une sortie comme les autres).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Aspect {
+    /// Interrupteur ou lampe ordinaire.
+    #[default]
+    Normal,
+    /// Bouton poussoir : un interrupteur d'un bit qui vaut 1 tant qu'on appuie dessus.
+    Poussoir,
+    /// Afficheur 7 segments : une lampe de 7 bits (a à g), ou 8 avec le point.
+    Segments,
+}
+
+impl Aspect {
+    fn est_normal(&self) -> bool {
+        *self == Aspect::Normal
+    }
+}
+
 /// Une broche d'un élément : son nom et son nombre de bits.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Broche {
@@ -167,6 +187,9 @@ pub struct Element {
     /// Pour un découpeur : les bits (premier, dernier) de chaque sortie.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plages: Vec<(u32, u32)>,
+    /// Pour un interrupteur ou une lampe : son aspect (poussoir, afficheur 7 segments).
+    #[serde(default, skip_serializing_if = "Aspect::est_normal")]
+    pub aspect: Aspect,
 }
 
 /// Demi-période d'une horloge qu'on vient de poser.
@@ -188,6 +211,7 @@ impl Element {
             modele: String::new(),
             param: 0,
             plages: Vec::new(),
+            aspect: Aspect::Normal,
         }
     }
 
@@ -207,6 +231,36 @@ impl Element {
         let mut e = Self::entree(nom, 1);
         e.param = duree.max(1);
         e
+    }
+
+    /// Un bouton poussoir : un interrupteur d'un bit qui vaut 1 tant qu'on appuie dessus.
+    pub fn poussoir(nom: &str) -> Self {
+        let mut e = Self::entree(nom, 1);
+        e.aspect = Aspect::Poussoir;
+        e
+    }
+
+    /// Un afficheur 7 segments : une lampe de 7 bits, bit 0 = segment a (en haut), puis b à f
+    /// dans le sens des aiguilles d'une montre, bit 6 = g (au milieu).
+    pub fn afficheur(nom: &str, legende: &str) -> Self {
+        let mut e = Self::sortie(nom, legende, 7);
+        e.aspect = Aspect::Segments;
+        e
+    }
+
+    /// Vrai pour un afficheur 7 segments (une lampe de 7 ou 8 bits à l'aspect « segments »).
+    pub fn est_afficheur(&self) -> bool {
+        self.genre == Genre::Sortie
+            && self.aspect == Aspect::Segments
+            && matches!(self.broches_e.first().map(|b| b.largeur), Some(7 | 8))
+    }
+
+    /// Vrai pour un bouton poussoir (un interrupteur d'un bit à l'aspect « poussoir »).
+    pub fn est_poussoir(&self) -> bool {
+        self.genre == Genre::Entree
+            && self.aspect == Aspect::Poussoir
+            && self.param == 0
+            && self.broches_s.first().map(|b| b.largeur) == Some(1)
     }
 
     /// Une lampe de `largeur` bits.
@@ -322,6 +376,9 @@ impl Element {
 
     /// Largeur du corps de l'élément.
     pub fn largeur(&self) -> f32 {
+        if self.est_afficheur() {
+            return 72.0;
+        }
         match self.genre {
             Genre::Nand => 80.0,
             Genre::Entree | Genre::Horloge => 62.0,
@@ -345,6 +402,9 @@ impl Element {
 
     /// Hauteur du corps de l'élément.
     pub fn hauteur(&self) -> f32 {
+        if self.est_afficheur() {
+            return 108.0;
+        }
         match self.genre {
             Genre::Nand => 64.0,
             Genre::Entree | Genre::Horloge | Genre::Sortie => 52.0,
@@ -385,6 +445,7 @@ impl Element {
         match self.genre {
             Genre::Nand => (-47.0..=37.0).contains(&dx) && dy.abs() <= 34.0,
             Genre::Entree | Genre::Horloge => dx.abs() <= 33.0 && dy.abs() <= 28.0,
+            Genre::Sortie if self.est_afficheur() => dx.abs() <= 38.0 && dy.abs() <= 56.0,
             Genre::Sortie => dx.hypot(dy) <= 29.0,
             Genre::Decoupe | Genre::Jonction => {
                 dx.abs() <= 14.0 && dy.abs() <= self.hauteur() / 2.0 + 2.0
@@ -418,7 +479,7 @@ impl Element {
     pub fn entree_en(&self, pos: Point, i: usize) -> Point {
         let x = match self.genre {
             Genre::Nand => -45.0,
-            Genre::Sortie => -28.0,
+            Genre::Sortie if !self.est_afficheur() => -28.0,
             _ => -self.largeur() / 2.0,
         };
         Point::nouveau(pos.x + x, pos.y + self.decalage_entree(i))
