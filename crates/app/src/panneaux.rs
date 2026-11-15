@@ -54,6 +54,8 @@ enum Champ {
     Modele(String),
     /// La description d'une brique.
     Description(String),
+    /// Ce qu'on cherche parmi « Mes briques ».
+    Filtre,
     /// Le nom d'un élément du plan.
     Nom(Id),
     /// Le nombre de bits d'un interrupteur ou d'une lampe.
@@ -141,6 +143,8 @@ pub struct Panneaux {
     /// été révélés, quête par quête (pour la session).
     indices: Option<(&'static str, Vec<Indice>)>,
     indices_vus: std::collections::BTreeMap<&'static str, usize>,
+    /// Ce qu'on cherche parmi « Mes briques » (nom ou description, sans accents).
+    pub filtre_briques: String,
     /// Noms des projets enregistrés, fournis par l'application.
     pub projets: Vec<String>,
     edition: Option<Edition>,
@@ -216,6 +220,8 @@ pub enum Action {
     Dupliquer,
     /// Supprimer la sélection, ou débrancher le fil.
     Supprimer,
+    /// Poser ou retirer le point d'arrêt sur le fil sélectionné.
+    Arret,
 }
 
 impl Cadre<'_, '_> {
@@ -826,6 +832,8 @@ impl Panneaux {
                 at.renommer_modele(&ancien, texte);
             }
             Champ::Description(modele) => at.decrire_modele(&modele, texte),
+            // Le filtre est rangé par celui qui dessine le champ.
+            Champ::Filtre => {}
             Champ::Nom(id) => {
                 at.renommer_element(id, texte, a);
             }
@@ -1597,6 +1605,46 @@ impl Panneaux {
                 c.discret.c(),
             ) + 10.0;
         }
+        // Une recherche, dès qu'il y a de quoi chercher.
+        if nb > 4 {
+            let rect = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 30.0));
+            k.reperes.push(("filtre-briques", 0, rect));
+            let valeur = self.filtre_briques.clone();
+            if let Some(texte) = self.champ(
+                k,
+                rect,
+                Champ::Filtre,
+                &valeur,
+                Police::Corps,
+                ty.petit,
+                "Cherche une brique par son nom ou sa description",
+            ) {
+                self.filtre_briques = texte.trim().to_owned();
+            }
+            let en_saisie = self
+                .edition
+                .as_ref()
+                .is_some_and(|e| e.champ == Champ::Filtre);
+            if !en_saisie && self.filtre_briques.is_empty() {
+                k.t.texte(
+                    Pos2::new(rect.left() + 9.0, rect.center().y),
+                    Align2::LEFT_CENTER,
+                    "Chercher une brique…",
+                    Police::Corps,
+                    ty.petit,
+                    c.discret.c(),
+                );
+            }
+            y += 30.0 + 10.0;
+        }
+        // Le filtre suit la frappe, sans attendre Entrée.
+        let filtre = crate::fenetres::plier(
+            self.edition
+                .as_ref()
+                .filter(|e| e.champ == Champ::Filtre)
+                .map_or(self.filtre_briques.as_str(), |e| e.texte.as_str())
+                .trim(),
+        );
         self.resumer(at);
         let resumes = self
             .resumes
@@ -1604,8 +1652,16 @@ impl Panneaux {
             .map(|r| r.2.clone())
             .unwrap_or_default();
         let mut a_ouvrir = None;
+        let mut trouvees = 0;
         for (i, resume) in resumes.iter().enumerate() {
             let nom = at.projet.modeles[i].nom.clone();
+            if !filtre.is_empty()
+                && !crate::fenetres::plier(&nom).contains(&filtre)
+                && !crate::fenetres::plier(&at.projet.modeles[i].description).contains(&filtre)
+            {
+                continue;
+            }
+            trouvees += 1;
             let rect = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 42.0));
             y += 42.0 + 4.0;
             if !zone.intersects(rect) {
@@ -1699,6 +1755,16 @@ impl Panneaux {
                     plan.poser_au_centre(k.a, at, element);
                 }
             }
+        }
+        if trouvees == 0 && !filtre.is_empty() {
+            y += k.t.paragraphe(
+                Pos2::new(x + 2.0, y),
+                l - 4.0,
+                "Aucune brique ne correspond à cette recherche.",
+                Police::Corps,
+                ty.petit,
+                c.discret.c(),
+            ) + 10.0;
         }
         if let Some(nom) = a_ouvrir {
             // Depuis la palette, on ouvre la brique à partir du plan principal.
@@ -3924,6 +3990,19 @@ impl Panneaux {
             Some(Selection::Fil(_)) => true,
             None => false,
         };
+        if let Some(source) = at.fil_selectionne().and_then(|f| at.doc.source_de(f)) {
+            let pose = at.session.arret() == Some(source);
+            actions.push((
+                Action::Arret,
+                if pose {
+                    "Retirer l'arrêt"
+                } else {
+                    "Point d'arrêt"
+                },
+                Icone::Pause,
+                "La lecture s'arrête quand ce fil passe à 1",
+            ));
+        }
         if supprimable {
             actions.push((
                 Action::Supprimer,
@@ -4003,6 +4082,7 @@ impl Panneaux {
                 Action::Regrouper => "regrouper",
                 Action::Dupliquer => "dupliquer",
                 Action::Supprimer => "supprimer",
+                Action::Arret => "point-d-arret",
             };
             k.reperes.push(("action", *action as usize, rect));
             let touche = k.toucher(rect, egui::Id::unique(cle), bulle, Sense::click());
@@ -4056,6 +4136,7 @@ impl Panneaux {
             Some(Action::Supprimer) => {
                 at.supprimer_selection(k.a);
             }
+            Some(Action::Arret) => at.basculer_point_d_arret(),
             None => {}
         }
     }

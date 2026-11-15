@@ -601,6 +601,39 @@ impl Application {
         }
     }
 
+    /// Efface l'avancement dans le parcours, après en avoir gardé une copie dans le dossier
+    /// des données. Refusé si l'avancement enregistré n'a pas pu être relu : il n'est alors
+    /// jamais touché.
+    pub fn recommencer_le_parcours(&mut self) {
+        if self.parcours_fige {
+            self.atelier.dire(
+                "Ton avancement enregistré n'a pas pu être relu : il n'est pas touché. Mets l'application à jour ou regarde le dossier de tes données.",
+            );
+            return;
+        }
+        let mut garde = None;
+        if let Some(dossier) = &self.dossier {
+            match dossier.garder_le_parcours_avant_recommencement() {
+                Ok(g) => garde = g,
+                Err(e) => {
+                    self.atelier.dire(&format!(
+                        "Le parcours n'a pas été effacé : sa copie de sécurité n'a pas pu être écrite ({e})."
+                    ));
+                    return;
+                }
+            }
+        }
+        let version = self.atelier.parcours.version + 1;
+        self.atelier.parcours = crate::parcours::Parcours::default();
+        self.atelier.parcours.version = version;
+        self.atelier.dire(&match garde {
+            Some(g) => format!(
+                "Le parcours recommence à zéro. L'ancien avancement est gardé dans « {g} »."
+            ),
+            None => "Le parcours recommence à zéro.".to_owned(),
+        });
+    }
+
     /// Cherche une nouvelle version tout de suite, à la demande de l'utilisateur.
     pub fn rechercher_une_mise_a_jour(&mut self) {
         let Some(maj) = &mut self.mise_a_jour else {
@@ -805,6 +838,7 @@ impl Application {
                     }
                 }
             }
+            Demande::RecommencerParcours => self.recommencer_le_parcours(),
             Demande::Quitter => {
                 self.enregistrer();
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);

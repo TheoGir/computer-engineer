@@ -323,7 +323,7 @@ pub const LEXIQUE: &[(&str, &str)] = &[
 ];
 
 /// Écrit un mot sans accents et en minuscules, pour chercher sans se soucier de l'écriture.
-fn plier(t: &str) -> String {
+pub(crate) fn plier(t: &str) -> String {
     t.chars()
         .flat_map(char::to_lowercase)
         .map(|c| match c {
@@ -570,6 +570,15 @@ impl Fenetres {
         let mut ouverte = true;
         let mut charger = false;
         let danger = c.danger.c();
+        // L'ordinateur en marche : ce que valent ses registres et sa mémoire vive, et
+        // l'instruction qu'il exécute dans le programme chargé.
+        let machine = crate::programme::regarder_la_machine(at);
+        let charge: Vec<u16> = at
+            .projet
+            .modele(&editeur.modele)
+            .and_then(|m| m.programme.as_deref())
+            .and_then(|texte| ce_circuit::ordinateur::assembler(texte).ok())
+            .unwrap_or_default();
         egui::Window::new(format!("Programme de la mémoire « {} »", editeur.modele))
             .id(egui::Id::unique("fenetre-programme"))
             .open(&mut ouverte)
@@ -588,7 +597,8 @@ impl Fenetres {
                     }
                 });
                 ui.add_space(4.0);
-                let hauteur = (ui.available_height() - 70.0).max(160.0);
+                let place_machine = if machine.is_some() { 190.0 } else { 0.0 };
+                let hauteur = (ui.available_height() - 70.0 - place_machine).max(160.0);
                 ScrollArea::vertical()
                     .id_salt("texte-programme")
                     .max_height(hauteur)
@@ -617,6 +627,11 @@ impl Fenetres {
                     Err(e) => {
                         ui.label(RichText::new(format!("À corriger, {e}")).color(danger));
                     }
+                }
+                if let Some(vue) = &machine {
+                    ui.add_space(4.0);
+                    ui.separator();
+                    vue_machine(ui, vue, &charge, a);
                 }
                 ui.add_space(4.0);
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -828,6 +843,81 @@ impl Fenetres {
 }
 
 /// `nom`, ou `nom[4]` pour un bus de 4 bits.
+/// Un octet lu sur la machine : en décimal et en hexadécimal, « ?? » s'il n'est pas déterminé.
+fn octet(v: Option<u8>) -> String {
+    v.map_or("??".to_owned(), |v| format!("{v} (0x{v:02X})"))
+}
+
+/// L'ordinateur en marche, sous l'éditeur de programme : l'instruction en cours surlignée
+/// dans le programme chargé, l'accumulateur et la mémoire vive case par case.
+fn vue_machine(ui: &mut egui::Ui, vue: &crate::programme::VueMachine, code: &[u16], a: &Apparence) {
+    let c = a.palette();
+    let mono = |t: String, couleur: Color32| RichText::new(t).monospace().color(couleur);
+    ui.label(
+        RichText::new("La machine en marche")
+            .font(Police::CorpsDemi.taille(a.typo.corps * a.formes.echelle_texte))
+            .color(c.texte.c()),
+    );
+    ui.columns(2, |colonnes| {
+        let ui = &mut colonnes[0];
+        ui.label(mono(
+            format!("Accumulateur A : {}", octet(vue.a)),
+            c.texte.c(),
+        ));
+        // Le programme chargé, l'instruction en cours surlignée et gardée en vue.
+        ScrollArea::vertical()
+            .id_salt("instructions")
+            .max_height(130.0)
+            .show(ui, |ui| {
+                for (i, mot) in code.iter().enumerate() {
+                    let (op, n) = ce_circuit::ordinateur::decoder(*mot);
+                    let texte = if op.a_un_operande() {
+                        format!("{i:3}  {} {n}", op.nom())
+                    } else {
+                        format!("{i:3}  {}", op.nom())
+                    };
+                    let en_cours = vue.pc == Some(i as u8);
+                    let r = ui.label(if en_cours {
+                        mono(format!("{texte}   ◀ en cours"), c.accent_clair.c())
+                            .background_color(c.enfonce.c())
+                    } else {
+                        mono(texte, c.doux.c())
+                    });
+                    if en_cours {
+                        r.scroll_to_me(None);
+                    }
+                }
+                if code.is_empty() {
+                    ui.label(mono("aucun programme chargé".to_owned(), c.discret.c()));
+                }
+            });
+        let ui = &mut colonnes[1];
+        ui.label(mono(
+            format!("Mémoire vive ({} octets)", vue.ram.len()),
+            c.texte.c(),
+        ));
+        egui::Grid::new("memoire-vive")
+            .spacing([10.0, 2.0])
+            .show(ui, |ui| {
+                for (k, case) in vue.ram.iter().enumerate() {
+                    let texte = case.map_or("··".to_owned(), |v| format!("{v:02X}"));
+                    ui.label(mono(format!("{k:X}"), c.discret.c()));
+                    ui.label(mono(
+                        texte,
+                        if case.is_some() {
+                            c.un.c()
+                        } else {
+                            c.discret.c()
+                        },
+                    ));
+                    if k % 4 == 3 {
+                        ui.end_row();
+                    }
+                }
+            });
+    });
+}
+
 fn largeur(nom: &str, l: u32) -> String {
     if l > 1 {
         format!("{nom}[{l}]")

@@ -138,6 +138,124 @@ pub fn programmables(projet: &Projet) -> Vec<&str> {
 /// Taille maximale d'un programme, en instructions.
 pub const TAILLE_MAXIMALE: usize = TAILLE_PROGRAMME;
 
+/// Ce qu'on voit de l'ordinateur pendant qu'il tourne : compteur de programme,
+/// accumulateur et mémoire vive, lus sur ses portes NAND (`None` : valeur pas encore
+/// déterminée, une case jamais écrite par exemple).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VueMachine {
+    /// Le compteur de programme : le numéro de l'instruction en cours.
+    pub pc: Option<u8>,
+    /// L'accumulateur.
+    pub a: Option<u8>,
+    /// Le contenu de chaque case de la mémoire vive, de l'adresse 0 à la dernière.
+    pub ram: Vec<Option<u8>>,
+}
+
+/// Regarde l'ordinateur posé dans le plan affiché, s'il y en a un : une brique dont le plan
+/// contient un processeur `cpu` et une mémoire vive `ram`, à n'importe quelle profondeur.
+/// Le plan affiché doit être le plan simulé (pas l'intérieur d'une brique).
+pub fn regarder_la_machine(at: &crate::etat::Atelier) -> Option<VueMachine> {
+    use crate::document::{Document, Element, Id, Source};
+    if at.lieu().is_some() {
+        return None;
+    }
+    let projet = &at.projet;
+    let plan_de = |e: &Element| projet.modele(&e.modele).map(|m| &m.plan);
+    let brique = |plan: &'_ Document, nom: &str| -> Option<Element> {
+        plan.elements
+            .iter()
+            .find(|e| e.genre == Genre::Brique && e.nom == nom)
+            .cloned()
+    };
+    let sortie = |e: &Element, nom: &str| {
+        e.broches_s
+            .iter()
+            .position(|b| b.nom == nom)
+            .map(|j| Source::nouvelle(e.id, j))
+    };
+    // L'ordinateur : chemin des briques posées jusqu'à lui, et son plan.
+    fn chercher<'p>(
+        plan: &'p Document,
+        projet: &'p Projet,
+        chemin: &mut Vec<Id>,
+        profondeur: u32,
+    ) -> Option<&'p Document> {
+        if profondeur > 4 {
+            return None;
+        }
+        for e in plan.elements.iter().filter(|e| e.genre == Genre::Brique) {
+            let Some(m) = projet.modele(&e.modele) else {
+                continue;
+            };
+            chemin.push(e.id);
+            let noms = |n: &str| m.plan.elements.iter().any(|x| x.nom == n);
+            if noms("cpu") && noms("ram") {
+                return Some(&m.plan);
+            }
+            if let Some(p) = chercher(&m.plan, projet, chemin, profondeur + 1) {
+                return Some(p);
+            }
+            chemin.pop();
+        }
+        None
+    }
+    let mut chemin = Vec::new();
+    let ordi = chercher(&at.doc, projet, &mut chemin, 0)?;
+    let lire = |plan: &Document, chemin: &[Id], source: Option<Source>| {
+        source
+            .and_then(|s| at.session.lecture_dans(plan, projet, chemin, s))
+            .and_then(|l| l.nombre())
+            .map(|v| v as u8)
+    };
+    let cpu = brique(ordi, "cpu")?;
+    let pc = lire(ordi, &chemin, sortie(&cpu, "pc"));
+    let a = plan_de(&cpu).and_then(|p| {
+        let acc = brique(p, "acc")?;
+        let mut ch = chemin.clone();
+        ch.push(cpu.id);
+        lire(p, &ch, sortie(&acc, "q"))
+    });
+    // La mémoire vive : deux moitiés `bas` et `haut`, emboîtées jusqu'aux registres.
+    let ram = brique(ordi, "ram")?;
+    let mut bits = 0;
+    let mut plan = plan_de(&ram)?;
+    while let Some(bas) = brique(plan, "bas") {
+        bits += 1;
+        match plan_de(&bas) {
+            Some(p) if brique(p, "bas").is_some() => plan = p,
+            _ => break,
+        }
+    }
+    if bits == 0 || bits > 8 {
+        return None;
+    }
+    let mut cases = Vec::with_capacity(1 << bits);
+    for adresse in 0..1usize << bits {
+        let mut ch = chemin.clone();
+        ch.push(ram.id);
+        let mut plan = plan_de(&ram)?;
+        let mut case = None;
+        for bit in (0..bits).rev() {
+            let moitie = brique(
+                plan,
+                if adresse >> bit & 1 == 1 {
+                    "haut"
+                } else {
+                    "bas"
+                },
+            )?;
+            if bit == 0 {
+                case = lire(plan, &ch, sortie(&moitie, "q"));
+            } else {
+                ch.push(moitie.id);
+                plan = plan_de(&moitie)?;
+            }
+        }
+        cases.push(case);
+    }
+    Some(VueMachine { pc, a, ram: cases })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,6 +322,35 @@ mod tests {
             .map(|e| at.session.ecran(e.id).to_owned())
             .unwrap();
         assert_eq!(ecran, "OK");
+    }
+
+    /// La vue de la machine lit, sur les portes NAND, les mêmes valeurs que l'émulateur de
+    /// référence, cycle après cycle.
+    #[test]
+    fn la_vue_de_la_machine_suit_l_emulateur() {
+        let a = Apparence::default();
+        let texte = "        LDI 7\n        STA 2\n        ADDI 5\n        STA 9\n        STA 15\n        HLT\n";
+        let p = exemples::ordinateur("o", texte).unwrap();
+        let mut at = Atelier::avec(p, &a);
+        let vue = regarder_la_machine(&at).expect("une machine");
+        assert_eq!(vue.ram.len(), 16);
+        assert!(vue.ram.iter().all(Option::is_none), "{vue:?}");
+        at.session.avancer_vite(128 * 60);
+        let vue = regarder_la_machine(&at).unwrap();
+        let code = ordinateur::assembler(texte).unwrap();
+        let mut emu = ordinateur::Emulateur::nouveau(4);
+        for _ in 0..20 {
+            emu.pas(&code, 0);
+        }
+        assert_eq!(vue.a, Some(12));
+        assert_eq!(vue.pc, Some(5));
+        let mut attendu = vec![None; 16];
+        attendu[2] = Some(7);
+        attendu[9] = Some(12);
+        attendu[15] = Some(12);
+        assert_eq!(vue.ram, attendu);
+        assert_eq!(vue.ram, emu.ram);
+        assert_eq!((vue.a, vue.pc), (Some(emu.a), Some(emu.pc)));
     }
 
     #[test]

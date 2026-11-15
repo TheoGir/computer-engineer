@@ -692,3 +692,27 @@ fn les_raccourcis_sont_poses_au_premier_lancement_et_se_reglent_dans_les_paramet
     drop(b);
     let _ = std::fs::remove_dir_all(&racine);
 }
+
+#[test]
+fn recommencer_le_parcours_demande_deux_clics_et_garde_une_copie() {
+    let racine = dossier("recommencer");
+    deux_projets(&racine);
+    let d = Dossier::dans(&racine);
+    let mut avancement = ce_app::parcours::Parcours::default();
+    avancement.faites.insert("non".to_owned());
+    d.enregistrer_parcours(&avancement).unwrap();
+    let mut b = lancer(&racine, 1440.0, 900.0);
+    assert!(b.state().atelier.parcours.faites.contains("non"));
+    cliquer(&mut b, "menu", 3);
+    assert_eq!(b.state().accueil.rubrique, Rubrique::Parametres);
+    cliquer(&mut b, "recommencer-parcours", 0);
+    // Un seul clic ne fait rien d'autre que demander confirmation.
+    assert!(b.state().atelier.parcours.faites.contains("non"));
+    cliquer(&mut b, "recommencer-parcours", 0);
+    b.run_steps(30);
+    assert!(b.state().atelier.parcours.faites.is_empty());
+    let copie = racine.join("parcours-avant-recommencement.json");
+    assert!(std::fs::read_to_string(copie).unwrap().contains("\"non\""));
+    assert_eq!(d.parcours().unwrap().unwrap().faites.len(), 0);
+    let _ = std::fs::remove_dir_all(&racine);
+}

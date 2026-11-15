@@ -234,6 +234,10 @@ impl Moteur {
         self.sim.sonder(net)
     }
 
+    fn temps(&self) -> u64 {
+        self.sim.temps()
+    }
+
     fn releves(&mut self) -> Vec<(u64, u32, Valeur)> {
         self.sim
             .vider_journal()
@@ -248,6 +252,10 @@ impl Moteur {
 enum Role {
     Donnee(Id, usize),
     Commande(Id),
+    /// Le fil du point d'arrêt.
+    Arret,
+    /// Un ancien point d'arrêt, retiré : sa sonde ne sert plus.
+    Oubliee,
 }
 
 /// L'état d'un écran : ce qu'il affiche et ce qu'il voit sur ses broches.
@@ -413,6 +421,13 @@ pub struct Session {
     claviers: BTreeMap<Id, Clavier>,
     /// Boutons de démarrage encore à 1, avec l'instant où ils retombent.
     impulsions: BTreeMap<Id, u64>,
+    /// Le point d'arrêt : la lecture s'arrête quand cette sortie (d'un bit, dans le plan
+    /// simulé) passe de 0 à 1.
+    arret: Option<Source>,
+    /// La dernière valeur vue sur le fil du point d'arrêt.
+    arret_valeur: Valeur,
+    /// L'instant où le point d'arrêt a été atteint, pas encore signalé.
+    pub arret_atteint: Option<u64>,
 }
 
 impl Session {
@@ -453,6 +468,9 @@ impl Session {
             ecrans: BTreeMap::new(),
             claviers: BTreeMap::new(),
             impulsions: BTreeMap::new(),
+            arret: None,
+            arret_valeur: Valeur::X,
+            arret_atteint: None,
         };
         s.armer_les_impulsions(doc);
         s.accorder_les_appareils(doc);
@@ -608,7 +626,19 @@ impl Session {
                             e.commande = v;
                         }
                     }
-                    None => {}
+                    Some(Role::Arret) => {
+                        if self.arret_valeur == Valeur::Zero
+                            && v == Valeur::Un
+                            && self.arret_atteint.is_none()
+                        {
+                            // Le moteur compte depuis le dernier câblage ; le temps affiché
+                            // continue au-delà.
+                            let ecart = self.t.saturating_sub(self.cablage.moteur.temps());
+                            self.arret_atteint = Some(t + ecart);
+                        }
+                        self.arret_valeur = v;
+                    }
+                    Some(Role::Oubliee) | None => {}
                 }
             }
             for id in &fronts {
@@ -691,6 +721,55 @@ impl Session {
             .filter_map(|c| c.fin)
             .chain(self.impulsions.values().copied())
             .min()
+    }
+
+    /// Le point d'arrêt posé, s'il y en a un.
+    pub fn arret(&self) -> Option<Source> {
+        self.arret
+    }
+
+    /// Pose (ou retire, avec `None`) le point d'arrêt : la lecture s'arrêtera quand la sortie
+    /// `source`, d'un bit, du plan simulé passera de 0 à 1.
+    pub fn poser_arret(&mut self, source: Option<Source>) {
+        for r in &mut self.cablage.sondes {
+            if matches!(r, Role::Arret) {
+                *r = Role::Oubliee;
+            }
+        }
+        self.arret = source;
+        self.arret_atteint = None;
+        self.armer_l_arret();
+    }
+
+    fn armer_l_arret(&mut self) {
+        self.arret_valeur = Valeur::X;
+        let Some(source) = self.arret else {
+            return;
+        };
+        if self.regard.is_some() {
+            return;
+        }
+        let net = match self.cablage.nets_de(source).map(Vec::as_slice) {
+            Some([Some(net)]) => *net,
+            _ => return,
+        };
+        self.cablage.moteur.sonder(net);
+        self.cablage.sondes.push(Role::Arret);
+    }
+
+    /// Ce qu'on lit en ce moment sur la sortie `source` d'un élément de `plan`, le plan de la
+    /// brique posée au bout de `chemin` dans le plan simulé (chemin vide : le plan simulé
+    /// lui-même). `None` si le circuit n'a pas pu être simulé.
+    pub fn lecture_dans(
+        &self,
+        plan: &Document,
+        projet: &Projet,
+        chemin: &[Id],
+        source: Source,
+    ) -> Option<Lecture> {
+        let circuit = self.cablage.circuit.as_ref()?;
+        let nets = pont::nets_de_sortie(circuit, plan, projet, chemin, source);
+        (!nets.is_empty()).then(|| self.cablage.lire(&nets))
     }
 
     /// Ce qu'on lit en ce moment sur la sortie d'un élément.
@@ -790,6 +869,7 @@ impl Session {
         }
         self.impulsions.retain(|id, _| doc.element(*id).is_some());
         self.cablage = Cablage::construire(doc, projet, &mut self.briques, &self.entrees);
+        self.armer_l_arret();
         self.accorder_les_appareils(doc);
         self.relever();
         if self.regard.is_some() {
@@ -857,6 +937,9 @@ impl Session {
             let fait = self.cablage.moteur.avancer_jusqu_au_repos(etape);
             self.t += fait;
             self.relever();
+            if self.arret_atteint.is_some() {
+                break;
+            }
             self.servir_les_claviers();
             if fait < etape && self.prochaine_echeance().is_none() {
                 break;
@@ -968,6 +1051,7 @@ impl Session {
             }
         }
         self.cablage = Cablage::construire(doc, projet, &mut self.briques, &self.entrees);
+        self.armer_l_arret();
         self.t = 0;
         self.armer_les_impulsions(doc);
         self.ecrans.clear();

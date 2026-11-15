@@ -142,3 +142,69 @@ fn captures_pieces() {
         .save(format!("{dossier}/p1-poussoir-afficheur.png"))
         .expect("écriture de la capture");
 }
+
+#[test]
+fn la_palette_cherche_parmi_mes_briques() {
+    let mut b = banc(false);
+    {
+        let app = b.state_mut();
+        for (nom, description) in [
+            ("ADD1", "additionne deux bits"),
+            ("MUX", "aiguille"),
+            ("RÉGISTRE", "garde un octet"),
+            ("COMPTEUR", "compte les fronts"),
+            ("NONET", "une porte"),
+        ] {
+            let mut m = ce_app::brique::modele_du_plan(
+                &ce_app::document::Document::demi_additionneur(),
+                nom,
+            );
+            m.description = description.to_owned();
+            app.atelier.projet.ajouter(m);
+        }
+        app.atelier.version += 1;
+    }
+    b.run_steps(10);
+    for i in 0..5 {
+        assert!(
+            b.state().panneaux.repere("modele", i).is_some(),
+            "brique {i}"
+        );
+    }
+    assert!(b.state().panneaux.repere("filtre-briques", 0).is_some());
+    // Sans accents ni majuscules, dans le nom ou la description.
+    b.state_mut().panneaux.filtre_briques = "registre".to_owned();
+    b.run_steps(5);
+    let visibles: Vec<usize> = (0..5)
+        .filter(|&i| b.state().panneaux.repere("modele", i).is_some())
+        .collect();
+    assert_eq!(visibles, [2]);
+    b.state_mut().panneaux.filtre_briques = "OCTET".to_owned();
+    b.run_steps(5);
+    assert!(b.state().panneaux.repere("modele", 2).is_some());
+    assert!(b.state().panneaux.repere("modele", 0).is_none());
+}
+
+#[test]
+fn captures_machine_et_palette() {
+    let Ok(dossier) = std::env::var("CE_CAPTURES") else {
+        eprintln!("CE_CAPTURES n'est pas défini : captures ignorées.");
+        return;
+    };
+    let mut b = banc(true);
+    {
+        let app = b.state_mut();
+        let texte = "        LDI 7\n        STA 2\n        ADDI 5\n        STA 9\nboucle: ADDI 1\n        STA 15\n        JMP boucle\n";
+        let projet = ce_app::exemples::ordinateur("Ordinateur", texte).expect("ordinateur");
+        app.atelier = ce_app::etat::Atelier::avec(projet, &app.apparence);
+        app.atelier.session.avancer_vite(128 * 40);
+        let at = &mut app.atelier;
+        app.fenetres.ouvrir_l_editeur(at);
+    }
+    b.run_steps(120);
+    let image = b.render().expect("rendu");
+    std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+    image
+        .save(format!("{dossier}/p2-machine.png"))
+        .expect("écriture de la capture");
+}
