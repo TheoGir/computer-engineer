@@ -11,7 +11,8 @@ l'application, **F1** ouvre la même aide.
    (`computer-engineer-setup-vX.Y.Z-x86_64.exe`).
 2. Lance-le. Au tout premier lancement, Windows peut afficher « Windows a protégé votre
    ordinateur » : l'installateur n'est pas signé par un certificat payant. Clique sur
-   « Informations complémentaires », puis « Exécuter quand même ».
+   « Informations complémentaires », puis « Exécuter quand même ». La fenêtre de l'installateur
+   peut mettre quelques secondes à apparaître (l'antivirus l'examine) : patiente sans le relancer.
 3. Clique sur « Installer » : l'application s'installe pour toi seul, sans mot de passe
    d'administrateur, dans `%LOCALAPPDATA%\Programs\Computer Engineer`. Elle pose un raccourci
    dans le menu Démarrer et, sauf si tu décoches la case, sur le bureau.
