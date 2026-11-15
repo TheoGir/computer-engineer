@@ -2,12 +2,22 @@
 
 ## Prochaine version
 
+Voir l'ordinateur penser, s'arrêter au bon moment, retrouver ses briques.
+
+- **La machine en marche (Ctrl+P)** : sous le programme, l'instruction en cours est surlignée dans le programme chargé, avec l'accumulateur et chaque case de la mémoire vive (`··` tant qu'elle n'a pas été écrite), lus sur les portes NAND pendant que l'ordinateur tourne. Vérifié contre l'émulateur de référence.
+- **Point d'arrêt** : sélectionne un fil d'un bit, puis « Point d'arrêt ». La lecture, même la plus rapide, se met en pause dès qu'il passe à 1, et dit à quel instant.
+- **Chercher dans « Mes briques »** : au-delà de quatre briques, un champ filtre la liste par nom ou description, sans se soucier des accents.
+- **Recommencer le parcours**, dans les paramètres (« Mes données ») : deux clics, et l'ancien avancement est gardé dans `parcours-avant-recommencement.json`.
+
+## 0.8.0 — 15 novembre 2026
+
 De nouvelles pièces pour voir et toucher ses circuits.
 
 - **Bouton poussoir** : vaut 1 tant qu'on appuie dessus, 0 dès qu'on le lâche. Pour une sonnette, un compteur qu'on fait avancer à la main, un « Entrée » d'ordinateur.
 - **Afficheur 7 segments** : une lampe de 7 bits (8 avec le point) qui dessine son chiffre. La quête « L'afficheur 7 segments » le montre directement sur sa sortie.
 - **Les briques se décrivent** : une description, écrite dans le panneau de la brique, s'affiche au survol dans la palette ; le panneau dit aussi où la brique est utilisée.
 - Format des projets et de l'avancement : `projet/3` et `parcours/3` (champ facultatif `aspect` des interrupteurs et des lampes). Les fichiers des versions précédentes s'ouvrent comme avant ; une version plus ancienne refuse clairement un fichier du nouveau format au lieu d'en perdre une partie.
+- Le guide précise que la fenêtre de l'installateur peut mettre quelques secondes à apparaître après l'avertissement de Windows.
 
 ## 0.7.0 — 15 novembre 2026
 
