@@ -106,6 +106,25 @@ pub fn prises(
     prises
 }
 
+/// Les nets d'une seule sortie d'élément de `plan`, ce plan étant celui de la brique posée au
+/// bout du chemin `exemplaire` (voir [`prises`]).
+pub fn nets_de_sortie(
+    circuit: &Circuit,
+    plan: &Document,
+    projet: &Projet,
+    exemplaire: &[Id],
+    source: Source,
+) -> Vec<Option<NetId>> {
+    let prefixe: String = exemplaire.iter().map(|id| format!("b{id}.")).collect();
+    let largeur = plan.largeur_source(source).unwrap_or(0);
+    (0..largeur)
+        .map(|k| {
+            let extremite = bit(plan, projet, source, k, 0)?;
+            circuit.net(&format!("{prefixe}{extremite}")).ok()
+        })
+        .collect()
+}
+
 /// Le plan écrit comme un composant `ce-circuit`.
 fn composant(plan: &Document, projet: &Projet) -> Composant {
     let mut c = Composant::nouveau("");

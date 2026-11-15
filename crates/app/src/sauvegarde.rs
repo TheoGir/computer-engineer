@@ -463,6 +463,22 @@ impl Dossier {
         Ok(garde)
     }
 
+    /// Met de côté l'avancement actuel avant de recommencer le parcours, sous un nom libre
+    /// (`parcours-avant-recommencement.json`, puis `… 2.json`…). Renvoie ce nom, ou `None`
+    /// s'il n'y avait pas d'avancement enregistré.
+    pub fn garder_le_parcours_avant_recommencement(&self) -> io::Result<Option<String>> {
+        let actuel = self.racine.join("parcours.json");
+        if !actuel.exists() {
+            return Ok(None);
+        }
+        let garde = std::iter::once("parcours-avant-recommencement.json".to_owned())
+            .chain((2..).map(|k| format!("parcours-avant-recommencement {k}.json")))
+            .find(|n| !self.racine.join(n).exists())
+            .expect("un nom libre");
+        fs::copy(&actuel, self.racine.join(&garde))?;
+        Ok(Some(garde))
+    }
+
     /// Enregistre l'avancement dans le parcours des quêtes.
     pub fn enregistrer_parcours(&self, parcours: &Parcours) -> io::Result<()> {
         fs::create_dir_all(&self.racine)?;
@@ -819,6 +835,29 @@ mod tests {
             );
             assert_eq!(d.parcours(), Ok(None));
         }
+        let _ = fs::remove_dir_all(d.racine());
+    }
+
+    #[test]
+    fn recommencer_le_parcours_garde_une_copie_sans_rien_ecraser() {
+        let d = dossier("recommencer");
+        fs::create_dir_all(d.racine()).unwrap();
+        assert_eq!(d.garder_le_parcours_avant_recommencement().unwrap(), None);
+        for (texte, attendu) in [
+            ("premier", "parcours-avant-recommencement.json"),
+            ("second", "parcours-avant-recommencement 2.json"),
+        ] {
+            fs::write(d.racine().join("parcours.json"), texte).unwrap();
+            assert_eq!(
+                d.garder_le_parcours_avant_recommencement().unwrap(),
+                Some(attendu.to_owned())
+            );
+            assert_eq!(fs::read_to_string(d.racine().join(attendu)).unwrap(), texte);
+        }
+        assert_eq!(
+            fs::read_to_string(d.racine().join("parcours-avant-recommencement.json")).unwrap(),
+            "premier"
+        );
         let _ = fs::remove_dir_all(d.racine());
     }
 

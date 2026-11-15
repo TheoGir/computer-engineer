@@ -54,12 +54,22 @@ des plus anciennes ; l'original d'un projet mis au nouveau format est gardé dan
 - **L'ordinateur miniature** : dans tes projets, ouvre l'exemple « Ordinateur miniature ».
   Clique sur son clavier et tape deux chiffres : il affiche leur produit.
 
+- **Mes briques** : au-delà de quatre briques, un champ « Chercher une brique… » filtre la
+  liste par nom ou par description, sans se soucier des accents.
+- **Point d'arrêt** : sélectionne un fil d'un bit, puis « Point d'arrêt » dans la barre de la
+  sélection. La lecture, même rapide, se met en pause dès que ce fil passe à 1, et dit à
+  quel instant. Le même bouton le retire.
+- **Recommencer le parcours** : dans les paramètres, « Mes données ». Il faut cliquer deux
+  fois ; l'ancien avancement est gardé dans `parcours-avant-recommencement.json`.
+
 ## Programmer l'ordinateur
 
 Dans l'ordinateur miniature, **Ctrl+P** ouvre le programme de sa mémoire morte. Écris en
 assembleur (F1, « Programmer l'ordinateur », liste les seize instructions), puis « Charger
 dans la mémoire » : la mémoire morte est refabriquée en portes NAND et l'ordinateur
-redémarre avec ton programme. Exemple, qui écrit `HI` :
+redémarre avec ton programme. Sous le texte, « La machine en marche » montre l'instruction en
+cours (surlignée), l'accumulateur et chaque case de la mémoire vive (`··` : jamais écrite),
+lus sur les portes pendant que l'ordinateur tourne. Exemple, qui écrit `HI` :
 
 ```
         LDI 'H'

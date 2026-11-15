@@ -77,6 +77,8 @@ pub enum Demande {
     },
     /// Montrer le dossier des données dans l'explorateur de fichiers.
     OuvrirDossier,
+    /// Effacer l'avancement dans le parcours (une copie est gardée dans le dossier).
+    RecommencerParcours,
     /// Fermer l'application.
     Quitter,
     /// Une action choisie dans un message.
@@ -125,6 +127,8 @@ pub struct Accueil {
     renommage: Option<Renommage>,
     /// Le projet dont on demande s'il faut le mettre à la corbeille.
     confirmation: Option<String>,
+    /// Vrai après un premier clic sur « Recommencer le parcours » : le second confirme.
+    recommencer_arme: bool,
     /// Vrai si une saisie s'est terminée à cette image : sa touche (Entrée, Échap) lui revient.
     saisie_finie: bool,
     reperes: Vec<(&'static str, usize, Rect)>,
@@ -2983,6 +2987,32 @@ impl Accueil {
             ) {
                 demandes.push(Demande::OuvrirDossier);
             }
+        }
+        // Recommencer le parcours : deux clics, pour ne jamais effacer par mégarde.
+        let texte = if self.recommencer_arme {
+            "Confirmer : tout recommencer"
+        } else {
+            "Recommencer le parcours"
+        };
+        let lb = Self::largeur_bouton(k, texte, None);
+        if Self::bouton(
+            k,
+            Rect::from_min_size(Pos2::new(ix + il - lb, y2), Vec2::new(lb, 40.0)),
+            "recommencer-parcours",
+            0,
+            texte,
+            None,
+            if self.recommencer_arme {
+                Sorte::Danger
+            } else {
+                Sorte::Secondaire
+            },
+            "Efface les quêtes réussies et les briques gagnées. Une copie est gardée dans le dossier de tes données.",
+        ) {
+            if self.recommencer_arme {
+                demandes.push(Demande::RecommencerParcours);
+            }
+            self.recommencer_arme = !self.recommencer_arme;
         }
         y2 += 40.0 + 22.0 + g;
 

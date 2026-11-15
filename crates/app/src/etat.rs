@@ -701,6 +701,9 @@ impl Atelier {
             self.session.pas(&self.doc);
             self.observer();
             faits += 1;
+            if self.signaler_l_arret() {
+                return;
+            }
         }
         if faits == 4 {
             // L'image a duré très longtemps : on ne rattrape pas le retard.
@@ -723,10 +726,20 @@ impl Atelier {
         let budget = Duration::from_secs_f32(a.mouvement.budget_rapide / 1000.0);
         let debut = Instant::now();
         let (mut faits, mut lot) = (0u64, 16u64);
+        // Avec un point d'arrêt, de petits lots : on s'arrête tout près du front.
+        let lot_max = if self.session.arret().is_some() {
+            64
+        } else {
+            4096
+        };
+        lot = lot.min(lot_max);
         while faits < voulus && !self.session.stable() {
             let n = lot.min(voulus - faits);
             let ecoule = self.session.avancer_vite(n);
             faits += ecoule;
+            if self.session.arret_atteint.is_some() {
+                break;
+            }
             let passe = debut.elapsed();
             if ecoule < n || passe >= budget {
                 break;
@@ -738,7 +751,7 @@ impl Atelier {
             if tient == 0 {
                 break;
             }
-            lot = (lot * 2).min(4096).min(tient);
+            lot = (lot * 2).min(lot_max).min(tient);
         }
         if debit > 0.0 && faits < voulus {
             // La machine ne suit pas : on ne laisse pas le retard s'accumuler.
@@ -753,6 +766,51 @@ impl Atelier {
             };
         }
         self.observer();
+        self.signaler_l_arret();
+    }
+
+    /// Si le point d'arrêt vient d'être atteint : met la lecture en pause et le dit.
+    fn signaler_l_arret(&mut self) -> bool {
+        let Some(t) = self.session.arret_atteint.take() else {
+            return false;
+        };
+        self.lecture = false;
+        self.reste = 0.0;
+        self.dette = 0.0;
+        let nom = self
+            .session
+            .arret()
+            .map(|s| self.doc.nom_signal(s))
+            .unwrap_or_default();
+        self.dire(&format!(
+            "Point d'arrêt : « {nom} » est passé à 1 à t = {t}. La lecture est en pause."
+        ));
+        true
+    }
+
+    /// Pose ou retire le point d'arrêt sur le fil sélectionné (sa source, d'un bit).
+    pub fn basculer_point_d_arret(&mut self) {
+        let Some(source) = self.fil_selectionne().and_then(|f| self.doc.source_de(f)) else {
+            return;
+        };
+        if self.session.arret() == Some(source) {
+            self.session.poser_arret(None);
+            self.dire("Point d'arrêt retiré.");
+            return;
+        }
+        if !self.chemin.is_empty() {
+            self.dire("Un point d'arrêt se pose sur le plan principal.");
+            return;
+        }
+        if self.doc.largeur_source(source) != Some(1) {
+            self.dire("Un point d'arrêt se pose sur un fil d'un seul bit.");
+            return;
+        }
+        self.session.poser_arret(Some(source));
+        let nom = self.doc.nom_signal(source);
+        self.dire(&format!(
+            "Point d'arrêt posé : la lecture s'arrêtera quand « {nom} » passera à 1."
+        ));
     }
 
     /// Part du pas en cours déjà écoulée, de 0 à 1 (pour les animations).
@@ -1663,6 +1721,57 @@ mod tests {
 
     fn id(at: &Atelier, nom: &str) -> Id {
         at.doc.elements.iter().find(|e| e.nom == nom).unwrap().id
+    }
+
+    /// Le point d'arrêt sur la sortie d'une horloge : la lecture rapide s'arrête au premier
+    /// front montant, pas avant, et le dit.
+    #[test]
+    fn le_point_d_arret_met_la_lecture_rapide_en_pause_au_front_montant() {
+        let a = Apparence::default();
+        let mut plan = Document::nouveau();
+        let h = plan.poser(Element::horloge("h", 40), Point::nouveau(0.0, 0.0));
+        let s = plan.poser(Element::sortie("s", "", 1), Point::nouveau(200.0, 0.0));
+        assert!(plan.relier(
+            Source::de(h),
+            Fil {
+                puits: s,
+                entree: 0
+            }
+        ));
+        let mut at = Atelier::avec(Projet::nouveau("arrêt", plan), &a);
+        at.selection = Some(Selection::Fil(Fil {
+            puits: s,
+            entree: 0,
+        }));
+        at.basculer_point_d_arret();
+        assert_eq!(at.session.arret(), Some(Source::de(h)));
+        at.vitesse = Atelier::lentes(&a) + a.mouvement.vitesses_rapides.len() - 1;
+        assert!(at.rapide(&a).is_some());
+        at.lecture = true;
+        let mut images = 0;
+        while at.lecture && images < 100 {
+            at.avancer(&a, 1.0 / 60.0);
+            images += 1;
+        }
+        assert!(!at.lecture, "la lecture s'est arrêtée");
+        // L'horloge monte à t = 40 : on s'arrête là, au plus un petit lot plus tard.
+        assert!(
+            (40..=40 + 64).contains(&at.session.t),
+            "t = {}",
+            at.session.t
+        );
+        assert!(at
+            .messages
+            .iter()
+            .any(|m| m.texte.contains("Point d'arrêt") && m.texte.contains("t = 40")));
+        // Retiré : la lecture va au-delà du front suivant (t = 120).
+        at.basculer_point_d_arret();
+        assert_eq!(at.session.arret(), None);
+        at.lecture = true;
+        for _ in 0..30 {
+            at.avancer(&a, 1.0 / 60.0);
+        }
+        assert!(at.lecture && at.session.t > 200, "t = {}", at.session.t);
     }
 
     #[test]

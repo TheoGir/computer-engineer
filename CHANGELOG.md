@@ -1,5 +1,14 @@
 # Journal des modifications
 
+## Prochaine version
+
+Voir l'ordinateur penser, s'arrêter au bon moment, retrouver ses briques.
+
+- **La machine en marche (Ctrl+P)** : sous le programme, l'instruction en cours est surlignée dans le programme chargé, avec l'accumulateur et chaque case de la mémoire vive (`··` tant qu'elle n'a pas été écrite), lus sur les portes NAND pendant que l'ordinateur tourne. Vérifié contre l'émulateur de référence.
+- **Point d'arrêt** : sélectionne un fil d'un bit, puis « Point d'arrêt ». La lecture, même la plus rapide, se met en pause dès qu'il passe à 1, et dit à quel instant.
+- **Chercher dans « Mes briques »** : au-delà de quatre briques, un champ filtre la liste par nom ou description, sans se soucier des accents.
+- **Recommencer le parcours**, dans les paramètres (« Mes données ») : deux clics, et l'ancien avancement est gardé dans `parcours-avant-recommencement.json`.
+
 ## 0.8.0 — 15 novembre 2026
 
 De nouvelles pièces pour voir et toucher ses circuits.
