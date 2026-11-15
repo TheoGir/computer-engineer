@@ -1,5 +1,13 @@
 # Journal des modifications
 
+## 1.0.0 — 15 novembre 2026
+
+La première version complète : on construit un ordinateur entier à partir d'une seule porte NAND, on le programme, et il tourne sous tes yeux.
+
+- **Ce que promet la 1.0** : un projet ou un avancement enregistré par une 1.x s'ouvre dans toute version 1.y plus récente, sans perte ; toute version installée peut toujours se mettre à jour ; l'application ne s'arrête jamais en silence (elle garde le travail et laisse un rapport). Les formats `projet/5`, `parcours/4` et les réglages sont figés : ils ne changeront plus sans migration.
+- Tout ce qu'ont apporté les versions 0.x, en un seul endroit : 100 quêtes vérifiées et leurs fiches, la documentation (F2), l'analyse d'un circuit (Ctrl+E), la machine en marche (Ctrl+P), les bancs d'essai (Ctrl+T), l'éditeur d'automates (Ctrl+K), l'export Verilog et PNG, l'application en français et en anglais, et un installateur Windows.
+- La publication ne s'arrête plus si l'API anonyme de GitHub est à court de quota au moment de la vérifier.
+
 ## 0.13.0 — 15 novembre 2026
 
 - **Une vraie documentation (F2)** : une fenêtre qui s'ouvre partout (F2, ou l'entrée « Documentation » du menu de l'accueil), avec une page pour chacune des 11 pièces de la palette, 10 notions (les quatre valeurs d'un fil, le temps et le délai des portes, combinatoire ou séquentiel, le binaire, les bus, la mémoire, l'horloge et ses fronts, les niveaux de briques, l'ordinateur miniature, la simulation) et chaque brique de la bibliothèque, rangées par chapitre. La page d'une brique dit ce qu'elle fait, montre son symbole et ses broches avec leur rôle, sa table de vérité (entière, ou douze lignes tirées au hasard quand elle est trop longue) ou son chronogramme depuis la mise sous tension, tous simulés sur le corrigé ; elle donne son nombre de portes NAND, son temps de réponse, la plus petite construction connue, les briques qui la composent (cachées tant que sa quête n'est pas réussie, pour ne pas souffler la réponse), celles qui s'en servent, et ouvre ses quêtes d'un clic. Dans l'atelier, F2 ouvre la page de l'élément sélectionné. Liens entre les pages, retour et suivant (Alt+← et Alt+→), recherche sans souci des accents. En français et en anglais.
