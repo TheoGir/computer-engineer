@@ -191,7 +191,7 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
         })?;
         let (valeurs_e, valeurs_s) = (mots(g), mots(d));
         if valeurs_e.len() != entrees.len() || valeurs_s.len() != sorties.len() {
-            return Err(tr!("ligne {numero} : {len} valeur{v} avant « -> » et {len2} après, comme dans l'en-tête", numero = numero, len = entrees.len(), v = crate::langue::s((entrees.len()) as u64), len2 = sorties.len()));
+            return Err(tr!("ligne {numero} : {len} valeur{v} avant « -> » et {len2} après, comme dans l'en-tête", numero = numero, len = entrees.len(), v = crate::langue::s(entrees.len()), len2 = sorties.len()));
         }
         for (borne, mot) in entrees.iter().zip(&valeurs_e) {
             if let Some(v) =
@@ -203,7 +203,7 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
                         numero = numero,
                         v = v,
                         largeur = borne.largeur,
-                        v2 = crate::langue::s((borne.largeur) as u64),
+                        v2 = crate::langue::s(borne.largeur),
                         nom = borne.nom
                     ));
                 }

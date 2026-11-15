@@ -117,7 +117,7 @@ pub fn charger(projet: &mut Projet, nom: &str, texte: &str) -> Result<Charge, St
         projet.modeles[i].description = tr!(
             "Mémoire morte : {instructions} instruction{v} de 16 bits, en NAND",
             instructions = instructions,
-            v = crate::langue::s(instructions as u64)
+            v = crate::langue::s(instructions)
         );
     }
     projet.revision += 1;

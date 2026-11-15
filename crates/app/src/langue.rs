@@ -123,7 +123,8 @@ pub fn en_francais() -> bool {
 
 /// La marque du pluriel après le nombre `n` : « s » ou rien. En français, 0 et 1 sont au
 /// singulier (« 0 porte ») ; en anglais, seul 1 l'est (« 0 gates »).
-pub fn s(n: u64) -> &'static str {
+pub fn s<N: TryInto<u64>>(n: N) -> &'static str {
+    let n: u64 = n.try_into().unwrap_or(u64::MAX);
     let pluriel = if en_francais() { n > 1 } else { n != 1 };
     if pluriel {
         "s"

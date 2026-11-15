@@ -1300,7 +1300,7 @@ impl Atelier {
         let nom = self.projet.ajouter(modele);
         self.selectionner(id);
         self.apres_modification(a);
-        self.dire(&tr!("« {nom} » est une nouvelle brique de {portes} porte{v}. Elle est dans la palette, prête à resservir ; double-clique dessus pour l'ouvrir.", nom = nom, portes = portes, v = crate::langue::s(portes as u64)));
+        self.dire(&tr!("« {nom} » est une nouvelle brique de {portes} porte{v}. Elle est dans la palette, prête à resservir ; double-clique dessus pour l'ouvrir.", nom = nom, portes = portes, v = crate::langue::s(portes)));
         Some(id)
     }
 
@@ -1638,7 +1638,7 @@ impl Atelier {
             .modele(nom)
             .map_or(0, |m| self.projet.nb_portes(&m.plan));
         let n = automate.etats.len();
-        Ok(tr!("Brique « {nom} » fabriquée : {n} état{v}, {portes} porte{v2} NAND. Elle est dans la palette.", nom = nom, n = n, portes = portes, v = crate::langue::s(n as u64), v2 = crate::langue::s(portes as u64)))
+        Ok(tr!("Brique « {nom} » fabriquée : {n} état{v}, {portes} porte{v2} NAND. Elle est dans la palette.", nom = nom, n = n, portes = portes, v = crate::langue::s(n), v2 = crate::langue::s(portes)))
     }
 
     /// Retourne les éléments sélectionnés de gauche à droite (ou les remet à l'endroit).
@@ -1682,7 +1682,7 @@ impl Atelier {
         self.dire(&tr!(
             "{n} élément{v} copié{v}. Ctrl+V pour coller, ici ou dans un autre projet.",
             n = n,
-            v = crate::langue::s(n as u64)
+            v = crate::langue::s(n)
         ));
         true
     }
@@ -1738,8 +1738,8 @@ impl Atelier {
                 "{n} élément{v} collé{v}, et {ajoutees} brique{v2} ajoutée{v2} à ce projet.",
                 n = n,
                 ajoutees = ajoutees,
-                v = crate::langue::s(n as u64),
-                v2 = crate::langue::s(ajoutees as u64)
+                v = crate::langue::s(n),
+                v2 = crate::langue::s(ajoutees)
             ));
         }
         change

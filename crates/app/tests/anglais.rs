@@ -316,7 +316,7 @@ fn captures_en_anglais() {
         .wgpu()
         .build_ui_state(|ui, app: &mut Application| app.image(ui), app);
     b.run_steps(120);
-    let mut enregistrer = |b: &mut Banc, nom: &str| {
+    let enregistrer = |b: &mut Banc, nom: &str| {
         let image = b.render().expect("rendu");
         std::fs::create_dir_all(&sortie).expect("dossier de sortie");
         image

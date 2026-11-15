@@ -196,7 +196,7 @@ pub fn il_y_a(maintenant: SystemTime, quand: SystemTime) -> String {
 
 /// « 1 brique », « 3 briques ».
 fn pluriel(n: usize, mot: &str) -> String {
-    if !crate::langue::s(n as u64).is_empty() {
+    if !crate::langue::s(n).is_empty() {
         format!("{n} {mot}s")
     } else {
         format!("{n} {mot}")

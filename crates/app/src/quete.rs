@@ -218,7 +218,7 @@ pub const PARCOURS: &[Fiche] = &[
         cle: "multiplexeur-4",
         chapitre: "Aiguillages et codes",
         titre: "Le multiplexeur à 4 voies",
-        consigne: "s recopie le bit de d choisi par sel (de 0 à 3). Trois multiplexeurs à deux voies : deux choisissent avec sel[0], le dernier avec sel[1].",
+        consigne: "s recopie le bit de d choisi par sel (de 0 à 3). d (4 bits) et sel (2 bits) sont des bus : branche chacun sur un découpeur (palette, à côté de la jonction) pour avoir un fil par bit. Puis trois multiplexeurs à deux voies : deux choisissent avec sel[0], le dernier avec sel[1].",
         felicitations: "",
         corrige: "MUX4",
         brique: "MUX4",
@@ -1684,7 +1684,7 @@ impl Quete {
                     },
                     nom = b.nom,
                     largeur2 = b.largeur,
-                    v2 = crate::langue::s((b.largeur) as u64)
+                    v2 = crate::langue::s(b.largeur)
                 ));
             }
             Ok(e.id)
@@ -1858,7 +1858,7 @@ impl Quete {
             texte: tr!(
                 "{len} essai{v} sur {v2}, tous justes, comparés au corrigé.",
                 len = essais.len(),
-                v = crate::langue::s((essais.len()) as u64),
+                v = crate::langue::s(essais.len()),
                 v2 = if sequentielle {
                     tr!("une longue suite d'actions")
                 } else if essais.len() == 1 << self.entrees.iter().map(|b| b.largeur).sum::<u32>() {

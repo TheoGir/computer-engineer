@@ -351,7 +351,7 @@ impl Automate {
         let description = tr!(
             "automate de {len} état{v} : {v2}",
             len = self.etats.len(),
-            v = crate::langue::s((self.etats.len()) as u64),
+            v = crate::langue::s(self.etats.len()),
             v2 = self
                 .etats
                 .iter()

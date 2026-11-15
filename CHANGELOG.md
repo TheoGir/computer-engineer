@@ -2,6 +2,20 @@
 
 ## Prochaine version
 
+- **L'application parle anglais** : toute l'interface, l'aide (F1), le lexique, les 100 quêtes et leurs fiches « Comprendre », les exemples et les commentaires des programmes livrés existent en anglais. Au premier lancement, l'application prend la langue du système (le français si le système est en français, l'anglais sinon) ; elle se change ensuite dans les paramètres, ligne « Langue / Language ». Les pluriels et la virgule décimale suivent la langue. Les noms des briques et des broches (`ET`, `raz`, `clk`…) sont des noms de circuit et restent les mêmes dans les deux langues, pour que les projets s'échangent.
+- L'éditeur d'automates (Ctrl+K) et les bancs d'essai (Ctrl+T) comprennent aussi les mots-clés anglais : `inputs`, `outputs`, `state`, `if`, `and`, `not`, `wait`.
+- Le réglage de la langue s'ajoute à `reglages.json` (champ facultatif `langue`) ; un fichier de réglages d'une version précédente se lit comme avant. Les formats des projets et de l'avancement ne changent pas.
+- Vérifié par deux tests : chaque texte du code et des données a sa traduction, avec les mêmes trous à remplir ; et un parcours de tous les écrans en anglais (accueil, parcours, chaque quête, chaque exemple, l'aide, les fenêtres d'outils) ne trouve plus de français.
+
+## 0.11.1 — 15 novembre 2026
+
+Correctif : brancher un bus de 2 ou 3 bits sur un découpeur.
+
+- Le découpeur de la palette a quatre sorties d'un bit et refusait tout bus plus étroit : impossible, par exemple, de séparer le `sel` de 2 bits du multiplexeur à 4 voies ou l'adresse du décodeur 2 vers 4. Tant qu'aucune de ses sorties n'est branchée, il se refait maintenant à la taille du bus qu'on y branche, un fil par bit.
+- La consigne du multiplexeur à 4 voies, première quête avec des bus, explique qu'un découpeur sépare `d` et `sel` en fils d'un bit.
+
+## 0.11.0 — 15 novembre 2026
+
 - **Retourner une pièce (R)** : une porte, une brique, un interrupteur ou une lampe se retourne de gauche à droite, entrées à droite et sorties à gauche. Les fils suivent, et un signal qui revient en arrière (une boucle de mémoire, un retour de bus) n'a plus à faire le tour. Aussi dans la barre de la sélection ; Ctrl+Z l'annule.
 - **Éditeur d'automates (Ctrl+K)** : décris des états en quelques lignes (« état attente : voitures », « si bouton -> orange »…) et l'application fabrique la brique qui fait la même chose, en portes NAND et en bascules D : les sorties de chaque état, la logique de l'état suivant simplifiée par Quine-McCluskey, une entrée `raz` pour revenir au départ, et une sortie `etat` pour voir où il en est. Vérifié par un test qui compare la brique à l'automate sur des centaines de fronts tirés au hasard.
 - Format des projets et de l'avancement : `projet/5` et `parcours/4` (champ facultatif `miroir` des éléments). Les fichiers des versions précédentes s'ouvrent comme avant ; une version plus ancienne refuse clairement un fichier du nouveau format.

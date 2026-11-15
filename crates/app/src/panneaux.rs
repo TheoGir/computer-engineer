@@ -1720,7 +1720,7 @@ impl Panneaux {
                 tr!(
                     "{portes} porte{s} · {entrees} → {sorties}",
                     portes = portes,
-                    s = crate::langue::s(portes as u64),
+                    s = crate::langue::s(portes),
                     entrees = resume.entrees,
                     sorties = resume.sorties
                 )
@@ -2473,7 +2473,7 @@ impl Panneaux {
             Self::etoiles(k, e.etoiles(), Pos2::new(x + l, y + 8.0), true);
         }
         y += 22.0;
-        let pluriel = crate::langue::s(e.tiennes as u64);
+        let pluriel = crate::langue::s(e.tiennes);
         let tiennes = match e.origine {
             Origine::Ajouts => tr!(
                 "{tiennes} porte{pluriel} ajoutée{pluriel}",
@@ -3446,7 +3446,7 @@ impl Panneaux {
         let portes = circuit.portes;
         let total = at.session.nb_portes();
         let pluriel = |n: usize, un: &'static str, plusieurs: &'static str| {
-            if crate::langue::s(n as u64).is_empty() {
+            if crate::langue::s(n).is_empty() {
                 un
             } else {
                 plusieurs
@@ -3484,7 +3484,7 @@ impl Panneaux {
             x,
             x + l,
             &circuit.signaux.to_string(),
-            if crate::langue::s(circuit.signaux as u64).is_empty() {
+            if crate::langue::s(circuit.signaux).is_empty() {
                 tr!("signal")
             } else {
                 tr!("signaux")

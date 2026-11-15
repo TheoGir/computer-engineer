@@ -700,7 +700,7 @@ impl Fenetres {
                 match &editeur.verdict {
                     Ok(n) => {
                         ui.label(
-                            RichText::new(tr!("{n} instruction{v} sur {TAILLE_MAXIMALE} possibles : prêt à charger.", n = n, v = crate::langue::s((*n) as u64), TAILLE_MAXIMALE = TAILLE_MAXIMALE))
+                            RichText::new(tr!("{n} instruction{v} sur {TAILLE_MAXIMALE} possibles : prêt à charger.", n = n, v = crate::langue::s(*n), TAILLE_MAXIMALE = TAILLE_MAXIMALE))
                             .color(c.un.c()),
                         );
                     }
@@ -803,7 +803,7 @@ impl Fenetres {
                 match &lu {
                     Ok(auto) => {
                         ui.label(
-                            RichText::new(tr!("{len} état{v}, {len2} entrée{v2}, {len3} sortie{v3} : {bits_d_etat} bascule{v4} D pour retenir l'état.", len = auto.etats.len(), v = crate::langue::s((auto.etats.len()) as u64), len2 = auto.entrees.len(), v2 = crate::langue::s((auto.entrees.len()) as u64), len3 = auto.sorties.len(), v3 = crate::langue::s((auto.sorties.len()) as u64), bits_d_etat = auto.bits_d_etat(), v4 = crate::langue::s((auto.bits_d_etat()) as u64)))
+                            RichText::new(tr!("{len} état{v}, {len2} entrée{v2}, {len3} sortie{v3} : {bits_d_etat} bascule{v4} D pour retenir l'état.", len = auto.etats.len(), v = crate::langue::s(auto.etats.len()), len2 = auto.entrees.len(), v2 = crate::langue::s(auto.entrees.len()), len3 = auto.sorties.len(), v3 = crate::langue::s(auto.sorties.len()), bits_d_etat = auto.bits_d_etat(), v4 = crate::langue::s(auto.bits_d_etat())))
                             .color(c.un.c()),
                         );
                     }
@@ -906,12 +906,12 @@ impl Fenetres {
                         let justes = lignes.iter().filter(|l| l.juste()).count();
                         let (texte, couleur) = if justes == lignes.len() {
                             (
-                                tr!("Tout est juste : {justes} essai{v}.", justes = justes, v = crate::langue::s(justes as u64)),
+                                tr!("Tout est juste : {justes} essai{v}.", justes = justes, v = crate::langue::s(justes)),
                                 c.un.c(),
                             )
                         } else {
                             (
-                                tr!("{v} essai{v2} faux sur {len}.", v = lignes.len() - justes, v2 = crate::langue::s((lignes.len() - justes) as u64), len = lignes.len()),
+                                tr!("{v} essai{v2} faux sur {len}.", v = lignes.len() - justes, v2 = crate::langue::s(lignes.len() - justes), len = lignes.len()),
                                 c.danger.c(),
                             )
                         };
@@ -1012,7 +1012,7 @@ impl Fenetres {
                     }
                     Ok(an) => {
                         ui.label(
-                            RichText::new(tr!("{portes} porte{v} NAND · {profondeur} étape{v2} au plus entre une entrée et une sortie · {len} combinaison{v3} d'entrées, toutes simulées.", portes = an.portes, v = crate::langue::s((an.portes) as u64), profondeur = an.profondeur, v2 = crate::langue::s((an.profondeur) as u64), len = an.lignes.len(), v3 = crate::langue::s((an.lignes.len()) as u64)))
+                            RichText::new(tr!("{portes} porte{v} NAND · {profondeur} étape{v2} au plus entre une entrée et une sortie · {len} combinaison{v3} d'entrées, toutes simulées.", portes = an.portes, v = crate::langue::s(an.portes), profondeur = an.profondeur, v2 = crate::langue::s(an.profondeur), len = an.lignes.len(), v3 = crate::langue::s(an.lignes.len())))
                             .color(c.doux.c()),
                         );
                         ui.add_space(8.0);

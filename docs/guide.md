@@ -36,6 +36,11 @@ des plus anciennes ; l'original d'un projet mis au nouveau format est gardé dan
 
 ## Premiers pas
 
+- **La langue** : l'application est en français ou en anglais. Au premier lancement, elle
+  prend la langue du système ; change-la dans les paramètres, ligne « Langue / Language ».
+  Les noms des briques et des broches (`ET`, `raz`…) restent les mêmes dans les deux langues :
+  un projet fait en anglais s'ouvre tel quel en français.
+
 - **L'accueil** : « Continuer » (ou Entrée) reprend le dernier projet ; le parcours des
   quêtes ; tes projets ; les paramètres.
 - **L'atelier** : glisse des portes NAND, des interrupteurs et des lampes depuis la palette,

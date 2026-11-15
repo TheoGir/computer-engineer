@@ -1069,7 +1069,7 @@ impl Plan {
                                 at.doc.relier(source, fil);
                                 at.selection = Some(Selection::Fil(fil));
                             }
-                            Err(Refus::Largeur { source, entree }) => at.dire(&tr!("Ce fil porte {source} bit{v} et cette entrée en attend {entree} : pose un découpeur ou une jonction entre les deux.", source = source, entree = entree, v = crate::langue::s(source as u64))),
+                            Err(Refus::Largeur { source, entree }) => at.dire(&tr!("Ce fil porte {source} bit{v} et cette entrée en attend {entree} : pose un découpeur ou une jonction entre les deux.", source = source, entree = entree, v = crate::langue::s(source))),
                             Err(Refus::Inconnu) => {}
                         }
                     }
