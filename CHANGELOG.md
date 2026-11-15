@@ -1,6 +1,6 @@
 # Journal des modifications
 
-## 0.6.0
+## 0.6.0 — 15 novembre 2026
 
 La construction minimale : à quel point ton circuit est-il économe ?
 
