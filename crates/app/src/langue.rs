@@ -431,8 +431,22 @@ pub fn traduire_texte(francais: &str) -> Cow<'_, str> {
     match traduction(langue, francais) {
         Some(Cow::Borrowed(t)) => Cow::Borrowed(t),
         Some(Cow::Owned(t)) => Cow::Owned(t),
-        None => Cow::Borrowed(francais),
+        None => description_calculee(francais).map_or(Cow::Borrowed(francais), Cow::Owned),
     }
+}
+
+/// La traduction d'une description écrite par le code avec un nombre dedans, comme celle
+/// d'une mémoire morte refaite pour un nouveau programme.
+fn description_calculee(francais: &str) -> Option<String> {
+    let n: u64 = francais
+        .strip_prefix("Mémoire morte : ")?
+        .strip_suffix(" instructions de 12 bits, une porte NAND par instruction non nulle")?
+        .parse()
+        .ok()?;
+    Some(crate::tr!(
+        "Mémoire morte : {n} instructions de 12 bits, une porte NAND par instruction non nulle",
+        n = n
+    ))
 }
 
 /// La traduction intégrée de ce texte dans cette langue, s'il y en a une.

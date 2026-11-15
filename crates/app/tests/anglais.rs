@@ -79,18 +79,13 @@ const MOTS_FRANCAIS: &[&str] = &[
     "aide",
 ];
 
-/// Les noms des briques livrées : des noms de circuit, comme ceux des broches, que
-/// l'utilisateur peut renommer ; ils restent tels quels dans toutes les langues.
-fn noms_de_briques() -> std::collections::BTreeSet<String> {
-    let mut noms: std::collections::BTreeSet<String> =
-        PARCOURS.iter().map(|f| f.brique.to_owned()).collect();
-    noms.extend(PARCOURS.iter().map(|f| f.corrige.to_owned()));
-    for e in &ce_app::exemples::EXEMPLES {
-        if let Ok(p) = ce_app::exemples::ordinateur(e.nom, e.programme) {
-            noms.extend(p.modeles.iter().map(|m| m.nom.clone()));
-        }
-    }
-    noms
+/// Les noms de circuit livrés (briques, broches) écrits en français : en anglais, ils
+/// s'affichent traduits (`ET` devient `AND`, `raz` devient `reset`).
+fn noms_francais() -> std::collections::BTreeSet<String> {
+    langue::NOMS_ANGLAIS
+        .iter()
+        .map(|(fr, _)| (*fr).to_owned())
+        .collect()
 }
 
 /// Les mots accentués permis en anglais : le nom de la langue, et ce que l'anglais emprunte.
@@ -112,12 +107,14 @@ fn textes(b: &Banc) -> Vec<String> {
     sortie
 }
 
-/// Les mots qui trahissent du français dans ce texte (hors chemins de fichiers et noms de
-/// briques).
-fn francais(texte: &str, briques: &std::collections::BTreeSet<String>) -> Vec<String> {
-    if texte.starts_with('/') || briques.contains(texte) {
+/// Les mots qui trahissent du français dans ce texte (hors chemins de fichiers), noms de
+/// briques et de broches compris.
+fn francais(texte: &str, noms: &std::collections::BTreeSet<String>) -> Vec<String> {
+    if texte.starts_with('/') {
         return Vec::new();
     }
+    // « in front of » est de l'anglais, pas la broche `front`.
+    let texte = texte.replace("in front of", "");
     // Ce qui est entre guillemets anglais est cité tel quel : un nom de dossier, de broche.
     let mut hors_citations = String::new();
     for (i, morceau) in texte.split(['“', '”']).enumerate() {
@@ -128,9 +125,10 @@ fn francais(texte: &str, briques: &std::collections::BTreeSet<String>) -> Vec<St
     }
     hors_citations
         .split(|c: char| !c.is_alphanumeric() && c != '\'' && c != '’' && c != '_')
-        .filter(|mot| !mot.is_empty() && !PERMIS.contains(mot) && !briques.contains(*mot))
+        .filter(|mot| !mot.is_empty() && !PERMIS.contains(mot))
         .filter(|mot| {
-            mot.chars().any(|c| "àâçéèêëîïôûùœÀÂÇÉÈÊÎÔÛ".contains(c))
+            noms.contains(*mot)
+                || mot.chars().any(|c| "àâçéèêëîïôûùœÀÂÇÉÈÊÎÔÛ".contains(c))
                 || MOTS_FRANCAIS.contains(&mot.to_lowercase().as_str())
                 || mot.starts_with("l'")
                 || mot.starts_with("d'")
@@ -142,9 +140,9 @@ fn francais(texte: &str, briques: &std::collections::BTreeSet<String>) -> Vec<St
 
 /// Relève le français de l'image en cours, avec le nom de l'écran.
 fn relever(b: &Banc, ecran: &str, trouve: &mut Vec<String>) {
-    let briques = noms_de_briques();
+    let noms = noms_francais();
     for t in textes(b) {
-        let mots = francais(&t, &briques);
+        let mots = francais(&t, &noms);
         if !mots.is_empty() {
             let extrait: String = t.chars().take(100).collect();
             let ligne = format!("{ecran} : {mots:?} dans « {extrait} »");
@@ -225,6 +223,21 @@ fn rien_ne_reste_en_francais() {
         b.state_mut().ecran = Ecran::Atelier;
         b.run_steps(40);
         relever(&b, &format!("atelier, quête {}", f.cle), &mut trouve);
+        // L'inspecteur, sur chaque élément du plan de la quête.
+        let ids: Vec<_> = b
+            .state()
+            .atelier
+            .doc
+            .elements
+            .iter()
+            .map(|e| e.id)
+            .collect();
+        for id in ids.into_iter().take(6) {
+            b.state_mut().atelier.selection = Some(ce_app::etat::Selection::Elements(vec![id]));
+            b.run_steps(3);
+            relever(&b, &format!("inspecteur, quête {}", f.cle), &mut trouve);
+        }
+        b.state_mut().atelier.selection = None;
     }
     for i in 0..ce_app::exemples::EXEMPLES.len() {
         b.state_mut().ouvrir(Ouverture::Exemple(i));

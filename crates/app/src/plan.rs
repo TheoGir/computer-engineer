@@ -1335,7 +1335,7 @@ impl Plan {
                 let v = lecture.valeur();
                 let texte = format!(
                     "{} = {}",
-                    at.doc.nom_signal(faisceau.source),
+                    crate::langue::nom_affiche(&at.doc.nom_signal(faisceau.source)),
                     lecture.texte()
                 );
                 let largeur = (t.largeur(&texte, Police::MonoGras, 11.0) + 14.0) * k;
@@ -2011,7 +2011,7 @@ impl Plan {
                     t.texte(
                         q(-5.0, 54.0),
                         Align2::CENTER_CENTER,
-                        &e.nom,
+                        &crate::langue::nom_affiche(&e.nom),
                         Police::MonoGras,
                         12.0 * s,
                         c.doux.c(),
@@ -2080,9 +2080,9 @@ impl Plan {
                 }
                 if s * 14.0 >= 6.0 {
                     let legende = if e.legende.is_empty() {
-                        &e.nom
+                        &*crate::langue::nom_affiche(&e.nom)
                     } else {
-                        &e.legende
+                        &*crate::langue::nom_affiche(&e.legende)
                     };
                     t.texte(
                         q(0.0, 68.0),
@@ -2252,9 +2252,9 @@ impl Plan {
                 if s * 14.0 >= 6.0 {
                     if rond {
                         let legende = if e.legende.is_empty() {
-                            &e.nom
+                            &*crate::langue::nom_affiche(&e.nom)
                         } else {
-                            &e.legende
+                            &*crate::langue::nom_affiche(&e.legende)
                         };
                         t.texte(
                             q(0.0, 46.0),
@@ -2268,7 +2268,7 @@ impl Plan {
                         t.texte(
                             q(0.0, -43.0),
                             Align2::CENTER_CENTER,
-                            &e.nom,
+                            &crate::langue::nom_affiche(&e.nom),
                             Police::CorpsDemi,
                             14.0 * s,
                             c.doux.c(),
@@ -2311,7 +2311,7 @@ impl Plan {
                     t.texte(
                         Pos2::new(corps.left() + 12.0 * s, corps.top() + 14.0 * s),
                         Align2::LEFT_CENTER,
-                        &e.modele,
+                        &crate::langue::nom_affiche(&e.modele),
                         Police::MonoGras,
                         12.0 * s,
                         c.texte.c(),
@@ -2319,7 +2319,7 @@ impl Plan {
                     t.texte(
                         Pos2::new(corps.center().x, corps.bottom() + 14.0 * s),
                         Align2::CENTER_CENTER,
-                        &e.nom,
+                        &crate::langue::nom_affiche(&e.nom),
                         Police::MonoGras,
                         12.0 * s,
                         c.doux.c(),
@@ -2334,7 +2334,7 @@ impl Plan {
                         t.texte(
                             q(cg + 11.0, e.decalage_entree(i)),
                             cote(Align2::LEFT_CENTER),
-                            &b.nom,
+                            &crate::langue::nom_affiche(&b.nom),
                             Police::Mono,
                             11.0 * s,
                             couleur_de(v),
@@ -2345,7 +2345,7 @@ impl Plan {
                         t.texte(
                             q(cd - 11.0, e.decalage_sortie(j)),
                             cote(Align2::RIGHT_CENTER),
-                            &b.nom,
+                            &crate::langue::nom_affiche(&b.nom),
                             Police::Mono,
                             11.0 * s,
                             couleur_de(v),
@@ -2411,7 +2411,7 @@ impl Plan {
                         t.texte(
                             q(cg + 9.0, e.decalage_entree(i)),
                             cote(Align2::LEFT_CENTER),
-                            &b.nom,
+                            &crate::langue::nom_affiche(&b.nom),
                             Police::Mono,
                             10.0 * s,
                             c.doux.c(),
@@ -2420,7 +2420,7 @@ impl Plan {
                     t.texte(
                         Pos2::new(corps.center().x, corps.bottom() + 14.0 * s),
                         Align2::CENTER_CENTER,
-                        &e.nom,
+                        &crate::langue::nom_affiche(&e.nom),
                         Police::MonoGras,
                         12.0 * s,
                         c.doux.c(),
@@ -2492,7 +2492,7 @@ impl Plan {
                     } else if actif {
                         tr!("{nom} · tape au clavier", nom = e.nom)
                     } else {
-                        e.nom.clone()
+                        crate::langue::nom_affiche(&e.nom).into_owned()
                     };
                     t.texte(
                         Pos2::new(corps.center().x, corps.bottom() + 14.0 * s),
@@ -2524,7 +2524,7 @@ impl Plan {
                             t.texte(
                                 q(13.0, e.decalage_sortie(j) - 8.0),
                                 cote(Align2::LEFT_CENTER),
-                                &b.nom,
+                                &crate::langue::nom_affiche(&b.nom),
                                 Police::Mono,
                                 9.0 * s,
                                 c.doux.c(),
@@ -2535,7 +2535,7 @@ impl Plan {
                             t.texte(
                                 q(-13.0, e.decalage_entree(i) - 8.0),
                                 cote(Align2::RIGHT_CENTER),
-                                &b.nom,
+                                &crate::langue::nom_affiche(&b.nom),
                                 Police::Mono,
                                 9.0 * s,
                                 c.doux.c(),
