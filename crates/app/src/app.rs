@@ -1046,12 +1046,13 @@ impl Application {
         }
         self.fondre(ui, debut, avant);
         // F1 partout ; Ctrl+P, Ctrl+E et Ctrl+T dans l'atelier, sauf pendant une saisie.
-        let (f1, ctrl_p, ctrl_e, ctrl_t) = ui.input(|i| {
+        let (f1, ctrl_p, ctrl_e, ctrl_t, ctrl_k) = ui.input(|i| {
             (
                 i.key_pressed(Key::F1),
                 i.modifiers.command && i.key_pressed(Key::P),
                 i.modifiers.command && i.key_pressed(Key::E),
                 i.modifiers.command && i.key_pressed(Key::T),
+                i.modifiers.command && i.key_pressed(Key::K),
             )
         });
         if f1 {
@@ -1066,6 +1067,9 @@ impl Application {
         }
         if ctrl_t && self.ecran == Ecran::Atelier && !saisie {
             self.fenetres.basculer_banc(&self.atelier);
+        }
+        if ctrl_k && self.ecran == Ecran::Atelier && !saisie {
+            self.fenetres.basculer_automate();
         }
         let atelier = self.ecran == Ecran::Atelier;
         if self.photo.is_some() {

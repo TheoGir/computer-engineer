@@ -414,3 +414,49 @@ fn retourner_une_piece_echange_ses_cotes_et_s_annule() {
             .expect("écriture de la capture");
     }
 }
+
+#[test]
+fn l_editeur_d_automates_fabrique_une_brique() {
+    let captures = std::env::var("CE_CAPTURES").ok();
+    let mut b = banc(captures.is_some());
+    b.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::K);
+    b.run_steps(10);
+    assert!(b.state().fenetres.automate.is_some());
+    b.get_by_label("Fabriquer la brique").click();
+    b.run_steps(10);
+    let message = b
+        .state()
+        .fenetres
+        .automate
+        .as_ref()
+        .and_then(|v| v.message.clone())
+        .expect("message");
+    assert!(
+        message.as_ref().is_ok_and(|m| m.contains("3 états")),
+        "{message:?}"
+    );
+    let projet = &b.state().atelier.projet;
+    let brique = projet.modele("FEU_PIETONS").expect("brique fabriquée");
+    let (entrees, sorties) = brique.plan.interface();
+    let noms = |v: &[ce_app::document::Broche]| v.iter().map(|b| b.nom.clone()).collect::<Vec<_>>();
+    assert_eq!(noms(&entrees), ["bouton", "raz", "clk"]);
+    assert_eq!(noms(&sorties), ["voitures", "pietons", "etat"]);
+    assert!(projet.modele("BASCULE_D").is_some());
+    // Une seconde fois sous le même nom : refusé, sans rien abîmer.
+    b.get_by_label("Fabriquer la brique").click();
+    b.run_steps(10);
+    let message = b
+        .state()
+        .fenetres
+        .automate
+        .as_ref()
+        .and_then(|v| v.message.clone());
+    assert!(matches!(message, Some(Err(m)) if m.contains("déjà")));
+    if let Some(dossier) = captures {
+        let image = b.render().expect("rendu");
+        std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+        image
+            .save(format!("{dossier}/p4-automate.png"))
+            .expect("écriture de la capture");
+    }
+}

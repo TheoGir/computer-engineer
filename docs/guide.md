@@ -108,6 +108,23 @@ fin:    HLT
   un interrupteur tel quel ou n'attend rien d'une lampe ; `attendre 50` laisse passer le temps.
   La mémoire est gardée d'une ligne à l'autre : un interrupteur peut servir d'horloge. Chaque
   plan et chaque brique garde son banc dans le projet.
+- **Automates (Ctrl+K)** : décris des états et leurs transitions, l'application fabrique la
+  brique en portes NAND et en bascules D :
+
+  ```
+  entrées : bouton
+  sorties : voitures, pietons
+  état attente : voitures
+    si bouton -> orange
+  état orange :
+    -> traversee
+  état traversee : pietons
+    si non bouton -> attente
+  ```
+
+  Le premier état est celui du départ, où `raz` ramène. À chaque front de `clk`, la première
+  transition vraie est suivie, sinon on reste. La brique a aussi une sortie `etat` : le numéro
+  de l'état en binaire, dans l'ordre du texte.
 - **Exporter en image** : le bouton appareil photo, à côté du zoom, écrit le plan affiché en
   PNG dans le dossier `exports`, sans les panneaux et cadré sur tout le circuit.
 - **Copier, coller** : Ctrl+C copie la sélection avec ses fils et ses briques ; Ctrl+V la
@@ -129,6 +146,7 @@ fin:    HLT
 | Ctrl+E | analyser le circuit : table de vérité, expressions, export Verilog |
 | Ctrl+T | banc d'essai du plan : écrire et lancer ses essais |
 | R | retourner la sélection de gauche à droite |
+| Ctrl+K | éditeur d'automates : des états en texte, une brique en NAND |
 | Ctrl+P | programme de la mémoire morte |
 | Suppr | supprimer |
 | Échap | lâcher la sélection, puis remonter d'une brique |

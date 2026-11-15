@@ -93,6 +93,67 @@ pub fn simplifier(noms: &[String], vrais: &[u32]) -> Simplifiee {
     }
 }
 
+/// Un produit de littéraux : `(variable, vraie)`, `vraie = false` pour la variable inversée.
+pub type Produit = Vec<(u32, bool)>;
+
+/// La somme de produits la plus courte trouvée pour une fonction de `n` variables, vraie
+/// exactement pour les combinaisons de `vrais` (même méthode que [`simplifier`]). Aucun produit :
+/// la fonction vaut toujours 0 ; un produit vide : elle vaut toujours 1. Vérifiée sur toutes
+/// les combinaisons ; sinon, la forme développée (un produit par combinaison vraie).
+pub fn somme_de_produits(n: u32, vrais: &[u32]) -> Vec<Produit> {
+    let toutes = 1u32 << n;
+    let mut vrais: Vec<u32> = vrais.to_vec();
+    vrais.sort_unstable();
+    vrais.dedup();
+    if vrais.is_empty() {
+        return Vec::new();
+    }
+    if vrais.len() as u32 == toutes {
+        return vec![Vec::new()];
+    }
+    let developpee = || -> Vec<Produit> {
+        vrais
+            .iter()
+            .map(|&m| (0..n).map(|b| (b, m >> b & 1 == 1)).collect())
+            .collect()
+    };
+    let premiers =
+        quine_mc_cluskey::essential_minterms(vrais.iter().map(|&m| Term::new(m)).collect())
+            .essentials;
+    let couvre = |p: &Term, m: u32| p.contains(&Term::new(m));
+    let (choix, _) = couverture(&premiers, &vrais, couvre);
+    let mut produits = Vec::new();
+    for &k in &choix {
+        let litteraux = match premiers[k].to_bool_expr(n) {
+            Bool::True => Vec::new(),
+            Bool::And(v) => v,
+            seul => vec![seul],
+        };
+        let mut produit = Vec::new();
+        for l in litteraux {
+            match l {
+                Bool::Term(b) => produit.push((u32::from(b), true)),
+                Bool::Not(x) => match *x {
+                    Bool::Term(b) => produit.push((u32::from(b), false)),
+                    _ => return developpee(),
+                },
+                _ => return developpee(),
+            }
+        }
+        produits.push(produit);
+    }
+    let vaut = |m: u32| {
+        produits
+            .iter()
+            .any(|p| p.iter().all(|&(b, v)| (m >> b & 1 == 1) == v))
+    };
+    if (0..toutes).all(|m| vaut(m) == vrais.binary_search(&m).is_ok()) {
+        produits
+    } else {
+        developpee()
+    }
+}
+
 /// Le texte seul de [`simplifier`].
 pub fn expression(noms: &[String], vrais: &[u32]) -> String {
     simplifier(noms, vrais).texte

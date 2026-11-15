@@ -1593,6 +1593,49 @@ impl Atelier {
         self.apres_modification(a)
     }
 
+    /// Fabrique la brique `nom` de l'automate `texte` ([`crate::automate`]) et la range dans
+    /// la palette, avec les briques qu'elle utilise et qui manquent encore au projet. Renvoie
+    /// le message à montrer.
+    pub fn fabriquer_automate(&mut self, texte: &str, nom: &str) -> Result<String, String> {
+        let nom = nom.trim();
+        if nom.is_empty() {
+            return Err("Donne un nom à la brique.".to_owned());
+        }
+        if self.projet.modele(nom).is_some() {
+            return Err(format!(
+                "Une brique s'appelle déjà « {nom} » : choisis un autre nom."
+            ));
+        }
+        let automate = crate::automate::Automate::lire(texte)?;
+        let briques = automate.briques(nom)?;
+        for m in briques {
+            // La bascule D et ce qui la compose : celles du projet servent si elles existent.
+            match self.projet.modele(&m.nom) {
+                Some(deja) if deja.plan.interface() != m.plan.interface() => {
+                    return Err(format!(
+                        "Ta brique « {} » n'a pas les mêmes broches que celle dont l'automate a besoin : renomme-la d'abord.",
+                        m.nom
+                    ));
+                }
+                Some(_) => {}
+                None => {
+                    self.projet.ajouter(m);
+                }
+            }
+        }
+        self.version += 1;
+        let portes = self
+            .projet
+            .modele(nom)
+            .map_or(0, |m| self.projet.nb_portes(&m.plan));
+        let n = automate.etats.len();
+        Ok(format!(
+            "Brique « {nom} » fabriquée : {n} état{}, {portes} porte{} NAND. Elle est dans la palette.",
+            if n > 1 { "s" } else { "" },
+            if portes > 1 { "s" } else { "" },
+        ))
+    }
+
     /// Retourne les éléments sélectionnés de gauche à droite (ou les remet à l'endroit).
     /// Renvoie `true` si le plan a changé.
     pub fn retourner_selection(&mut self, a: &Apparence) -> bool {
