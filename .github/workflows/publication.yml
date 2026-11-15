@@ -401,6 +401,8 @@ jobs:
 
       - name: Vérifier la version publiée, téléchargée comme un inconnu
         if: env.PUBLIER == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CE_JETON_VERSIONS }}
         run: |
           nom="$(basename dist/computer-engineer-*.zip)"
           url="https://github.com/$CE_DEPOT_DES_VERSIONS/releases/download/$ETIQUETTE/$nom"
@@ -419,10 +421,13 @@ jobs:
           # Ce que l'application installée demande à GitHub : la dernière version, sans s'identifier.
           # Réessayé comme le téléchargement : la version est déjà en ligne, une panne passagère de
           # l'API ne doit pas arrêter le run avant la pose de l'étiquette.
+          # Les runners partagent leur adresse : l'API anonyme y est souvent à court de quota (403,
+          # 15/11/2026, v0.13.0). On repasse alors par l'API identifiée, qui renvoie la même réponse.
           annoncee=""
           for essai in 1 2 3 4 5; do
             annoncee="$(curl -fsSL "https://api.github.com/repos/$CE_DEPOT_DES_VERSIONS/releases/latest" \
               | python -c 'import json,sys; sys.stdout.write(json.load(sys.stdin.buffer)["tag_name"])')" && [ "$annoncee" = "$ETIQUETTE" ] && break
+            annoncee="$(gh api "repos/$CE_DEPOT_DES_VERSIONS/releases/latest" --jq .tag_name)" && [ "$annoncee" = "$ETIQUETTE" ] && break
             sleep $((essai * 10))
           done
           echo "Dernière version annoncée : $annoncee"
