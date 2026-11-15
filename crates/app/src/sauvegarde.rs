@@ -215,7 +215,12 @@ impl Dossier {
         let (mut projet, lecture) = Projet::de_json_lu(&texte)?;
         if let Lecture::Migre(n) = lecture {
             self.garder_avant_migration(&format!("{fichier}.json"), n, &texte)
-                .map_err(|e| format!("copie de l'original avant migration impossible : {e}"))?;
+                .map_err(|e| {
+                    tr!(
+                        "copie de l'original avant migration impossible : {e}",
+                        e = e
+                    )
+                })?;
         }
         if nom_de_fichier(&projet.nom) != fichier {
             projet.nom = fichier.to_owned();
@@ -358,7 +363,7 @@ impl Dossier {
     pub fn renommer(&self, fichier: &str, nom: &str) -> Result<String, String> {
         let nom = nom.trim();
         if nom.is_empty() {
-            return Err("un projet doit avoir un nom".to_owned());
+            return Err(tr!("un projet doit avoir un nom").to_owned());
         }
         let mut projet = self.ouvrir(fichier)?;
         if projet.nom == nom {
@@ -441,7 +446,10 @@ impl Dossier {
                 if let Lecture::Migre(n) = lecture {
                     self.garder_avant_migration("parcours.json", n, &texte)
                         .map_err(|e| {
-                            format!("copie de l'original avant migration impossible : {e}")
+                            tr!(
+                                "copie de l'original avant migration impossible : {e}",
+                                e = e
+                            )
                         })?;
                 }
                 Ok(Some(parcours))

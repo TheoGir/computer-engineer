@@ -57,18 +57,7 @@ fn civil(z: i64) -> (i64, u32, u32) {
 
 /// Le texte d'un rapport : en-tête commun puis le détail.
 pub fn texte_du_rapport(titre: &str, detail: &str) -> String {
-    format!(
-        "Computer Engineer {version} — {titre}\n\
-         Date (UTC) : {date}\n\
-         Système : {os} {arch}\n\n\
-         {detail}\n\n\
-         Ce rapport ne contient aucun de tes projets. Pour aider à corriger le problème, tu peux \
-         l'envoyer tel quel à qui s'occupe de l'application.\n",
-        version = env!("CARGO_PKG_VERSION"),
-        date = date_utc(SystemTime::now()),
-        os = std::env::consts::OS,
-        arch = std::env::consts::ARCH,
-    )
+    tr!("Computer Engineer {version} — {titre}\nDate (UTC) : {date}\nSystème : {os} {arch}\n\n{detail}\n\nCe rapport ne contient aucun de tes projets. Pour aider à corriger le problème, tu peux l'envoyer tel quel à qui s'occupe de l'application.\n", version = env!("CARGO_PKG_VERSION"), titre = titre, date = date_utc(SystemTime::now()), os = std::env::consts::OS, arch = std::env::consts::ARCH, detail = detail)
 }
 
 /// Écrit un rapport `<genre>-<horodatage>.txt` dans `dossier`, efface les plus anciens au-delà
@@ -154,17 +143,17 @@ pub fn detail_de_panique(info: &std::panic::PanicHookInfo<'_>) -> String {
         .downcast_ref::<&str>()
         .map(|s| (*s).to_owned())
         .or_else(|| info.payload().downcast_ref::<String>().cloned())
-        .unwrap_or_else(|| "(message illisible)".to_owned());
+        .unwrap_or_else(|| tr!("(message illisible)").to_owned());
     let endroit = info.location().map_or_else(
         || "inconnu".to_owned(),
         |l| format!("{}:{}:{}", l.file(), l.line(), l.column()),
     );
     let fil = std::thread::current()
         .name()
-        .unwrap_or("sans nom")
+        .unwrap_or(tr!("sans nom"))
         .to_owned();
     let pile = std::backtrace::Backtrace::force_capture();
-    format!("Message : {message}\nEndroit : {endroit}\nFil d'exécution : {fil}\n\nPile d'appels :\n{pile}")
+    tr!("Message : {message}\nEndroit : {endroit}\nFil d'exécution : {fil}\n\nPile d'appels :\n{pile}", message = message, endroit = endroit, fil = fil, pile = pile)
 }
 
 /// Installe le rapport de plantage : toute panique écrit un rapport dans `dossier`, puis le
@@ -245,7 +234,8 @@ pub fn annoncer_un_echec(texte: &str) {
     {
         use winsafe::co::MB;
         use winsafe::prelude::*;
-        let _ = winsafe::HWND::NULL.MessageBox(texte, "Computer Engineer", MB::ICONERROR | MB::OK);
+        let _ =
+            winsafe::HWND::NULL.MessageBox(texte, tr!("Computer Engineer"), MB::ICONERROR | MB::OK);
     }
     #[cfg(not(windows))]
     let _ = texte;

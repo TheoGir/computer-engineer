@@ -13,7 +13,7 @@ la variable `CE_DOSSIER`).
 |---|---|---|
 | `projets/<nom>.json` | `computer-engineer/projet/<n>` | un projet : plan principal et briques |
 | `parcours.json` | `computer-engineer/parcours/<n>` | quêtes réussies et briques gagnées |
-| `reglages.json` | sans numéro, lu réglage par réglage | thème, texte, animations, vitesse, lancement, mises à jour |
+| `reglages.json` | sans numéro, lu réglage par réglage | thème, texte, animations, vitesse, lancement, mises à jour, langue (`francais` ou `anglais`) |
 | `apparence.json` (facultatif) | sans numéro, lu champ par champ | couleurs et formes, voir [apparence.md](apparence.md) |
 | `rapports/*.txt` | texte | rapports de plantage ou de démarrage impossible |
 | `avant-migration/*.json` | celui d'origine | les originaux des fichiers migrés |

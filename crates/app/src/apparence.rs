@@ -70,8 +70,9 @@ impl<'de> Deserialize<'de> for Couleur {
         let hex = texte.trim().trim_start_matches('#');
         let octet = |i: usize| u8::from_str_radix(hex.get(i..i + 2).unwrap_or(""), 16);
         let erreur = || {
-            serde::de::Error::custom(format!(
-                "couleur invalide : « {texte} » (attendu #rrggbb ou #rrggbbaa)"
+            serde::de::Error::custom(tr!(
+                "couleur invalide : « {texte} » (attendu #rrggbb ou #rrggbbaa)",
+                texte = texte
             ))
         };
         match hex.len() {

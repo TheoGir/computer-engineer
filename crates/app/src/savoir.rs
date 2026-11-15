@@ -35,15 +35,15 @@ impl Branche {
     /// Le nom affiché de la branche.
     pub fn nom(self) -> &'static str {
         match self {
-            Branche::Tronc => "Vers l'ordinateur",
-            Branche::Reseau => "Branche : la carte réseau",
-            Branche::Montre => "Branche : la montre numérique",
-            Branche::Ecran => "Branche : le contrôleur d'écran",
-            Branche::Maths => "Branche : maths et automates",
-            Branche::Codes => "Branche : codes et secrets",
-            Branche::Jeux => "Branche : les jeux",
-            Branche::Grands => "Grands projets",
-            Branche::Depannage => "Branche : le dépannage",
+            Branche::Tronc => tr!("Vers l'ordinateur"),
+            Branche::Reseau => tr!("Branche : la carte réseau"),
+            Branche::Montre => tr!("Branche : la montre numérique"),
+            Branche::Ecran => tr!("Branche : le contrôleur d'écran"),
+            Branche::Maths => tr!("Branche : maths et automates"),
+            Branche::Codes => tr!("Branche : codes et secrets"),
+            Branche::Jeux => tr!("Branche : les jeux"),
+            Branche::Grands => tr!("Grands projets"),
+            Branche::Depannage => tr!("Branche : le dépannage"),
         }
     }
 
@@ -51,31 +51,31 @@ impl Branche {
     pub fn element(self) -> &'static str {
         match self {
             Branche::Tronc => "l'ordinateur",
-            Branche::Reseau => "la carte réseau",
-            Branche::Montre => "la montre numérique",
-            Branche::Ecran => "le contrôleur d'écran",
-            Branche::Maths => "maths et automates",
-            Branche::Codes => "le correcteur d'erreurs",
-            Branche::Jeux => "les jeux",
-            Branche::Grands => "les grands projets",
-            Branche::Depannage => "le dépannage",
+            Branche::Reseau => tr!("la carte réseau"),
+            Branche::Montre => tr!("la montre numérique"),
+            Branche::Ecran => tr!("le contrôleur d'écran"),
+            Branche::Maths => tr!("maths et automates"),
+            Branche::Codes => tr!("le correcteur d'erreurs"),
+            Branche::Jeux => tr!("les jeux"),
+            Branche::Grands => tr!("les grands projets"),
+            Branche::Depannage => tr!("le dépannage"),
         }
     }
 
     /// Une phrase sur ce qu'on y construit.
     pub fn but(self) -> &'static str {
         match self {
-            Branche::Tronc => "De la porte NON au processeur, puis à l'ordinateur complet.",
+            Branche::Tronc => tr!("De la porte NON au processeur, puis à l'ordinateur complet."),
             Branche::Reseau => {
-                "Apprendre à ton ordinateur à envoyer et recevoir des octets sur un seul fil."
+                tr!("Apprendre à ton ordinateur à envoyer et recevoir des octets sur un seul fil.")
             }
-            Branche::Montre => "Des compteurs en cascade jusqu'à une montre qui se règle et un réveil.",
-            Branche::Ecran => "Balayer l'écran, dessiner des chiffres, garder l'image : le cœur d'une carte graphique.",
-            Branche::Maths => "Des nombres premiers, Fibonacci, des automates qui lisent des bits, le jeu de la vie, et l'algorithme d'Euclide en circuit.",
-            Branche::Codes => "Cacher un message, vérifier qu'il est intact, puis réparer tout seul un bit abîmé.",
-            Branche::Jeux => "Un arbitre, un juge de morpion, un dé et un tableau des records : la logique s'amuse.",
-            Branche::Grands => "Plusieurs ordinateurs qui travaillent ensemble, et un ordinateur seize fois plus grand.",
-            Branche::Depannage => "Des circuits déjà construits, mais avec un fil mal branché : trouver la panne et la réparer.",
+            Branche::Montre => tr!("Des compteurs en cascade jusqu'à une montre qui se règle et un réveil."),
+            Branche::Ecran => tr!("Balayer l'écran, dessiner des chiffres, garder l'image : le cœur d'une carte graphique."),
+            Branche::Maths => tr!("Des nombres premiers, Fibonacci, des automates qui lisent des bits, le jeu de la vie, et l'algorithme d'Euclide en circuit."),
+            Branche::Codes => tr!("Cacher un message, vérifier qu'il est intact, puis réparer tout seul un bit abîmé."),
+            Branche::Jeux => tr!("Un arbitre, un juge de morpion, un dé et un tableau des records : la logique s'amuse."),
+            Branche::Grands => tr!("Plusieurs ordinateurs qui travaillent ensemble, et un ordinateur seize fois plus grand."),
+            Branche::Depannage => tr!("Des circuits déjà construits, mais avec un fil mal branché : trouver la panne et la réparer."),
         }
     }
 }
@@ -204,25 +204,39 @@ pub fn quetes_du_chapitre(nom: &str) -> Vec<usize> {
 /// phrase.
 pub fn fin_de_chapitre(nom: &str) -> (String, String) {
     let Some(i) = CHAPITRES.iter().position(|c| c.nom == nom) else {
-        return (format!("Chapitre terminé : {nom}"), String::new());
+        return (
+            tr!(
+                "Chapitre terminé : {nom}",
+                nom = crate::langue::traduire_texte(nom)
+            ),
+            String::new(),
+        );
     };
     let ici = &CHAPITRES[i];
     let suivant = CHAPITRES.get(i + 1);
     let dernier_de_la_branche = suivant.is_none_or(|s| s.branche != ici.branche);
     match (ici.branche, dernier_de_la_branche) {
         (Branche::Tronc, true) => (
-            "Parcours principal terminé !".to_owned(),
-            "Tu as construit un ordinateur entier. Les branches t'attendent dans le parcours."
+            tr!("Parcours principal terminé !").to_owned(),
+            tr!("Tu as construit un ordinateur entier. Les branches t'attendent dans le parcours.")
                 .to_owned(),
         ),
         (b, true) => (
-            format!("Branche terminée : {} !", b.element()),
-            format!("Grand élément construit. {}", b.but()),
+            tr!("Branche terminée : {element} !", element = b.element()),
+            tr!("Grand élément construit. {but}", but = b.but()),
         ),
         (_, false) => (
-            format!("Chapitre terminé : {nom}"),
+            tr!(
+                "Chapitre terminé : {nom}",
+                nom = crate::langue::traduire_texte(nom)
+            ),
             suivant
-                .map(|s| format!("Prochain chapitre : {}", s.nom))
+                .map(|s| {
+                    tr!(
+                        "Prochain chapitre : {nom}",
+                        nom = crate::langue::traduire(s.nom)
+                    )
+                })
                 .unwrap_or_default(),
         ),
     }
@@ -251,12 +265,24 @@ impl Savoir {
     /// Les rubriques de la fiche, dans l'ordre où on les lit : un titre et son texte.
     pub fn rubriques(&self) -> [(&'static str, &'static str); 6] {
         [
-            ("À quoi ça sert", self.sert),
-            ("Comment ça marche", self.marche),
-            ("Sa place dans le tout", self.place),
-            ("Dans la vraie vie", self.vraie_vie),
-            ("Le savais-tu ?", self.anecdote),
-            ("À essayer", self.essaie),
+            (tr!("À quoi ça sert"), crate::langue::traduire(self.sert)),
+            (
+                tr!("Comment ça marche"),
+                crate::langue::traduire(self.marche),
+            ),
+            (
+                tr!("Sa place dans le tout"),
+                crate::langue::traduire(self.place),
+            ),
+            (
+                tr!("Dans la vraie vie"),
+                crate::langue::traduire(self.vraie_vie),
+            ),
+            (
+                tr!("Le savais-tu ?"),
+                crate::langue::traduire(self.anecdote),
+            ),
+            (tr!("À essayer"), crate::langue::traduire(self.essaie)),
         ]
     }
 }

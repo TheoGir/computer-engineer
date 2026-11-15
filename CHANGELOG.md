@@ -1,5 +1,12 @@
 # Journal des modifications
 
+## Prochaine version
+
+- **L'application parle anglais** : toute l'interface, l'aide (F1), le lexique, les 100 quêtes et leurs fiches « Comprendre », les exemples et les commentaires des programmes livrés existent en anglais. Au premier lancement, l'application prend la langue du système (le français si le système est en français, l'anglais sinon) ; elle se change ensuite dans les paramètres, ligne « Langue / Language ». Les pluriels et la virgule décimale suivent la langue. Les noms des briques et des broches (`ET`, `raz`, `clk`…) sont des noms de circuit et restent les mêmes dans les deux langues, pour que les projets s'échangent.
+- L'éditeur d'automates (Ctrl+K) et les bancs d'essai (Ctrl+T) comprennent aussi les mots-clés anglais : `inputs`, `outputs`, `state`, `if`, `and`, `not`, `wait`.
+- Le réglage de la langue s'ajoute à `reglages.json` (champ facultatif `langue`) ; un fichier de réglages d'une version précédente se lit comme avant. Les formats des projets et de l'avancement ne changent pas.
+- Vérifié par deux tests : chaque texte du code et des données a sa traduction, avec les mêmes trous à remplir ; et un parcours de tous les écrans en anglais (accueil, parcours, chaque quête, chaque exemple, l'aide, les fenêtres d'outils) ne trouve plus de français.
+
 ## 0.11.1 — 15 novembre 2026
 
 Correctif : brancher un bus de 2 ou 3 bits sur un découpeur.

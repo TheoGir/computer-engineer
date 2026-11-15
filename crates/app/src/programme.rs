@@ -24,12 +24,25 @@ pub const PROGRAMMES: [(&str, &str); 2] = [
     ("Majuscules", programmes::MAJUSCULES),
 ];
 
+/// Tous les programmes livrés avec l'application (exemples et quêtes), dont les
+/// commentaires se traduisent dans la langue de l'interface.
+pub const LIVRES: [&str; 8] = [
+    programmes::FIBONACCI,
+    programmes::CALCULATRICE,
+    programmes::MAJUSCULES,
+    programmes::ENVOI_MAJUSCULES,
+    programmes::RECEPTION,
+    programmes::CHIFFREMENT,
+    programmes::DECHIFFREMENT,
+    programmes::MIROIR,
+];
+
 /// Les briques d'une mémoire morte programmée avec `texte` : la mémoire morte elle-même (en
 /// dernier) et les briques qu'elle utilise.
 pub fn briques_de_la_memoire(texte: &str) -> Result<(Vec<Modele>, usize), String> {
     let code = ordinateur::assembler(texte).map_err(|e| e.to_string())?;
     if code.is_empty() {
-        return Err("le programme ne contient aucune instruction".to_owned());
+        return Err(tr!("le programme ne contient aucune instruction").to_owned());
     }
     let bib = ordinateur::bibliotheque(&code, Reglages::default()).map_err(|e| e.to_string())?;
     let mut modeles = importer(&bib, MEMOIRE_MORTE)?;
@@ -72,10 +85,10 @@ pub struct Charge {
 pub fn charger(projet: &mut Projet, nom: &str, texte: &str) -> Result<Charge, String> {
     let ancienne = projet
         .modele(nom)
-        .ok_or_else(|| format!("la brique « {nom} » n'existe pas"))?;
+        .ok_or_else(|| tr!("la brique « {nom} » n'existe pas", nom = nom))?;
     let (entrees, sorties) = ancienne.plan.interface();
     let (mut modeles, instructions) = briques_de_la_memoire(texte)?;
-    let mut rom = modeles.pop().ok_or("mémoire morte vide")?;
+    let mut rom = modeles.pop().ok_or(tr!("mémoire morte vide"))?;
     // Les briques utilisées : reprises si le projet a déjà les mêmes, ajoutées sinon.
     let mut renommees: BTreeMap<String, String> = BTreeMap::new();
     for mut m in modeles {
@@ -95,17 +108,16 @@ pub fn charger(projet: &mut Projet, nom: &str, texte: &str) -> Result<Charge, St
     }
     renommer_dans(&mut rom, &renommees);
     if rom.plan.interface() != (entrees, sorties) {
-        return Err(format!(
-            "la brique « {nom} » n'a pas les broches d'une mémoire morte (a sur 8 bits, d sur 16 bits)"
-        ));
+        return Err(tr!("la brique « {nom} » n'a pas les broches d'une mémoire morte (a sur 8 bits, d sur 16 bits)", nom = nom));
     }
     let portes = projet.nb_portes(&rom.plan);
     projet.deposer(Some(nom), rom.plan);
     if let Some(i) = projet.index(nom) {
         projet.modeles[i].programme = Some(texte.to_owned());
-        projet.modeles[i].description = format!(
-            "Mémoire morte : {instructions} instruction{} de 16 bits, en NAND",
-            if instructions > 1 { "s" } else { "" }
+        projet.modeles[i].description = tr!(
+            "Mémoire morte : {instructions} instruction{v} de 16 bits, en NAND",
+            instructions = instructions,
+            v = crate::langue::s(instructions)
         );
     }
     projet.revision += 1;

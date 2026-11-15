@@ -213,16 +213,17 @@ impl Application {
         if incident::rapport_non_lu(&rapports).is_some() {
             incident::marquer_lus(&rapports);
             self.atelier.proposer(
-                "L'application s'est arrêtée brusquement la dernière fois. Ton projet avait été enregistré juste avant ; un rapport décrit ce qui s'est passé.",
+                tr!("L'application s'est arrêtée brusquement la dernière fois. Ton projet avait été enregistré juste avant ; un rapport décrit ce qui s'est passé."),
                 Proposition::VoirLeRapport,
             );
         }
         let (reglages, complets) = dossier.reglages_lus();
         self.reglages = reglages;
+        crate::langue::choisir(self.reglages.langue.unwrap_or_default());
         self.appliquer_reglages();
         if !complets {
             self.atelier.dire_longtemps(
-                "reglages.json est mal écrit : ce qui a pu être lu est appliqué, le reste garde sa valeur par défaut.",
+                tr!("reglages.json est mal écrit : ce qui a pu être lu est appliqué, le reste garde sa valeur par défaut."),
             );
         }
         let dernier = dossier.dernier().or_else(|| {
@@ -239,8 +240,10 @@ impl Application {
                 }
                 Err(e) => {
                     self.reprise = false;
-                    self.atelier.dire_longtemps(&format!(
-                        "Le projet « {fichier} » n'a pas pu être rouvert : {e}"
+                    self.atelier.dire_longtemps(&tr!(
+                        "Le projet « {fichier} » n'a pas pu être rouvert : {e}",
+                        fichier = fichier,
+                        e = e
                     ));
                     // Le plan de démonstration reste en mémoire sans jamais être écrit : ni
                     // sur le projet illisible, ni sur un projet qui porterait son nom.
@@ -259,14 +262,10 @@ impl Application {
             // Illisible : la prochaine quête réussie écrirait un avancement vide par-dessus.
             // Le fichier est donc gardé sous un autre nom, où l'on peut encore le réparer.
             Err(e) => match dossier.garder_le_parcours_illisible() {
-                Ok(garde) => self.atelier.dire_longtemps(&format!(
-                    "Ton avancement n'a pas pu être relu ({e}) : il repart de zéro. L'ancien fichier est gardé sous le nom « {garde} »."
-                )),
+                Ok(garde) => self.atelier.dire_longtemps(&tr!("Ton avancement n'a pas pu être relu ({e}) : il repart de zéro. L'ancien fichier est gardé sous le nom « {garde} ».", e = e, garde = garde)),
                 Err(_) => {
                     self.parcours_fige = true;
-                    self.atelier.dire_longtemps(&format!(
-                        "Ton avancement n'a pas pu être relu ({e}). Il ne sera pas enregistré pendant cette séance, pour ne pas effacer parcours.json."
-                    ));
+                    self.atelier.dire_longtemps(&tr!("Ton avancement n'a pas pu être relu ({e}). Il ne sera pas enregistré pendant cette séance, pour ne pas effacer parcours.json.", e = e));
                 }
             },
         }
@@ -284,7 +283,9 @@ impl Application {
             if !self.reprise {
                 // Rien à reprendre : l'accueil propose la première quête, l'astuce du plan de
                 // démonstration n'a pas lieu d'être. Un message d'erreur, lui, reste.
-                self.atelier.messages.retain(|m| m.texte != ASTUCE_DU_PLAN);
+                self.atelier.messages.retain(|m| {
+                    m.texte != ASTUCE_DU_PLAN && m.texte != crate::langue::traduire(ASTUCE_DU_PLAN)
+                });
             }
             self.relire_les_projets();
             self.accueil.aller(Rubrique::Accueil);
@@ -302,8 +303,10 @@ impl Application {
     fn enregistrer_reglages(&mut self) {
         if let Some(dossier) = &self.dossier {
             if let Err(e) = dossier.enregistrer_reglages(&self.reglages) {
-                self.atelier
-                    .dire(&format!("Tes réglages n'ont pas pu être enregistrés : {e}"));
+                self.atelier.dire(&tr!(
+                    "Tes réglages n'ont pas pu être enregistrés : {e}",
+                    e = e
+                ));
             }
         }
     }
@@ -392,9 +395,10 @@ impl Application {
             }
         };
         if at.projet.nom != voulu {
-            at.dire(&format!(
-                "Un autre projet s'appelle déjà « {voulu} » : celui-ci devient « {} ».",
-                at.projet.nom
+            at.dire(&tr!(
+                "Un autre projet s'appelle déjà « {voulu} » : celui-ci devient « {nom} ».",
+                voulu = voulu,
+                nom = at.projet.nom
             ));
         }
         match resultat {
@@ -406,9 +410,10 @@ impl Application {
             }
             Err(e) => {
                 if !self.echec_dit {
-                    at.dire_longtemps(&format!(
-                        "Le projet n'a pas pu être enregistré dans {} : {e}",
-                        dossier.racine().display()
+                    at.dire_longtemps(&tr!(
+                        "Le projet n'a pas pu être enregistré dans {v} : {e}",
+                        e = e,
+                        v = dossier.racine().display()
                     ));
                 }
                 self.echec_dit = true;
@@ -429,8 +434,10 @@ impl Application {
         if self.parcours_enregistre != self.atelier.parcours.version && !self.parcours_fige {
             self.parcours_enregistre = self.atelier.parcours.version;
             if let Err(e) = dossier.enregistrer_parcours(&self.atelier.parcours) {
-                self.atelier
-                    .dire(&format!("Ton avancement n'a pas pu être enregistré : {e}"));
+                self.atelier.dire(&tr!(
+                    "Ton avancement n'a pas pu être enregistré : {e}",
+                    e = e
+                ));
             }
         }
         let at = &self.atelier;
@@ -459,21 +466,21 @@ impl Application {
         let ouvert = match quoi {
             Ouverture::Nouveau => {
                 let nom = match &self.dossier {
-                    Some(d) => d.nom_libre("Nouveau projet"),
-                    None => "Nouveau projet".to_owned(),
+                    Some(d) => d.nom_libre(tr!("Nouveau projet")),
+                    None => tr!("Nouveau projet").to_owned(),
                 };
                 self.atelier
                     .ouvrir(Projet::nouveau(&nom, Document::nouveau()), a);
                 self.atelier.dire(
-                    "Un projet vide. Glisse des éléments depuis la palette, relie-les, puis regroupe-les en briques.",
+                    tr!("Un projet vide. Glisse des éléments depuis la palette, relie-les, puis regroupe-les en briques."),
                 );
                 true
             }
             Ouverture::Quete(cle) => match Quete::fiche(&cle) {
                 Some(fiche) => {
                     let nom = match &self.dossier {
-                        Some(d) => d.nom_libre(fiche.titre),
-                        None => fiche.titre.to_owned(),
+                        Some(d) => d.nom_libre(crate::langue::traduire(fiche.titre)),
+                        None => crate::langue::traduire(fiche.titre).to_owned(),
                     };
                     self.atelier.ouvrir_quete(fiche, &nom, a)
                 }
@@ -481,9 +488,10 @@ impl Application {
             },
             Ouverture::Exemple(rang) => EXEMPLES.get(rang).is_some_and(|e| {
                 // Une copie neuve, sans écraser celle qu'on a peut-être déjà modifiée.
+                let nom = crate::langue::traduire(e.nom);
                 let nom = match &self.dossier {
-                    Some(d) => d.nom_libre(e.nom),
-                    None => e.nom.to_owned(),
+                    Some(d) => d.nom_libre(nom),
+                    None => nom.to_owned(),
                 };
                 intact = true;
                 self.atelier.ouvrir_exemple(e, &nom, a)
@@ -495,8 +503,11 @@ impl Application {
                     true
                 }
                 Some(Err(e)) => {
-                    self.atelier
-                        .dire(&format!("« {fichier} » n'a pas pu être ouvert : {e}"));
+                    self.atelier.dire(&tr!(
+                        "« {fichier} » n'a pas pu être ouvert : {e}",
+                        fichier = fichier,
+                        e = e
+                    ));
                     false
                 }
                 None => false,
@@ -547,6 +558,14 @@ impl Application {
         let mut app = Application::nouvelle(apparence, surveillance);
         if let Some(dossier) = Dossier::par_defaut() {
             app = app.avec_dossier(dossier);
+        }
+        // Au premier lancement, l'interface prend la langue du système ; elle se change ensuite
+        // dans Paramètres.
+        if app.reglages.langue.is_none() {
+            let langue = crate::langue::Langue::du_systeme();
+            app.reglages.langue = Some(langue);
+            crate::langue::choisir(langue);
+            app.enregistrer_reglages();
         }
         app.polices = true;
         app = app.au_lancement();
@@ -611,7 +630,7 @@ impl Application {
     pub fn recommencer_le_parcours(&mut self) {
         if self.parcours_fige {
             self.atelier.dire(
-                "Ton avancement enregistré n'a pas pu être relu : il n'est pas touché. Mets l'application à jour ou regarde le dossier de tes données.",
+                tr!("Ton avancement enregistré n'a pas pu être relu : il n'est pas touché. Mets l'application à jour ou regarde le dossier de tes données."),
             );
             return;
         }
@@ -620,9 +639,7 @@ impl Application {
             match dossier.garder_le_parcours_avant_recommencement() {
                 Ok(g) => garde = g,
                 Err(e) => {
-                    self.atelier.dire(&format!(
-                        "Le parcours n'a pas été effacé : sa copie de sécurité n'a pas pu être écrite ({e})."
-                    ));
+                    self.atelier.dire(&tr!("Le parcours n'a pas été effacé : sa copie de sécurité n'a pas pu être écrite ({e}).", e = e));
                     return;
                 }
             }
@@ -631,10 +648,11 @@ impl Application {
         self.atelier.parcours = crate::parcours::Parcours::default();
         self.atelier.parcours.version = version;
         self.atelier.dire(&match garde {
-            Some(g) => format!(
-                "Le parcours recommence à zéro. L'ancien avancement est gardé dans « {g} »."
+            Some(g) => tr!(
+                "Le parcours recommence à zéro. L'ancien avancement est gardé dans « {g} ».",
+                g = g
             ),
-            None => "Le parcours recommence à zéro.".to_owned(),
+            None => tr!("Le parcours recommence à zéro.").to_owned(),
         });
     }
 
@@ -642,7 +660,7 @@ impl Application {
     pub fn rechercher_une_mise_a_jour(&mut self) {
         let Some(maj) = &mut self.mise_a_jour else {
             self.atelier
-                .dire("Les mises à jour automatiques sont désactivées ici.");
+                .dire(tr!("Les mises à jour automatiques sont désactivées ici."));
             return;
         };
         match maj.etat.clone() {
@@ -652,10 +670,10 @@ impl Application {
                 .proposer(&texte_installee(&v), Proposition::Redemarrer),
             Etat::Installation => self
                 .atelier
-                .dire("La nouvelle version est déjà en train de s'installer…"),
+                .dire(tr!("La nouvelle version est déjà en train de s'installer…")),
             _ => {
                 maj.rechercher(true);
-                self.atelier.dire("Recherche d'une nouvelle version…");
+                self.atelier.dire(tr!("Recherche d'une nouvelle version…"));
             }
         }
     }
@@ -670,31 +688,30 @@ impl Application {
                 maj.installer();
                 match maj.etat.clone() {
                     Etat::Installation => self.atelier.dire(
-                        "Téléchargement de la nouvelle version, puis vérification de sa signature…",
+                        tr!("Téléchargement de la nouvelle version, puis vérification de sa signature…"),
                     ),
                     Etat::Installee(v) => self
                         .atelier
                         .proposer(&texte_installee(&v), Proposition::Redemarrer),
                     _ => self.atelier.dire(
-                        "Une recherche de version est en cours : la mise à jour sera proposée à nouveau dans un instant.",
+                        tr!("Une recherche de version est en cours : la mise à jour sera proposée à nouveau dans un instant."),
                     ),
                 }
             }
             Proposition::Redemarrer => {
                 self.enregistrer();
                 let erreur = mise_a_jour::redemarrer();
-                self.atelier.dire_longtemps(&format!(
-                    "Le redémarrage n'a pas pu se faire ({erreur}). Ferme et relance l'application : la nouvelle version est en place."
-                ));
+                self.atelier.dire_longtemps(&tr!("Le redémarrage n'a pas pu se faire ({erreur}). Ferme et relance l'application : la nouvelle version est en place.", erreur = erreur));
             }
             Proposition::Restaurer => self.restaurer(),
             Proposition::VoirLeRapport => {
                 if let Some(dossier) = &self.dossier {
                     let rapports = incident::dossier_des_rapports(dossier.racine());
                     if let Err(e) = incident::ouvrir_dans_l_explorateur(&rapports) {
-                        self.atelier.dire_longtemps(&format!(
-                            "Le dossier n'a pas pu être ouvert ({e}) : il se trouve dans {}",
-                            rapports.display()
+                        self.atelier.dire_longtemps(&tr!(
+                            "Le dossier n'a pas pu être ouvert ({e}) : il se trouve dans {display}",
+                            e = e,
+                            display = rapports.display()
                         ));
                     }
                 }
@@ -715,12 +732,16 @@ impl Application {
                     self.reprise = true;
                     let _ = dossier.noter_dernier(&retrouve);
                 }
-                self.atelier
-                    .dire(&format!("« {retrouve} » est de retour dans tes projets."));
+                self.atelier.dire(&tr!(
+                    "« {retrouve} » est de retour dans tes projets.",
+                    retrouve = retrouve
+                ));
             }
-            Err(e) => self
-                .atelier
-                .dire_longtemps(&format!("« {fichier} » n'a pas pu être ramené : {e}")),
+            Err(e) => self.atelier.dire_longtemps(&tr!(
+                "« {fichier} » n'a pas pu être ramené : {e}",
+                fichier = fichier,
+                e = e
+            )),
         }
         self.relire_les_projets();
         self.lister_les_projets();
@@ -729,18 +750,18 @@ impl Application {
     /// L'état des mises à jour, en quelques mots, pour l'accueil.
     fn etat_de_la_mise_a_jour(&self) -> String {
         let Some(maj) = &self.mise_a_jour else {
-            return "mises à jour désactivées ici".to_owned();
+            return tr!("mises à jour désactivées ici").to_owned();
         };
         // Court : la phrase suit « Version 0.1.0 · » au bas du menu de l'accueil.
         match &maj.etat {
             Etat::Repos if self.reglages.mises_a_jour_automatiques => {
-                "mises à jour automatiques".to_owned()
+                tr!("mises à jour automatiques").to_owned()
             }
-            Etat::Repos => "mises à jour manuelles".to_owned(),
-            Etat::Recherche { .. } => "recherche en cours…".to_owned(),
+            Etat::Repos => tr!("mises à jour manuelles").to_owned(),
+            Etat::Recherche { .. } => tr!("recherche en cours…").to_owned(),
             Etat::Disponible(n) => format!("{} disponible", n.version),
-            Etat::Installation => "installation en cours…".to_owned(),
-            Etat::Installee(v) => format!("{v} prête au redémarrage"),
+            Etat::Installation => tr!("installation en cours…").to_owned(),
+            Etat::Installee(v) => tr!("{v} prête au redémarrage", v = v),
         }
     }
 
@@ -758,14 +779,17 @@ impl Application {
                 } else if let Some(dossier) = &self.dossier {
                     match dossier.renommer(&fichier, &nom) {
                         Ok(nouveau) if nouveau != fichier && nouveau != nom_de_fichier(&nom) => {
-                            self.atelier.dire(&format!(
-                                "Ce nom était pris : le projet s'appelle « {nouveau} »."
+                            self.atelier.dire(&tr!(
+                                "Ce nom était pris : le projet s'appelle « {nouveau} ».",
+                                nouveau = nouveau
                             ))
                         }
                         Ok(_) => {}
-                        Err(e) => self
-                            .atelier
-                            .dire(&format!("« {fichier} » n'a pas pu être renommé : {e}")),
+                        Err(e) => self.atelier.dire(&tr!(
+                            "« {fichier} » n'a pas pu être renommé : {e}",
+                            fichier = fichier,
+                            e = e
+                        )),
                     }
                 }
                 self.relire_les_projets();
@@ -779,10 +803,12 @@ impl Application {
                     match dossier.dupliquer(&fichier) {
                         Ok(copie) => self
                             .atelier
-                            .dire(&format!("Copie enregistrée : « {copie} »")),
-                        Err(e) => self
-                            .atelier
-                            .dire(&format!("« {fichier} » n'a pas pu être dupliqué : {e}")),
+                            .dire(&tr!("Copie enregistrée : « {copie} »", copie = copie)),
+                        Err(e) => self.atelier.dire(&tr!(
+                            "« {fichier} » n'a pas pu être dupliqué : {e}",
+                            fichier = fichier,
+                            e = e
+                        )),
                     }
                 }
                 self.relire_les_projets();
@@ -807,12 +833,14 @@ impl Application {
                                 courant: etait_courant,
                             });
                             self.atelier.proposer(
-                                &format!("« {fichier} » est dans la corbeille."),
+                                &tr!("« {fichier} » est dans la corbeille.", fichier = fichier),
                                 Proposition::Restaurer,
                             );
                         }
-                        Err(e) => self.atelier.dire(&format!(
-                            "« {fichier} » n'a pas pu être mis à la corbeille : {e}"
+                        Err(e) => self.atelier.dire(&tr!(
+                            "« {fichier} » n'a pas pu être mis à la corbeille : {e}",
+                            fichier = fichier,
+                            e = e
                         )),
                     }
                 }
@@ -822,6 +850,7 @@ impl Application {
             Demande::Reglages(reglages) => {
                 let vitesse = reglages.vitesse != self.reglages.vitesse;
                 self.reglages = reglages;
+                crate::langue::choisir(self.reglages.langue.unwrap_or_default());
                 self.appliquer_reglages();
                 // Le projet ouvert suit, sauf s'il tourne en vitesse rapide (un ordinateur) :
                 // on ne le ralentit pas dans son dos.
@@ -835,9 +864,10 @@ impl Application {
             Demande::OuvrirDossier => {
                 if let Some(dossier) = &self.dossier {
                     if let Err(e) = montrer_le_dossier(dossier.racine()) {
-                        self.atelier.dire(&format!(
-                            "Le dossier {} n'a pas pu être ouvert : {e}",
-                            dossier.racine().display()
+                        self.atelier.dire(&tr!(
+                            "Le dossier {v} n'a pas pu être ouvert : {e}",
+                            e = e,
+                            v = dossier.racine().display()
                         ));
                     }
                 }
@@ -862,16 +892,18 @@ impl Application {
             raccourcis.retirer(lieu)
         };
         match fait {
-            Ok(()) if poser => self
-                .atelier
-                .dire(&format!("Raccourci ajouté {}.", lieu.dans_une_phrase())),
+            Ok(()) if poser => self.atelier.dire(&tr!(
+                "Raccourci ajouté {dans_une_phrase}.",
+                dans_une_phrase = lieu.dans_une_phrase()
+            )),
             Ok(()) => self
                 .atelier
-                .dire(&format!("Raccourci retiré {}.", lieu.d_ou())),
-            Err(e) => self.atelier.dire_longtemps(&format!(
-                "Le raccourci {} n'a pas pu être {} : {e}",
-                lieu.dans_une_phrase(),
-                if poser { "posé" } else { "retiré" }
+                .dire(&tr!("Raccourci retiré {d_ou}.", d_ou = lieu.d_ou())),
+            Err(e) => self.atelier.dire_longtemps(&tr!(
+                "Le raccourci {dans_une_phrase} n'a pas pu être {v} : {e}",
+                e = e,
+                dans_une_phrase = lieu.dans_une_phrase(),
+                v = if poser { tr!("posé") } else { tr!("retiré") }
             )),
         }
         self.relire_les_raccourcis(true);
@@ -940,8 +972,8 @@ impl Application {
     /// Met le titre de la fenêtre à jour : le nom du projet ouvert.
     fn titrer(&mut self, ctx: &egui::Context) {
         let titre = match self.ecran {
-            Ecran::Accueil => "Computer Engineer".to_owned(),
-            Ecran::Atelier => format!("{} · Computer Engineer", self.atelier.projet.nom),
+            Ecran::Accueil => tr!("Computer Engineer").to_owned(),
+            Ecran::Atelier => tr!("{nom} · Computer Engineer", nom = self.atelier.projet.nom),
         };
         if titre != self.titre {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(titre.clone()));
@@ -966,14 +998,15 @@ impl Application {
             } => {
                 let resume = resume_des_notes(&n.notes);
                 let texte = if resume.is_empty() {
-                    format!(
-                        "La version {} de Computer Engineer est disponible.",
-                        n.version
+                    tr!(
+                        "La version {version} de Computer Engineer est disponible.",
+                        version = n.version
                     )
                 } else {
-                    format!(
-                        "La version {} de Computer Engineer est disponible : {resume}",
-                        n.version
+                    tr!(
+                        "La version {version} de Computer Engineer est disponible : {resume}",
+                        resume = resume,
+                        version = n.version
                     )
                 };
                 at.proposer(&texte, Proposition::MettreAJour);
@@ -981,12 +1014,16 @@ impl Application {
             Nouvelle::Recherche {
                 demandee: true,
                 resultat: Ok(None),
-            } => at.dire(&format!("Tu as la dernière version ({actuelle}).")),
+            } => at.dire(&tr!(
+                "Tu as la dernière version ({actuelle}).",
+                actuelle = actuelle
+            )),
             Nouvelle::Recherche {
                 demandee: true,
                 resultat: Err(e),
-            } => at.dire_longtemps(&format!(
-                "Impossible de chercher une nouvelle version : {e}."
+            } => at.dire_longtemps(&tr!(
+                "Impossible de chercher une nouvelle version : {e}.",
+                e = e
             )),
             // Recherche automatique sans réseau : rien à dire.
             Nouvelle::Recherche { .. } => {}
@@ -994,10 +1031,13 @@ impl Application {
                 at.proposer(&texte_installee(&v), Proposition::Redemarrer)
             }
             Nouvelle::Installation(Ok(None)) => {
-                at.dire(&format!("Tu as déjà la dernière version ({actuelle})."));
+                at.dire(&tr!(
+                    "Tu as déjà la dernière version ({actuelle}).",
+                    actuelle = actuelle
+                ));
             }
             Nouvelle::Installation(Err(e)) => {
-                at.dire_longtemps(&format!("La mise à jour n'a pas pu s'installer : {e}."))
+                at.dire_longtemps(&tr!("La mise à jour n'a pas pu s'installer : {e}.", e = e))
             }
         }
     }
@@ -1025,12 +1065,12 @@ impl Application {
             self.apparence_fichier = nouvelle;
             self.appliquer_reglages();
             self.mode_applique = None;
-            self.atelier.dire("Apparence rechargée.");
+            self.atelier.dire(tr!("Apparence rechargée."));
         }
         if self.surveillance.erreur != self.erreur_montree {
             self.erreur_montree = self.surveillance.erreur.clone();
             if let Some(e) = &self.erreur_montree {
-                self.atelier.dire(&format!("Apparence non relue : {e}"));
+                self.atelier.dire(&tr!("Apparence non relue : {e}", e = e));
             }
         }
         if self.mode_applique != Some(self.apparence.mode) {
@@ -1093,13 +1133,14 @@ impl Application {
             Ok(t) => t,
             Err(e) => {
                 self.atelier
-                    .dire_longtemps(&format!("Ce plan ne peut pas être exporté : {e}."));
+                    .dire_longtemps(&tr!("Ce plan ne peut pas être exporté : {e}.", e = e));
                 return;
             }
         };
         let Some(dossier) = &self.dossier else {
-            self.atelier
-                .dire_longtemps("Le dossier des données est introuvable : rien n'a été exporté.");
+            self.atelier.dire_longtemps(tr!(
+                "Le dossier des données est introuvable : rien n'a été exporté."
+            ));
             return;
         };
         let dossier = dossier.racine().join("exports");
@@ -1108,15 +1149,15 @@ impl Application {
             .and_then(|()| std::fs::write(&fichier, texte))
             .and_then(|()| montrer_le_dossier(&dossier));
         match ecrit {
-            Ok(()) => self.atelier.dire_longtemps(&format!(
-                "Exporté en Verilog : {}, dans le dossier « exports » de tes données.",
-                fichier
+            Ok(()) => self.atelier.dire_longtemps(&tr!(
+                "Exporté en Verilog : {v}, dans le dossier « exports » de tes données.",
+                v = fichier
                     .file_name()
                     .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
             )),
             Err(e) => self
                 .atelier
-                .dire_longtemps(&format!("L'export en Verilog a échoué : {e}")),
+                .dire_longtemps(&tr!("L'export en Verilog a échoué : {e}", e = e)),
         }
     }
 
@@ -1124,8 +1165,9 @@ impl Application {
     /// la fenêtre, sans sélection.
     fn commencer_la_photo(&mut self, ctx: &egui::Context) {
         if self.dossier.is_none() {
-            self.atelier
-                .dire_longtemps("Le dossier des données est introuvable : rien n'a été exporté.");
+            self.atelier.dire_longtemps(tr!(
+                "Le dossier des données est introuvable : rien n'a été exporté."
+            ));
             return;
         }
         let selection = self.atelier.selection.take();
@@ -1149,7 +1191,7 @@ impl Application {
                 return;
             }
             Suite::Renoncer => {
-                "La capture du plan n'est pas arrivée : rien n'a été exporté.".to_owned()
+                tr!("La capture du plan n'est pas arrivée : rien n'a été exporté.").to_owned()
             }
             Suite::Terminer(image, zone) => self.ecrire_la_photo(&image, ecran, zone),
         };
@@ -1169,10 +1211,11 @@ impl Application {
         zone: egui::Rect,
     ) -> String {
         let Some(png) = crate::photo::decouper(image, ecran, zone) else {
-            return "Le circuit est hors de l'écran : rien n'a été exporté.".to_owned();
+            return tr!("Le circuit est hors de l'écran : rien n'a été exporté.").to_owned();
         };
         let Some(dossier) = &self.dossier else {
-            return "Le dossier des données est introuvable : rien n'a été exporté.".to_owned();
+            return tr!("Le dossier des données est introuvable : rien n'a été exporté.")
+                .to_owned();
         };
         let at = &self.atelier;
         let nom = at
@@ -1187,14 +1230,14 @@ impl Application {
             Ok(()) => {
                 // L'image est écrite : ne pas pouvoir montrer le dossier n'est pas un échec.
                 let _ = montrer_le_dossier(&dossier);
-                format!(
-                    "Plan exporté en image : {}, dans le dossier « exports » de tes données.",
-                    fichier
+                tr!(
+                    "Plan exporté en image : {v}, dans le dossier « exports » de tes données.",
+                    v = fichier
                         .file_name()
                         .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
                 )
             }
-            Err(e) => format!("L'export en image a échoué : {e}"),
+            Err(e) => tr!("L'export en image a échoué : {e}", e = e),
         }
     }
 
@@ -1633,9 +1676,7 @@ fn montrer_le_dossier(chemin: &Path) -> std::io::Result<()> {
 
 /// Le message qui propose de redémarrer sur la version installée.
 fn texte_installee(version: &str) -> String {
-    format!(
-        "La version {version} est installée et vérifiée. Elle démarre au prochain lancement, ou tout de suite."
-    )
+    tr!("La version {version} est installée et vérifiée. Elle démarre au prochain lancement, ou tout de suite.", version = version)
 }
 
 /// La première ligne utile des nouveautés d'une version, assez courte pour un message.

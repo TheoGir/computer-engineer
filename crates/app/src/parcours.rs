@@ -146,7 +146,7 @@ impl Parcours {
     pub fn de_json_lu(texte: &str) -> Result<(Parcours, Lecture), String> {
         let (valeur, lecture) = format::PARCOURS.lire(texte)?;
         let mut p: Parcours =
-            serde_json::from_value(valeur).map_err(|e| format!("fichier illisible : {e}"))?;
+            serde_json::from_value(valeur).map_err(|e| tr!("fichier illisible : {e}", e = e))?;
         for m in &mut p.briques {
             m.plan.reparer();
         }

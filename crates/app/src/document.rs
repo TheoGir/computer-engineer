@@ -618,13 +618,13 @@ impl Document {
         let s = d.ajouter(
             Genre::Sortie,
             "s",
-            "s · somme",
+            tr!("s · somme"),
             Point::nouveau(836.0, 240.0),
         );
         let c = d.ajouter(
             Genre::Sortie,
             "c",
-            "c · retenue",
+            tr!("c · retenue"),
             Point::nouveau(836.0, 460.0),
         );
         for (puits, entree, source) in [

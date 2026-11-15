@@ -11,6 +11,9 @@
 //!   -> attente
 //! ```
 //!
+//! Les mots-clés s'écrivent aussi en anglais : `inputs`, `outputs`, `state`, `if`, `and`,
+//! `not`.
+//!
 //! - Le premier état est celui du départ : la brique y revient quand `raz` vaut 1.
 //! - Chaque état dit quelles sorties valent 1 pendant qu'on y est (les autres valent 0).
 //! - Au front montant de `clk`, la première transition dont la condition est vraie est
@@ -99,21 +102,31 @@ impl Automate {
             }
             let (tete, reste) = ligne.split_once(':').unwrap_or((ligne, ""));
             let tete_pliee = plier(tete.trim());
-            if tete_pliee == "entrees" {
+            // Les mots-clés s'écrivent en français ou en anglais.
+            if tete_pliee == "entrees" || tete_pliee == "inputs" {
                 entrees.extend(liste(reste));
-            } else if tete_pliee == "sorties" {
+            } else if tete_pliee == "sorties" || tete_pliee == "outputs" {
                 sorties.extend(liste(reste));
-            } else if let Some(nom) = tete_pliee.strip_prefix("etat ") {
+            } else if let Some(nom) = tete_pliee
+                .strip_prefix("etat ")
+                .or_else(|| tete_pliee.strip_prefix("state "))
+            {
                 let nom = tete.trim()[tete.trim().len() - nom.len()..]
                     .trim()
                     .to_owned();
                 if !nom_valable(&nom) {
-                    return Err(format!(
-                        "ligne {numero} : « {nom} » n'est pas un nom d'état (lettres, chiffres, _)"
+                    return Err(tr!(
+                        "ligne {numero} : « {nom} » n'est pas un nom d'état (lettres, chiffres, _)",
+                        numero = numero,
+                        nom = nom
                     ));
                 }
                 if etats.iter().any(|(n, _)| *n == nom) {
-                    return Err(format!("ligne {numero} : l'état « {nom} » existe déjà"));
+                    return Err(tr!(
+                        "ligne {numero} : l'état « {nom} » existe déjà",
+                        numero = numero,
+                        nom = nom
+                    ));
                 }
                 // Les sorties à 1 : « vert », ou « vert = 1 » ; « = 0 » est accepté.
                 let mut a_un = Vec::new();
@@ -130,8 +143,10 @@ impl Automate {
                         "1" => a_un.push(s.to_owned()),
                         "0" => {}
                         _ => {
-                            return Err(format!(
-                                "ligne {numero} : « {morceau} » : une sortie vaut 0 ou 1"
+                            return Err(tr!(
+                                "ligne {numero} : « {morceau} » : une sortie vaut 0 ou 1",
+                                numero = numero,
+                                morceau = morceau
                             ))
                         }
                     }
@@ -139,36 +154,37 @@ impl Automate {
                 etats.push((nom, a_un));
             } else if ligne.contains("->") || ligne.contains('→') {
                 let Some(rang) = etats.len().checked_sub(1) else {
-                    return Err(format!(
-                        "ligne {numero} : une transition vient après son état (« état nom : … »)"
+                    return Err(tr!(
+                        "ligne {numero} : une transition vient après son état (« état nom : … »)",
+                        numero = numero
                     ));
                 };
                 brutes.push((numero, rang, ligne.to_owned()));
             } else {
-                return Err(format!(
-                    "ligne {numero} : je ne comprends pas « {ligne} ». Une ligne commence par « entrées : », « sorties : », « état nom : », ou c'est une transition « si condition -> état »."
-                ));
+                return Err(tr!("ligne {numero} : je ne comprends pas « {ligne} ». Une ligne commence par « entrées : », « sorties : », « état nom : », ou c'est une transition « si condition -> état ».", numero = numero, ligne = ligne));
             }
         }
         if etats.is_empty() {
-            return Err("Écris au moins un état : « état nom : sorties à 1 ».".to_owned());
+            return Err(tr!("Écris au moins un état : « état nom : sorties à 1 ».").to_owned());
         }
         for nom in entrees.iter().chain(&sorties) {
             if !nom_valable(nom) {
-                return Err(format!(
-                    "« {nom} » n'est pas un nom de broche (lettres, chiffres, _)"
+                return Err(tr!(
+                    "« {nom} » n'est pas un nom de broche (lettres, chiffres, _)",
+                    nom = nom
                 ));
             }
             if ["raz", "clk", "etat"].contains(&nom.as_str()) {
-                return Err(format!(
-                    "« {nom} » est réservé : la brique a déjà raz, clk et etat"
+                return Err(tr!(
+                    "« {nom} » est réservé : la brique a déjà raz, clk et etat",
+                    nom = nom
                 ));
             }
         }
         let tous: Vec<&String> = entrees.iter().chain(&sorties).collect();
         for (k, nom) in tous.iter().enumerate() {
             if tous[..k].contains(nom) {
-                return Err(format!("« {nom} » est nommé deux fois"));
+                return Err(tr!("« {nom} » est nommé deux fois", nom = nom));
             }
         }
         let mut automate = Automate {
@@ -179,8 +195,10 @@ impl Automate {
         for (nom, a_un) in &etats {
             for s in a_un {
                 if !sorties.contains(s) {
-                    return Err(format!(
-                        "l'état « {nom} » allume « {s} », qui n'est pas dans « sorties : »"
+                    return Err(tr!(
+                        "l'état « {nom} » allume « {s} », qui n'est pas dans « sorties : »",
+                        nom = nom,
+                        s = s
                     ));
                 }
             }
@@ -196,11 +214,7 @@ impl Automate {
         }
         let bits = automate.bits_d_etat() + automate.entrees.len() as u32;
         if bits > MAX_BITS {
-            return Err(format!(
-                "{} états et {} entrées font {bits} bits : au plus {MAX_BITS}. Découpe l'automate en plusieurs briques.",
-                automate.etats.len(),
-                automate.entrees.len()
-            ));
+            return Err(tr!("{len} états et {len2} entrées font {bits} bits : au plus {MAX_BITS}. Découpe l'automate en plusieurs briques.", bits = bits, len = automate.etats.len(), len2 = automate.entrees.len(), MAX_BITS = MAX_BITS));
         }
         Ok(automate)
     }
@@ -216,15 +230,22 @@ impl Automate {
             .etats
             .iter()
             .position(|e| e.nom == cible)
-            .ok_or_else(|| format!("ligne {numero} : l'état « {cible} » n'existe pas"))?;
+            .ok_or_else(|| {
+                tr!(
+                    "ligne {numero} : l'état « {cible} » n'existe pas",
+                    numero = numero,
+                    cible = cible
+                )
+            })?;
         let gauche = gauche.trim();
         let condition_texte = match plier(gauche).as_str() {
-            "" => "",
-            "si" => "",
-            g if g.starts_with("si ") => gauche[2..].trim(),
+            "" | "si" | "if" => "",
+            g if g.starts_with("si ") || g.starts_with("if ") => gauche[2..].trim(),
             _ => {
-                return Err(format!(
-                "ligne {numero} : une condition commence par « si » (« si a et non b -> {cible} »)"
+                return Err(tr!(
+                "ligne {numero} : une condition commence par « si » (« si a et non b -> {cible} »)",
+                numero = numero,
+                cible = cible
             ))
             }
         };
@@ -232,6 +253,7 @@ impl Automate {
         for terme in condition_texte
             .split(',')
             .flat_map(|m| m.split(" et "))
+            .flat_map(|m| m.split(" and "))
             .map(str::trim)
             .filter(|t| !t.is_empty())
         {
@@ -240,13 +262,18 @@ impl Automate {
                     "1" => true,
                     "0" => false,
                     autre => {
-                        return Err(format!(
-                            "ligne {numero} : « {autre} » : une entrée vaut 0 ou 1"
+                        return Err(tr!(
+                            "ligne {numero} : « {autre} » : une entrée vaut 0 ou 1",
+                            numero = numero,
+                            autre = autre
                         ))
                     }
                 };
                 (n.trim(), v)
-            } else if let Some(n) = terme.strip_prefix("non ") {
+            } else if let Some(n) = terme
+                .strip_prefix("non ")
+                .or_else(|| terme.strip_prefix("not "))
+            {
                 (n.trim(), false)
             } else if let Some(n) = terme.strip_prefix('!') {
                 (n.trim(), false)
@@ -254,7 +281,11 @@ impl Automate {
                 (terme, true)
             };
             let k = self.entrees.iter().position(|e| e == nom).ok_or_else(|| {
-                format!("ligne {numero} : « {nom} » n'est pas dans « entrées : »")
+                tr!(
+                    "ligne {numero} : « {nom} » n'est pas dans « entrées : »",
+                    numero = numero,
+                    nom = nom
+                )
             })?;
             condition.push((k, valeur));
         }
@@ -317,11 +348,12 @@ impl Automate {
     pub fn composant(&self) -> Composant {
         let k = self.bits_d_etat();
         let mut c = Fabrique::default();
-        let description = format!(
-            "automate de {} état{} : {}",
-            self.etats.len(),
-            if self.etats.len() > 1 { "s" } else { "" },
-            self.etats
+        let description = tr!(
+            "automate de {len} état{v} : {v2}",
+            len = self.etats.len(),
+            v = crate::langue::s(self.etats.len()),
+            v2 = self
+                .etats
                 .iter()
                 .map(|e| e.nom.as_str())
                 .collect::<Vec<_>>()
@@ -487,6 +519,22 @@ mod tests {
         assert_eq!(a.suivant(2, 1), 2);
         assert_eq!(a.suivant(2, 0), 0);
         assert_eq!(a.suivant(3, 1), 0, "un numéro sans état ramène au départ");
+        // L'exemple traduit, écrit avec les mots-clés anglais, décrit le même automate.
+        let en = Automate::lire(crate::langue::traduire_en(
+            crate::langue::Langue::Anglais,
+            EXEMPLE,
+        ))
+        .unwrap();
+        assert_ne!(
+            crate::langue::traduire_en(crate::langue::Langue::Anglais, EXEMPLE),
+            EXEMPLE
+        );
+        for etat in 0..3 {
+            for e in 0..2 {
+                assert_eq!(en.suivant(etat, e), a.suivant(etat, e));
+            }
+            assert_eq!(en.etats[etat].sorties, a.etats[etat].sorties);
+        }
     }
 
     #[test]

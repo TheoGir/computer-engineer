@@ -260,7 +260,7 @@ impl Projet {
     /// Un nom de modèle libre : `base`, sinon `base 2`, `base 3`…
     pub fn nom_libre(&self, base: &str) -> String {
         let base = base.trim();
-        let base = if base.is_empty() { "Brique" } else { base };
+        let base = if base.is_empty() { tr!("Brique") } else { base };
         if self.modele(base).is_none() {
             return base.to_owned();
         }
@@ -287,16 +287,19 @@ impl Projet {
     pub fn renommer(&mut self, ancien: &str, nouveau: &str) -> Result<(), String> {
         let nouveau = nouveau.trim();
         if nouveau.is_empty() {
-            return Err("Une brique a besoin d'un nom.".to_owned());
+            return Err(tr!("Une brique a besoin d'un nom.").to_owned());
         }
         if nouveau == ancien {
             return Ok(());
         }
         if self.modele(nouveau).is_some() {
-            return Err(format!("Une brique s'appelle déjà « {nouveau} »."));
+            return Err(tr!(
+                "Une brique s'appelle déjà « {nouveau} ».",
+                nouveau = nouveau
+            ));
         }
         let Some(i) = self.index(ancien) else {
-            return Err(format!("La brique « {ancien} » n'existe pas."));
+            return Err(tr!("La brique « {ancien} » n'existe pas.", ancien = ancien));
         };
         self.modeles[i].nom = nouveau.to_owned();
         for plan in self.plans_mut() {
@@ -318,12 +321,14 @@ impl Projet {
     pub fn retirer(&mut self, nom: &str) -> Result<(), String> {
         let n = self.nb_utilisations(nom);
         if n > 0 {
-            return Err(format!(
-                "« {nom} » est encore posée {n} fois : retire d'abord ces briques."
+            return Err(tr!(
+                "« {nom} » est encore posée {n} fois : retire d'abord ces briques.",
+                nom = nom,
+                n = n
             ));
         }
         let Some(i) = self.index(nom) else {
-            return Err(format!("La brique « {nom} » n'existe pas."));
+            return Err(tr!("La brique « {nom} » n'existe pas.", nom = nom));
         };
         self.modeles.remove(i);
         self.bancs.remove(nom);
@@ -362,7 +367,7 @@ impl Projet {
     pub fn de_json_lu(texte: &str) -> Result<(Projet, Lecture), String> {
         let (valeur, lecture) = format::PROJET.lire(texte)?;
         let mut p: Projet =
-            serde_json::from_value(valeur).map_err(|e| format!("fichier illisible : {e}"))?;
+            serde_json::from_value(valeur).map_err(|e| tr!("fichier illisible : {e}", e = e))?;
         for plan in p.plans_mut() {
             plan.reparer();
         }

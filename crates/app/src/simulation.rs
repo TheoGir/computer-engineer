@@ -313,7 +313,7 @@ impl Cablage {
                     .map(|s| (s, vec![None; doc.largeur_source(s).unwrap_or(1) as usize]))
                     .collect(),
                 BTreeMap::new(),
-                erreur.or_else(|| Some("le circuit n'a pas pu être simulé".to_owned())),
+                erreur.or_else(|| Some(tr!("le circuit n'a pas pu être simulé").to_owned())),
             ),
         };
         let (prises, nets): (Vec<Source>, Vec<Vec<Option<NetId>>>) = prises.into_iter().unzip();

@@ -108,11 +108,11 @@ impl Ecart {
         let n = self.cible.nand();
         match self.cible {
             Cible::Connue(m) => match m.statut {
-                Statut::Prouve => format!("Minimum prouvé : {n} {}", portes(n)),
-                Statut::Encadre { .. } => format!("Meilleure connue : {n} {}", portes(n)),
-                Statut::Reference => format!("Référence : {n} {}", portes(n)),
+                Statut::Prouve => tr!("Minimum prouvé : {n} {v}", n = n, v = portes(n)),
+                Statut::Encadre { .. } => tr!("Meilleure connue : {n} {v}", n = n, v = portes(n)),
+                Statut::Reference => tr!("Référence : {n} {v}", n = n, v = portes(n)),
             },
-            Cible::AuMoins(_) => format!("Au moins {n} {}", portes(n)),
+            Cible::AuMoins(_) => tr!("Au moins {n} {v}", n = n, v = portes(n)),
         }
     }
 
@@ -124,48 +124,31 @@ impl Ecart {
         match self.cible {
             Cible::Connue(m) => match m.statut {
                 Statut::Prouve if d == 0 => {
-                    "Construction minimale : il est prouvé qu'on ne peut pas faire avec moins de portes.".to_owned()
+                    tr!("Construction minimale : il est prouvé qu'on ne peut pas faire avec moins de portes.").to_owned()
                 }
-                Statut::Prouve => format!(
-                    "Il est prouvé qu'on peut le faire en {n} {} : tu peux encore en économiser {d}.",
-                    portes(n)
-                ),
-                Statut::Encadre { borne_basse } if mieux > 0 => format!(
-                    "Mieux que la meilleure construction connue ({n} {}) ! On sait seulement qu'il en faut au moins {borne_basse}.",
-                    portes(n)
-                ),
-                Statut::Encadre { borne_basse } if d == 0 => format!(
-                    "Aussi économe que la meilleure construction connue. Le vrai minimum est entre {borne_basse} et {n} portes : personne ne le connaît encore."
-                ),
-                Statut::Encadre { borne_basse } => format!(
-                    "La meilleure construction connue en utilise {n} (il en faut au moins {borne_basse}) : tu en as {d} de plus."
-                ),
-                Statut::Reference if mieux > 0 => format!(
-                    "Tu fais mieux que la construction de référence ({n} {}) : bravo !",
-                    portes(n)
-                ),
+                Statut::Prouve => tr!("Il est prouvé qu'on peut le faire en {n} {v} : tu peux encore en économiser {d}.", n = n, d = d, v = portes(n)),
+                Statut::Encadre { borne_basse } if mieux > 0 => tr!("Mieux que la meilleure construction connue ({n} {v}) ! On sait seulement qu'il en faut au moins {borne_basse}.", n = n, borne_basse = borne_basse, v = portes(n)),
+                Statut::Encadre { borne_basse } if d == 0 => tr!("Aussi économe que la meilleure construction connue. Le vrai minimum est entre {borne_basse} et {n} portes : personne ne le connaît encore.", borne_basse = borne_basse, n = n),
+                Statut::Encadre { borne_basse } => tr!("La meilleure construction connue en utilise {n} (il en faut au moins {borne_basse}) : tu en as {d} de plus.", n = n, borne_basse = borne_basse, d = d),
+                Statut::Reference if mieux > 0 => tr!("Tu fais mieux que la construction de référence ({n} {v}) : bravo !", n = n, v = portes(n)),
                 Statut::Reference if d == 0 => {
-                    "Autant de portes que la construction de référence. Personne n'a prouvé qu'on ne peut pas faire mieux : à toi de chercher !".to_owned()
+                    tr!("Autant de portes que la construction de référence. Personne n'a prouvé qu'on ne peut pas faire mieux : à toi de chercher !").to_owned()
                 }
-                Statut::Reference => format!(
-                    "La construction de référence en utilise {n} : tu en as {d} de plus."
-                ),
+                Statut::Reference => tr!("La construction de référence en utilise {n} : tu en as {d} de plus.", n = n, d = d),
             },
             Cible::AuMoins(_) if d == 0 => {
-                "Construction minimale : chaque sortie demande à elle seule ce nombre de portes.".to_owned()
+                tr!("Construction minimale : chaque sortie demande à elle seule ce nombre de portes.").to_owned()
             }
-            Cible::AuMoins(_) => format!(
-                "Il en faut au moins {n} (le minimum prouvé de ta sortie la plus coûteuse) ; selon ce que les sorties partagent, on peut parfois s'en approcher."
-            ),
+            Cible::AuMoins(_) => tr!("Il en faut au moins {n} (le minimum prouvé de ta sortie la plus coûteuse) ; selon ce que les sorties partagent, on peut parfois s'en approcher.", n = n),
         }
     }
 }
 
 fn portes(n: u64) -> &'static str {
     if n > 1 {
-        "portes"
+        tr!("portes")
     } else {
-        "porte"
+        tr!("porte")
     }
 }
 

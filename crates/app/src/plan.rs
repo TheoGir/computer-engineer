@@ -1069,10 +1069,7 @@ impl Plan {
                                 at.doc.relier(source, fil);
                                 at.selection = Some(Selection::Fil(fil));
                             }
-                            Err(Refus::Largeur { source, entree }) => at.dire(&format!(
-                                "Ce fil porte {source} bit{} et cette entrée en attend {entree} : pose un découpeur ou une jonction entre les deux.",
-                                if source > 1 { "s" } else { "" }
-                            )),
+                            Err(Refus::Largeur { source, entree }) => at.dire(&tr!("Ce fil porte {source} bit{v} et cette entrée en attend {entree} : pose un découpeur ou une jonction entre les deux.", source = source, entree = entree, v = crate::langue::s(source))),
                             Err(Refus::Inconnu) => {}
                         }
                     }
@@ -2487,9 +2484,13 @@ impl Plan {
                     );
                     let attente = at.session.touches_en_attente(e.id);
                     let legende = if attente > 0 {
-                        format!("{} · {attente} en attente", e.nom)
+                        tr!(
+                            "{nom} · {attente} en attente",
+                            attente = attente,
+                            nom = e.nom
+                        )
                     } else if actif {
-                        format!("{} · tape au clavier", e.nom)
+                        tr!("{nom} · tape au clavier", nom = e.nom)
                     } else {
                         e.nom.clone()
                     };

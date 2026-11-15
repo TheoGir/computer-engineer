@@ -25,6 +25,7 @@ use crate::disposition::{disposer_accueil, DispositionAccueil};
 use crate::document::{Document, Genre};
 use crate::etat::{libelle_pas_par_seconde, Atelier, Proposition};
 use crate::exemples::EXEMPLES;
+use crate::langue::Langue;
 use crate::panneaux::{Cadre, Ouverture, Panneaux};
 use crate::quete::{Epreuve, Fiche, PARCOURS};
 use crate::raccourci::Lieu;
@@ -182,20 +183,20 @@ pub fn il_y_a(maintenant: SystemTime, quand: SystemTime) -> String {
     let s = maintenant.duration_since(quand).map_or(0, |d| d.as_secs());
     let (min, h, j) = (s / 60, s / 3600, s / 86_400);
     match () {
-        _ if s < 60 => "à l'instant".to_owned(),
-        _ if min < 60 => format!("il y a {min} min"),
-        _ if h < 24 => format!("il y a {h} h"),
+        _ if s < 60 => tr!("à l'instant").to_owned(),
+        _ if min < 60 => tr!("il y a {min} min", min = min),
+        _ if h < 24 => tr!("il y a {h} h", h = h),
         _ if j < 2 => "hier".to_owned(),
-        _ if j < 14 => format!("il y a {j} jours"),
-        _ if j < 60 => format!("il y a {} semaines", j / 7),
-        _ if j < 730 => format!("il y a {} mois", j / 30),
-        _ => format!("il y a {} ans", j / 365),
+        _ if j < 14 => tr!("il y a {j} jours", j = j),
+        _ if j < 60 => tr!("il y a {v} semaines", v = j / 7),
+        _ if j < 730 => tr!("il y a {v} mois", v = j / 30),
+        _ => tr!("il y a {v} ans", v = j / 365),
     }
 }
 
 /// « 1 brique », « 3 briques ».
 fn pluriel(n: usize, mot: &str) -> String {
-    if n > 1 {
+    if !crate::langue::s(n).is_empty() {
         format!("{n} {mot}s")
     } else {
         format!("{n} {mot}")
@@ -206,16 +207,16 @@ fn pluriel(n: usize, mot: &str) -> String {
 fn epreuve_lisible(e: Epreuve) -> &'static str {
     match e {
         Epreuve::Combinatoire => {
-            "Vérifiée sur toute sa table de vérité, contre un corrigé en NAND."
+            tr!("Vérifiée sur toute sa table de vérité, contre un corrigé en NAND.")
         }
         Epreuve::Sequentielle => {
-            "Circuit à mémoire : une longue suite d'actions est rejouée et comparée au corrigé."
+            tr!("Circuit à mémoire : une longue suite d'actions est rejouée et comparée au corrigé.")
         }
         Epreuve::Ordinateur { .. } => {
-            "Un ordinateur complet : on tape au clavier, l'écran doit afficher la bonne réponse."
+            tr!("Un ordinateur complet : on tape au clavier, l'écran doit afficher la bonne réponse.")
         }
         Epreuve::Systeme { .. } => {
-            "Un grand projet : on tape au clavier, l'écran doit afficher la bonne réponse, après tout le voyage."
+            tr!("Un grand projet : on tape au clavier, l'écran doit afficher la bonne réponse, après tout le voyage.")
         }
     }
 }
@@ -708,7 +709,7 @@ impl Accueil {
             t.texte(
                 rect.center(),
                 Align2::CENTER_CENTER,
-                "Plan vide",
+                tr!("Plan vide"),
                 Police::Corps,
                 t.a.typo.corps,
                 c.doux.c(),
@@ -837,14 +838,14 @@ impl Accueil {
             let dispo = r.right() - 16.0 - x;
             for (texte, police, taille, dy, couleur) in [
                 (
-                    "Computer Engineer",
+                    tr!("Computer Engineer"),
                     Police::CorpsDemi,
                     k.a.typo.fort,
                     -8.0,
                     c.texte,
                 ),
                 (
-                    "Du NAND à l'ordinateur",
+                    tr!("Du NAND à l'ordinateur"),
                     Police::Corps,
                     k.a.typo.petit,
                     9.0,
@@ -869,10 +870,10 @@ impl Accueil {
         }
 
         let entrees: [(Rubrique, &str, Icone); 4] = [
-            (Rubrique::Accueil, "Accueil", Icone::Maison),
-            (Rubrique::Parcours, "Parcours", Icone::Quete),
-            (Rubrique::Projets, "Mes projets", Icone::Dossier),
-            (Rubrique::Parametres, "Paramètres", Icone::Engrenage),
+            (Rubrique::Accueil, tr!("Accueil"), Icone::Maison),
+            (Rubrique::Parcours, tr!("Parcours"), Icone::Quete),
+            (Rubrique::Projets, tr!("Mes projets"), Icone::Dossier),
+            (Rubrique::Parametres, tr!("Paramètres"), Icone::Engrenage),
         ];
         let mut y = r.top() + 76.0;
         k.t.separateur(r.left() + 1.0, r.right() - 1.0, y - 12.0);
@@ -974,7 +975,7 @@ impl Accueil {
                 "quitter-icone",
                 Icone::Sortie,
                 crate::panneaux::Style::Nu,
-                "Quitter",
+                tr!("Quitter"),
                 true,
             ) {
                 demandes.push(Demande::Quitter);
@@ -985,17 +986,20 @@ impl Accueil {
             rect,
             "quitter",
             0,
-            "Quitter",
+            tr!("Quitter"),
             Some(Icone::Sortie),
             Sorte::Secondaire,
-            "Tout est déjà enregistré",
+            tr!("Tout est déjà enregistré"),
         ) {
             demandes.push(Demande::Quitter);
         }
         bas -= 40.0;
         if cx.courant.is_some() {
             let rect = Rect::from_min_max(Pos2::new(x, bas - 34.0), Pos2::new(x + l, bas));
-            let bulle = format!("Revenir à « {} » (Entrée sur l'accueil)", at.projet.nom);
+            let bulle = tr!(
+                "Revenir à « {nom} » (Entrée sur l'accueil)",
+                nom = at.projet.nom
+            );
             if d.compact {
                 if k.bouton_icone(
                     rect,
@@ -1013,7 +1017,7 @@ impl Accueil {
                 rect,
                 "continuer",
                 1,
-                "Continuer",
+                tr!("Continuer"),
                 Some(Icone::Lecture),
                 Sorte::Secondaire,
                 &bulle,
@@ -1042,13 +1046,13 @@ impl Accueil {
         let prochaine = at.parcours.prochaine();
         let (titre, sous) = if cx.courant.is_some() {
             (
-                "Bon retour",
-                "Ton travail est enregistré automatiquement. Reprends là où tu t'étais arrêté, ou choisis une autre quête.",
+                tr!("Bon retour"),
+                tr!("Ton travail est enregistré automatiquement. Reprends là où tu t'étais arrêté, ou choisis une autre quête."),
             )
         } else {
             (
-                "Bienvenue",
-                "Construis un ordinateur entier à partir d'une seule porte, la NAND. Chaque quête réussie devient une brique pour les suivantes.",
+                tr!("Bienvenue"),
+                tr!("Construis un ordinateur entier à partir d'une seule porte, la NAND. Chaque quête réussie devient une brique pour les suivantes."),
             )
         };
         let mut y = Self::titre(k, x, y, l.min(760.0), titre, sous);
@@ -1070,7 +1074,7 @@ impl Accueil {
                 .projets
                 .iter()
                 .find(|f| Some(f.fichier.as_str()) == cx.courant);
-            k.rubrique(tx, ty, l_texte, "Reprendre", "");
+            k.rubrique(tx, ty, l_texte, tr!("Reprendre"), "");
             k.t.texte(
                 Pos2::new(tx, ty + 42.0),
                 Align2::LEFT_CENTER,
@@ -1085,13 +1089,13 @@ impl Accueil {
                 .as_deref()
                 .and_then(|cle| PARCOURS.iter().position(|f| f.cle == cle));
             let ligne = match quete {
-                Some(i) => format!(
-                    "Quête {} · {} — {}",
-                    i + 1,
-                    PARCOURS[i].titre,
-                    PARCOURS[i].chapitre
+                Some(i) => tr!(
+                    "Quête {v} · {v2} — {v3}",
+                    v = i + 1,
+                    v2 = crate::langue::traduire(PARCOURS[i].titre),
+                    v3 = crate::langue::traduire(PARCOURS[i].chapitre)
                 ),
-                None => "Projet libre".to_owned(),
+                None => tr!("Projet libre").to_owned(),
             };
             k.t.texte(
                 Pos2::new(tx, ty + 74.0),
@@ -1102,11 +1106,11 @@ impl Accueil {
                 c.doux.c(),
             );
             let mut details = vec![
-                pluriel(at.projet.principal.elements.len(), "élément"),
-                pluriel(at.projet.modeles.len(), "brique"),
+                pluriel(at.projet.principal.elements.len(), tr!("élément")),
+                pluriel(at.projet.modeles.len(), tr!("brique")),
             ];
             if let Some(quand) = fiche.and_then(|f| f.modifie) {
-                details.push(format!("modifié {}", il_y_a(cx.maintenant, quand)));
+                details.push(tr!("modifié {v}", v = il_y_a(cx.maintenant, quand)));
             }
             k.t.texte(
                 Pos2::new(tx, ty + 96.0),
@@ -1116,7 +1120,7 @@ impl Accueil {
                 k.a.typo.petit,
                 c.discret.c(),
             );
-            let lb = Self::largeur_bouton(k, "Continuer", Some(Icone::Lecture)) + 24.0;
+            let lb = Self::largeur_bouton(k, tr!("Continuer"), Some(Icone::Lecture)) + 24.0;
             let b = Rect::from_min_size(
                 Pos2::new(tx, carte.bottom() - 28.0 - 38.0),
                 Vec2::new(lb, 38.0),
@@ -1126,7 +1130,7 @@ impl Accueil {
                 b,
                 "continuer",
                 0,
-                "Continuer",
+                tr!("Continuer"),
                 Some(Icone::Lecture),
                 Sorte::Principal,
                 "",
@@ -1137,20 +1141,24 @@ impl Accueil {
             let fin = k.t.texte(
                 Pos2::new(b.right() + 14.0, b.center().y),
                 Align2::LEFT_CENTER,
-                "ou",
+                tr!("ou"),
                 Police::Corps,
                 k.a.typo.petit,
                 c.discret.c(),
             );
-            Self::touche_clavier(&k.t, Pos2::new(fin.right() + 6.0, b.center().y), "Entrée");
+            Self::touche_clavier(
+                &k.t,
+                Pos2::new(fin.right() + 6.0, b.center().y),
+                tr!("Entrée"),
+            );
             if d.large {
                 Self::miniature(&k.t, apercu, &at.projet.principal, at.horloge, anime);
             }
         } else {
-            k.rubrique(tx, ty, l_texte, "Premiers pas", "");
+            k.rubrique(tx, ty, l_texte, tr!("Premiers pas"), "");
             let titre = match prochaine {
-                Some(f) => f.titre,
-                None => "Le parcours est terminé",
+                Some(f) => crate::langue::traduire(f.titre),
+                None => tr!("Le parcours est terminé"),
             };
             k.t.texte(
                 Pos2::new(tx, ty + 46.0),
@@ -1169,12 +1177,13 @@ impl Accueil {
                 k.t.sur(1.0, zone).paragraphe(
                     zone.min,
                     l_texte,
-                    f.consigne,
+                    crate::langue::traduire(f.consigne),
                     Police::Corps,
                     k.a.typo.fort,
                     c.doux.c(),
                 );
-                let lb = Self::largeur_bouton(k, "Commencer la quête", Some(Icone::Lecture)) + 24.0;
+                let lb =
+                    Self::largeur_bouton(k, tr!("Commencer la quête"), Some(Icone::Lecture)) + 24.0;
                 let b = Rect::from_min_size(
                     Pos2::new(tx, carte.bottom() - 28.0 - 38.0),
                     Vec2::new(lb, 38.0),
@@ -1184,7 +1193,7 @@ impl Accueil {
                     b,
                     "commencer-le-parcours",
                     0,
-                    "Commencer la quête",
+                    tr!("Commencer la quête"),
                     Some(Icone::Lecture),
                     Sorte::Principal,
                     "",
@@ -1233,20 +1242,20 @@ impl Accueil {
         let premiere_fois = cx.courant.is_none() && faites == 0;
         match prochaine.filter(|_| !premiere_fois) {
             None if premiere_fois => {
-                k.rubrique(ax, ay, al, "Comment ça marche", "");
+                k.rubrique(ax, ay, al, tr!("Comment ça marche"), "");
                 if Self::lien(
                     k,
                     Pos2::new(ax + al, ay + 8.0),
-                    "Voir le parcours",
+                    tr!("Voir le parcours"),
                     "voir-le-parcours",
                 ) {
                     self.montrer_quete(0);
                 }
                 let etapes = [
-                    "Lis la consigne : elle dit quoi construire, avec un indice.",
-                    "Glisse des NAND sur le plan et relie-les en tirant des fils.",
-                    "Clique sur les interrupteurs pour essayer, puis sur Vérifier.",
-                    "Réussie, la quête devient une brique pour les suivantes.",
+                    tr!("Lis la consigne : elle dit quoi construire, avec un indice."),
+                    tr!("Glisse des NAND sur le plan et relie-les en tirant des fils."),
+                    tr!("Clique sur les interrupteurs pour essayer, puis sur Vérifier."),
+                    tr!("Réussie, la quête devient une brique pour les suivantes."),
                 ];
                 // Les étapes se partagent la hauteur de la carte.
                 let mut ye = ay + 32.0;
@@ -1276,11 +1285,11 @@ impl Accueil {
             }
             Some(f) => {
                 let rang = PARCOURS.iter().position(|g| g.cle == f.cle).unwrap_or(0);
-                k.rubrique(ax, ay, al, "Prochaine quête", "");
+                k.rubrique(ax, ay, al, tr!("Prochaine quête"), "");
                 k.t.texte(
                     Pos2::new(ax + al, ay + 8.0),
                     Align2::RIGHT_CENTER,
-                    f.chapitre,
+                    crate::langue::traduire(f.chapitre),
                     Police::CorpsDemi,
                     k.a.typo.petit,
                     c.accent_clair.c(),
@@ -1289,7 +1298,7 @@ impl Accueil {
                     Pos2::new(ax, ay + 40.0),
                     Align2::LEFT_CENTER,
                     &k.t.abreger(
-                        &format!("{}. {}", rang + 1, f.titre),
+                        &format!("{}. {}", rang + 1, crate::langue::traduire(f.titre)),
                         Police::Titre,
                         k.a.typo.titre,
                         al,
@@ -1305,14 +1314,14 @@ impl Accueil {
                 k.t.sur(1.0, zone).paragraphe(
                     zone.min,
                     al,
-                    f.consigne,
+                    crate::langue::traduire(f.consigne),
                     Police::Corps,
                     k.a.typo.fort,
                     c.doux.c(),
                 );
                 let b = Rect::from_min_size(
                     Pos2::new(ax, ca.bottom() - 22.0 - 34.0),
-                    Vec2::new(Self::largeur_bouton(k, "Commencer", None) + 16.0, 34.0),
+                    Vec2::new(Self::largeur_bouton(k, tr!("Commencer"), None) + 16.0, 34.0),
                 );
                 // Secondaire : l'action principale de la page est en haut (Continuer).
                 if Self::bouton(
@@ -1320,7 +1329,7 @@ impl Accueil {
                     b,
                     "prochaine-quete",
                     0,
-                    "Commencer",
+                    tr!("Commencer"),
                     None,
                     if cx.courant.is_some() {
                         Sorte::Secondaire
@@ -1331,7 +1340,7 @@ impl Accueil {
                 ) {
                     demandes.push(Demande::Ouvrir(Ouverture::Quete(f.cle.to_owned())));
                 }
-                let texte = "Voir le parcours";
+                let texte = tr!("Voir le parcours");
                 let lb = Self::largeur_bouton(k, texte, Some(Icone::Fleche));
                 let b2 =
                     Rect::from_min_size(Pos2::new(b.right() + 8.0, b.top()), Vec2::new(lb, 34.0));
@@ -1349,11 +1358,11 @@ impl Accueil {
                 }
             }
             None => {
-                k.rubrique(ax, ay, al, "Parcours", "");
+                k.rubrique(ax, ay, al, tr!("Parcours"), "");
                 k.t.paragraphe(
                     Pos2::new(ax, ay + 32.0),
                     al,
-                    "Toutes les quêtes sont réussies, jusqu'à l'ordinateur complet. Tes briques t'attendent dans un projet libre.",
+                    tr!("Toutes les quêtes sont réussies, jusqu'à l'ordinateur complet. Tes briques t'attendent dans un projet libre."),
                     Police::Corps,
                     k.a.typo.fort,
                     c.doux.c(),
@@ -1363,7 +1372,7 @@ impl Accueil {
 
         k.t.carte(cb, rv);
         let (bx, by, bl) = (cb.left() + 24.0, cb.top() + 22.0, cb.width() - 48.0);
-        k.rubrique(bx, by, bl, "Ton avancement", "");
+        k.rubrique(bx, by, bl, tr!("Ton avancement"), "");
         let fin = k.t.texte(
             Pos2::new(bx, by + 44.0),
             Align2::LEFT_CENTER,
@@ -1375,7 +1384,7 @@ impl Accueil {
         k.t.texte(
             Pos2::new(fin.right() + 8.0, by + 48.0),
             Align2::LEFT_CENTER,
-            &format!("quêtes réussies sur {}", PARCOURS.len()),
+            &tr!("quêtes réussies sur {v}", v = PARCOURS.len()),
             Police::CorpsMoyen,
             k.a.typo.fort,
             c.doux.c(),
@@ -1405,7 +1414,12 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(px, py + 8.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(nom, Police::Corps, k.a.typo.petit, lc - lcompte - 8.0),
+                &k.t.abreger(
+                    crate::langue::traduire(nom),
+                    Police::Corps,
+                    k.a.typo.petit,
+                    lc - lcompte - 8.0,
+                ),
                 Police::Corps,
                 k.a.typo.petit,
                 if f == n {
@@ -1431,11 +1445,11 @@ impl Accueil {
         }
 
         // Les projets récents, et de quoi en commencer un.
-        k.rubrique(x + 4.0, y, l - 8.0, "Projets récents", "");
+        k.rubrique(x + 4.0, y, l - 8.0, tr!("Projets récents"), "");
         if Self::lien(
             k,
             Pos2::new(x + l, y + 8.0),
-            "Tous les projets",
+            tr!("Tous les projets"),
             "tous-les-projets",
         ) {
             self.aller(Rubrique::Projets);
@@ -1474,10 +1488,12 @@ impl Accueil {
                             StrokeKind::Inside,
                         );
                     }
-                    let quete = f
-                        .quete
-                        .as_deref()
-                        .and_then(|q| PARCOURS.iter().find(|p| p.cle == q).map(|p| p.titre));
+                    let quete = f.quete.as_deref().and_then(|q| {
+                        PARCOURS
+                            .iter()
+                            .find(|p| p.cle == q)
+                            .map(|p| crate::langue::traduire(p.titre))
+                    });
                     k.t.icone(
                         if quete.is_some() {
                             Icone::Quete
@@ -1500,7 +1516,7 @@ impl Accueil {
                         touche.rect.left_top() + Vec2::new(18.0, 56.0),
                         Align2::LEFT_CENTER,
                         &k.t.abreger(
-                            quete.unwrap_or("Projet libre"),
+                            quete.unwrap_or(tr!("Projet libre")),
                             Police::Corps,
                             k.a.typo.petit,
                             lt - 36.0,
@@ -1545,7 +1561,7 @@ impl Accueil {
                     k.t.texte(
                         Pos2::new(touche.rect.center().x, touche.rect.top() + 66.0),
                         Align2::CENTER_CENTER,
-                        "Nouveau projet",
+                        tr!("Nouveau projet"),
                         Police::CorpsMoyen,
                         k.a.typo.corps,
                         c.doux.vers(c.texte, touche.chaud).c(),
@@ -1579,11 +1595,8 @@ impl Accueil {
             x,
             y,
             l.min(760.0),
-            "Parcours",
-            &format!(
-                "{faites} quêtes réussies sur {}. Le parcours principal mène à l'ordinateur complet, et des branches à d'autres grands éléments. Chaque quête réussie te donne une brique pour les suivantes.",
-                PARCOURS.len()
-            ),
+            tr!("Parcours"),
+            &tr!("{faites} quêtes réussies sur {v}. Le parcours principal mène à l'ordinateur complet, et des branches à d'autres grands éléments. Chaque quête réussie te donne une brique pour les suivantes.", faites = faites, v = PARCOURS.len()),
         );
         let chap = chapitres();
         self.chapitre = self.chapitre.min(chap.len().saturating_sub(1));
@@ -1667,7 +1680,7 @@ impl Accueil {
             k.t.legende(
                 Pos2::new(r.left() + 16.0, r.top() + 15.0),
                 Align2::LEFT_CENTER,
-                &format!("CHAPITRE {}", i + 1),
+                &tr!("CHAPITRE {n}", n = i + 1),
                 c.discret.c(),
             );
             if f == n {
@@ -1681,7 +1694,12 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.left() + 16.0, r.top() + 32.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(nom, Police::CorpsDemi, k.a.typo.corps, lg - 32.0),
+                &k.t.abreger(
+                    crate::langue::traduire(nom),
+                    Police::CorpsDemi,
+                    k.a.typo.corps,
+                    lg - 32.0,
+                ),
                 Police::CorpsDemi,
                 k.a.typo.corps,
                 c.texte.c(),
@@ -1800,13 +1818,13 @@ impl Accueil {
                 (true, _) => Self::etiquette(
                     &k.t,
                     Pos2::new(r.right() - 14.0, r.center().y),
-                    "Réussie",
+                    tr!("Réussie"),
                     c.un,
                 ),
                 (false, true) => Self::etiquette(
                     &k.t,
                     Pos2::new(r.right() - 14.0, r.center().y),
-                    "Conseillée",
+                    tr!("Conseillée"),
                     c.accent_clair,
                 ),
                 _ => 0.0,
@@ -1815,17 +1833,22 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.left() + 58.0, r.center().y - 9.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(f.titre, Police::CorpsDemi, k.a.typo.fort, lt),
+                &k.t.abreger(
+                    crate::langue::traduire(f.titre),
+                    Police::CorpsDemi,
+                    k.a.typo.fort,
+                    lt,
+                ),
                 Police::CorpsDemi,
                 k.a.typo.fort,
                 c.texte.c(),
             );
             let gain = if matches!(f.epreuve, Epreuve::Systeme { .. }) {
-                "Grand projet : plusieurs grandes pièces".to_owned()
+                tr!("Grand projet : plusieurs grandes pièces").to_owned()
             } else if f.epreuve.ordinateur() {
-                "Épreuve finale : un ordinateur".to_owned()
+                tr!("Épreuve finale : un ordinateur").to_owned()
             } else {
-                format!("Brique gagnée : {}", f.brique)
+                tr!("Brique gagnée : {brique}", brique = f.brique)
             };
             k.t.texte(
                 Pos2::new(r.left() + 58.0, r.center().y + 11.0),
@@ -1884,9 +1907,9 @@ impl Accueil {
         let c = k.t.c;
         let (ix, il) = (x + 18.0, l - 36.0);
         let texte = if p.branche == Branche::Tronc {
-            p.apprend.to_owned()
+            crate::langue::traduire(p.apprend).to_owned()
         } else {
-            format!("{} {}", p.branche.but(), p.apprend)
+            format!("{} {}", p.branche.but(), crate::langue::traduire(p.apprend))
         };
         let h_texte =
             k.t.p
@@ -1926,7 +1949,7 @@ impl Accueil {
         k.t.legende(
             Pos2::new(ix + 22.0, carte.top() + 16.0 + 8.0),
             Align2::LEFT_CENTER,
-            "CE QUE TU APPRENDS ICI",
+            tr!("CE QUE TU APPRENDS ICI"),
             c.accent_clair.c(),
         );
         k.t.paragraphe(
@@ -1971,8 +1994,8 @@ impl Accueil {
         let mesure =
             |taille: f32, police: Police, texte: &str| mesure_sur(il, taille, police, texte);
         let ty = k.a.typo.clone();
-        let h_titre = mesure(ty.titre, Police::Titre, f.titre);
-        let h_consigne = mesure(ty.fort, Police::Corps, f.consigne);
+        let h_titre = mesure(ty.titre, Police::Titre, crate::langue::traduire(f.titre));
+        let h_consigne = mesure(ty.fort, Police::Corps, crate::langue::traduire(f.consigne));
         // La petite fiche « Comprendre » : six paragraphes titrés.
         let fiche = savoir::savoir(f.cle);
         let h_savoir = fiche.map_or(0.0, |s| {
@@ -2012,17 +2035,17 @@ impl Accueil {
             ix,
             y,
             il,
-            &format!("Quête {} sur {}", q + 1, PARCOURS.len()),
+            &tr!("Quête {v} sur {v2}", v = q + 1, v2 = PARCOURS.len()),
             "",
         );
         if faite {
-            Self::etiquette(&k.t, Pos2::new(ix + il, y + 8.0), "Réussie", c.un);
+            Self::etiquette(&k.t, Pos2::new(ix + il, y + 8.0), tr!("Réussie"), c.un);
         }
         y += 24.0;
         y += k.t.paragraphe(
             Pos2::new(ix, y),
             il,
-            f.titre,
+            crate::langue::traduire(f.titre),
             Police::Titre,
             k.a.typo.titre,
             c.texte.c(),
@@ -2030,7 +2053,7 @@ impl Accueil {
         y += k.t.paragraphe(
             Pos2::new(ix, y),
             il,
-            f.consigne,
+            crate::langue::traduire(f.consigne),
             Police::Corps,
             k.a.typo.fort,
             c.texte.alpha(0.88),
@@ -2052,7 +2075,7 @@ impl Accueil {
             k.t.legende(
                 Pos2::new(ix + 22.0, y + 8.0),
                 Align2::LEFT_CENTER,
-                "COMPRENDRE",
+                tr!("COMPRENDRE"),
                 c.accent_clair.c(),
             );
             y += 26.0;
@@ -2099,11 +2122,11 @@ impl Accueil {
         );
         let texte = match (f.epreuve.ordinateur(), faite) {
             (true, _) if matches!(f.epreuve, Epreuve::Systeme { .. }) => {
-                "Tu construis un grand projet qui tourne".to_owned()
+                tr!("Tu construis un grand projet qui tourne").to_owned()
             }
-            (true, _) => "Tu construis un ordinateur qui tourne".to_owned(),
-            (false, true) => format!("Brique gagnée : « {} »", f.brique),
-            (false, false) => format!("Tu gagnes la brique « {} »", f.brique),
+            (true, _) => tr!("Tu construis un ordinateur qui tourne").to_owned(),
+            (false, true) => tr!("Brique gagnée : « {brique} »", brique = f.brique),
+            (false, false) => tr!("Tu gagnes la brique « {brique} »", brique = f.brique),
         };
         k.t.texte(
             Pos2::new(gain.left() + 38.0, gain.center().y),
@@ -2137,14 +2160,14 @@ impl Accueil {
                 "reprendre",
                 0,
                 &k.t.abreger(
-                    &format!("Reprendre « {nom} »"),
+                    &tr!("Reprendre « {nom} »", nom = nom),
                     Police::CorpsDemi,
                     k.a.typo.fort,
                     il - 70.0,
                 ),
                 Some(Icone::Lecture),
                 Sorte::Principal,
-                "Ton travail sur cette quête, là où tu l'as laissé",
+                tr!("Ton travail sur cette quête, là où tu l'as laissé"),
             ) {
                 demandes.push(if dans_l_atelier {
                     Demande::Continuer
@@ -2159,14 +2182,14 @@ impl Accueil {
         let r = Rect::from_min_size(Pos2::new(ix, y), Vec2::new(il, 38.0));
         let (texte, genre, bulle) = if reprendre {
             (
-                "Recommencer dans un nouveau projet",
+                tr!("Recommencer dans un nouveau projet"),
                 Sorte::Secondaire,
-                "Ton travail précédent reste dans Mes projets",
+                tr!("Ton travail précédent reste dans Mes projets"),
             )
         } else if faite {
-            ("Rejouer cette quête", Sorte::Principal, "")
+            (tr!("Rejouer cette quête"), Sorte::Principal, "")
         } else {
-            ("Commencer cette quête", Sorte::Principal, "")
+            (tr!("Commencer cette quête"), Sorte::Principal, "")
         };
         if Self::bouton(
             k,
@@ -2201,17 +2224,17 @@ impl Accueil {
         let (x, l) = (d.contenu.left(), d.contenu.width());
         let n = cx.projets.len();
         let sous = match (n, cx.dossier) {
-            (_, None) => "Les projets ne sont pas enregistrés ici.".to_owned(),
-            (0, _) => "Aucun projet enregistré pour l'instant.".to_owned(),
-            (n, _) => format!(
-                "{} · enregistrés automatiquement, une seconde après chaque modification.",
-                pluriel(n, "projet")
+            (_, None) => tr!("Les projets ne sont pas enregistrés ici.").to_owned(),
+            (0, _) => tr!("Aucun projet enregistré pour l'instant.").to_owned(),
+            (n, _) => tr!(
+                "{v} · enregistrés automatiquement, une seconde après chaque modification.",
+                v = pluriel(n, tr!("projet"))
             ),
         };
         // Les boutons d'en-tête, à droite du titre.
-        let nouveau = "Nouveau projet";
+        let nouveau = tr!("Nouveau projet");
         let l_nouveau = Self::largeur_bouton(k, nouveau, Some(Icone::Plus));
-        let dossier = "Ouvrir le dossier";
+        let dossier = tr!("Ouvrir le dossier");
         let l_dossier = Self::largeur_bouton(k, dossier, Some(Icone::Dossier));
         let mut xb = x + l - l_nouveau;
         if Self::bouton(
@@ -2222,7 +2245,7 @@ impl Accueil {
             nouveau,
             Some(Icone::Plus),
             Sorte::Principal,
-            "Un plan vide, avec toutes tes briques",
+            tr!("Un plan vide, avec toutes tes briques"),
         ) {
             demandes.push(Demande::Ouvrir(Ouverture::Nouveau));
         }
@@ -2241,7 +2264,14 @@ impl Accueil {
                 demandes.push(Demande::OuvrirDossier);
             }
         }
-        let mut y = Self::titre(k, x, y, (xb - x - 16.0).max(200.0), "Mes projets", &sous);
+        let mut y = Self::titre(
+            k,
+            x,
+            y,
+            (xb - x - 16.0).max(200.0),
+            tr!("Mes projets"),
+            &sous,
+        );
 
         if n == 0 {
             let r = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 120.0));
@@ -2261,7 +2291,7 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.center().x, r.top() + 80.0),
                 Align2::CENTER_CENTER,
-                "Commence une quête ou un projet vide : il apparaîtra ici.",
+                tr!("Commence une quête ou un projet vide : il apparaîtra ici."),
                 Police::Corps,
                 k.a.typo.fort,
                 c.doux.c(),
@@ -2340,9 +2370,9 @@ impl Accueil {
             let b = 32.0;
             let mut xa = r.right() - 14.0 - b;
             let actions: [(&'static str, Icone, &str); 3] = [
-                ("supprimer", Icone::Poubelle, "Mettre à la corbeille"),
-                ("dupliquer", Icone::Dupliquer, "Dupliquer"),
-                ("renommer", Icone::Crayon, "Renommer"),
+                ("supprimer", Icone::Poubelle, tr!("Mettre à la corbeille")),
+                ("dupliquer", Icone::Dupliquer, tr!("Dupliquer")),
+                ("renommer", Icone::Crayon, tr!("Renommer")),
             ];
             for (nom, icone, bulle) in actions {
                 let rect =
@@ -2395,7 +2425,7 @@ impl Accueil {
             } else {
                 // L'étiquette « En cours » suit le nom : sa place est réservée avant d'abréger.
                 let l_tag = if courant {
-                    k.t.largeur_legende("En cours") + 14.0
+                    k.t.largeur_legende(tr!("En cours")) + 14.0
                 } else {
                     0.0
                 };
@@ -2416,25 +2446,25 @@ impl Accueil {
                     Self::etiquette(
                         &k.t,
                         Pos2::new(fin.right() + 10.0 + l_tag, r.center().y - 10.0),
-                        "En cours",
+                        tr!("En cours"),
                         c.accent_clair,
                     );
                 }
             }
             let sous = if f.illisible {
-                "Fichier illisible : il ne peut pas être ouvert.".to_owned()
+                tr!("Fichier illisible : il ne peut pas être ouvert.").to_owned()
             } else {
                 let mut morceaux = vec![match quete {
-                    Some(q) => format!("Quête : {}", q.titre),
-                    None => "Projet libre".to_owned(),
+                    Some(q) => tr!("Quête : {titre}", titre = crate::langue::traduire(q.titre)),
+                    None => tr!("Projet libre").to_owned(),
                 }];
                 morceaux.push(if f.elements == 0 {
-                    "plan vide".to_owned()
+                    tr!("plan vide").to_owned()
                 } else {
-                    pluriel(f.elements, "élément")
+                    pluriel(f.elements, tr!("élément"))
                 });
                 if f.briques > 0 {
-                    morceaux.push(pluriel(f.briques, "brique"));
+                    morceaux.push(pluriel(f.briques, tr!("brique")));
                 }
                 morceaux.join(" · ")
             };
@@ -2461,7 +2491,7 @@ impl Accueil {
 
         // Les exemples tout faits.
         y += 18.0;
-        y += k.rubrique(x + 4.0, y, l - 8.0, "Exemples tout faits", "") + 4.0;
+        y += k.rubrique(x + 4.0, y, l - 8.0, tr!("Exemples tout faits"), "") + 4.0;
         for (i, e) in EXEMPLES.iter().enumerate() {
             let r = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 60.0));
             y += 60.0 + 6.0;
@@ -2477,7 +2507,7 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.left() + 73.0, r.center().y - 9.0),
                 Align2::LEFT_CENTER,
-                e.nom,
+                crate::langue::traduire(e.nom),
                 Police::CorpsDemi,
                 k.a.typo.fort,
                 c.texte.c(),
@@ -2485,7 +2515,12 @@ impl Accueil {
             k.t.texte(
                 Pos2::new(r.left() + 73.0, r.center().y + 11.0),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(e.resume, Police::Corps, k.a.typo.petit, l - 200.0),
+                &k.t.abreger(
+                    crate::langue::traduire(e.resume),
+                    Police::Corps,
+                    k.a.typo.petit,
+                    l - 200.0,
+                ),
                 Police::Corps,
                 k.a.typo.petit,
                 c.doux.c(),
@@ -2526,9 +2561,9 @@ impl Accueil {
             20.0,
             c.danger.c(),
         );
-        let garder = "Garder";
+        let garder = tr!("Garder");
         let lg = Self::largeur_bouton(k, garder, None);
-        let jeter = "Mettre à la corbeille";
+        let jeter = tr!("Mettre à la corbeille");
         let lj = Self::largeur_bouton(k, jeter, None);
         let bj = Rect::from_min_size(
             Pos2::new(r.right() - 14.0 - lj, r.center().y - 17.0),
@@ -2542,7 +2577,7 @@ impl Accueil {
             Pos2::new(r.left() + 66.0, r.center().y),
             Align2::LEFT_CENTER,
             &k.t.abreger(
-                &format!("Mettre « {} » à la corbeille ?", f.nom),
+                &tr!("Mettre « {nom} » à la corbeille ?", nom = f.nom),
                 Police::CorpsDemi,
                 k.a.typo.fort,
                 bg.left() - r.left() - 80.0,
@@ -2562,7 +2597,7 @@ impl Accueil {
             jeter,
             None,
             Sorte::Danger,
-            "Il reste récupérable : « Annuler » dans le message qui suit",
+            tr!("Il reste récupérable : « Annuler » dans le message qui suit"),
         ) {
             self.confirmation = None;
             demandes.push(Demande::Jeter(f.fichier.clone()));
@@ -2645,8 +2680,8 @@ impl Accueil {
             x,
             y,
             l.min(760.0),
-            "Paramètres",
-            "Chaque choix s'applique et s'enregistre tout de suite.",
+            tr!("Paramètres"),
+            tr!("Chaque choix s'applique et s'enregistre tout de suite."),
         );
         let (l1, x2) = if d.large {
             ((l - g) / 2.0, x + (l - g) / 2.0 + g)
@@ -2701,17 +2736,36 @@ impl Accueil {
         // Colonne 1 : apparence, simulation, démarrage.
         let (ix, il) = (x + 24.0, l1 - 48.0);
         let mut y1 = y;
-        section(k, x, y1, l1, 56.0 + 3.0 * LIGNE + 8.0, "Apparence");
+        section(k, x, y1, l1, 56.0 + 4.0 * LIGNE + 8.0, tr!("Apparence"));
         y1 += 56.0;
-        let options = vec!["Sombre".to_owned(), "Clair".to_owned()];
+        let options: Vec<String> = Langue::TOUTES.iter().map(|l| l.nom().to_owned()).collect();
+        let langue = r.langue.unwrap_or_else(crate::langue::actuelle);
+        if let Some(i) = ligne(
+            k,
+            ix,
+            y1,
+            il,
+            tr!("Langue"),
+            tr!("Language : la langue de toute l'application."),
+            "reglage-langue",
+            &options,
+            Langue::TOUTES
+                .iter()
+                .position(|l| *l == langue)
+                .unwrap_or(0),
+        ) {
+            nouveau.langue = Some(Langue::TOUTES[i]);
+        }
+        y1 += LIGNE;
+        let options = vec![tr!("Sombre").to_owned(), tr!("Clair").to_owned()];
         let choisi = usize::from(a.mode == Mode::Clair);
         if let Some(i) = ligne(
             k,
             ix,
             y1,
             il,
-            "Thème",
-            "Néon sur fond nuit, ou version claire.",
+            tr!("Thème"),
+            tr!("Néon sur fond nuit, ou version claire."),
             "reglage-theme",
             &options,
             choisi,
@@ -2719,14 +2773,17 @@ impl Accueil {
             nouveau.theme = Some(if i == 1 { Mode::Clair } else { Mode::Sombre });
         }
         y1 += LIGNE;
-        let options: Vec<String> = TAILLES_TEXTE.iter().map(|(_, n)| (*n).to_owned()).collect();
+        let options: Vec<String> = TAILLES_TEXTE
+            .iter()
+            .map(|(_, n)| crate::langue::traduire(n).to_owned())
+            .collect();
         if let Some(i) = ligne(
             k,
             ix,
             y1,
             il,
-            "Taille du texte",
-            "Pour tous les panneaux et menus.",
+            tr!("Taille du texte"),
+            tr!("Pour tous les panneaux et menus."),
             "reglage-texte",
             &options,
             r.rang_taille_texte(),
@@ -2734,14 +2791,14 @@ impl Accueil {
             nouveau.taille_texte = TAILLES_TEXTE[i].0;
         }
         y1 += LIGNE;
-        let options = vec!["Complètes".to_owned(), "Réduites".to_owned()];
+        let options = vec![tr!("Complètes").to_owned(), tr!("Réduites").to_owned()];
         if let Some(i) = ligne(
             k,
             ix,
             y1,
             il,
-            "Animations",
-            "Réduites : sans transitions, perles de courant ni pulsations.",
+            tr!("Animations"),
+            tr!("Réduites : sans transitions, perles de courant ni pulsations."),
             "reglage-animations",
             &options,
             usize::from(a.mouvement.sobre),
@@ -2756,7 +2813,7 @@ impl Accueil {
             y1,
             l1,
             56.0 + 2.0 * LIGNE + 8.0,
-            "Simulation et démarrage",
+            tr!("Simulation et démarrage"),
         );
         y1 += 56.0;
         let options: Vec<String> = a
@@ -2771,8 +2828,8 @@ impl Accueil {
                 ix,
                 y1,
                 il,
-                "Vitesse au départ",
-                "Pas de simulation par seconde à l'ouverture d'un projet.",
+                tr!("Vitesse au départ"),
+                tr!("Pas de simulation par seconde à l'ouverture d'un projet."),
                 "reglage-vitesse",
                 &options,
                 a.mouvement
@@ -2784,16 +2841,16 @@ impl Accueil {
         }
         y1 += LIGNE;
         let options = vec![
-            "Montrer l'accueil".to_owned(),
-            "Reprendre le projet".to_owned(),
+            tr!("Montrer l'accueil").to_owned(),
+            tr!("Reprendre le projet").to_owned(),
         ];
         if let Some(i) = ligne(
             k,
             ix,
             y1,
             il,
-            "Au lancement",
-            "L'accueil, ou directement le dernier projet ouvert.",
+            tr!("Au lancement"),
+            tr!("L'accueil, ou directement le dernier projet ouvert."),
             "reglage-lancement",
             &options,
             usize::from(r.au_lancement == Lancement::Reprendre),
@@ -2815,21 +2872,21 @@ impl Accueil {
                     y1,
                     l1,
                     56.0 + 2.0 * LIGNE + 8.0,
-                    "Raccourcis pour lancer l'application",
+                    tr!("Raccourcis pour lancer l'application"),
                 );
                 y1 += 56.0;
-                let options = vec!["Oui".to_owned(), "Non".to_owned()];
+                let options = vec![tr!("Oui").to_owned(), tr!("Non").to_owned()];
                 for (lieu, titre, phrase, repere) in [
                     (
                         Lieu::Bureau,
-                        "Sur le bureau",
-                        "Une icône sur le bureau, qui suit les mises à jour.",
+                        tr!("Sur le bureau"),
+                        tr!("Une icône sur le bureau, qui suit les mises à jour."),
                         "reglage-raccourci-bureau",
                     ),
                     (
                         Lieu::MenuDemarrer,
-                        "Dans le menu Démarrer",
-                        "Pour la trouver en tapant son nom après la touche Windows.",
+                        tr!("Dans le menu Démarrer"),
+                        tr!("Pour la trouver en tapant son nom après la touche Windows."),
                         "reglage-raccourci-demarrer",
                     ),
                 ] {
@@ -2860,7 +2917,7 @@ impl Accueil {
                 let h_texte =
                     k.t.p
                         .layout(
-                            crate::raccourci::MESSAGE_ARCHIVE.to_owned(),
+                            crate::langue::traduire(crate::raccourci::MESSAGE_ARCHIVE).to_owned(),
                             Police::Corps.taille(13.0 * k.a.formes.echelle_texte),
                             c.doux.c(),
                             il,
@@ -2873,13 +2930,13 @@ impl Accueil {
                     y1,
                     l1,
                     56.0 + h_texte + 24.0,
-                    "Raccourcis pour lancer l'application",
+                    tr!("Raccourcis pour lancer l'application"),
                 );
                 y1 += 56.0;
                 y1 += k.t.paragraphe(
                     Pos2::new(ix, y1),
                     il,
-                    crate::raccourci::MESSAGE_ARCHIVE,
+                    crate::langue::traduire(crate::raccourci::MESSAGE_ARCHIVE),
                     Police::Corps,
                     13.0,
                     c.doux.c(),
@@ -2892,16 +2949,16 @@ impl Accueil {
         // Colonne 2 : mises à jour, données, raccourcis.
         let (ix, il) = (x2 + 24.0, l1 - 48.0);
         let mut y2 = if d.large { y } else { y1 };
-        section(k, x2, y2, l1, 56.0 + LIGNE + 72.0, "Mises à jour");
+        section(k, x2, y2, l1, 56.0 + LIGNE + 72.0, tr!("Mises à jour"));
         y2 += 56.0;
-        let options = vec!["Oui".to_owned(), "Non".to_owned()];
+        let options = vec![tr!("Oui").to_owned(), tr!("Non").to_owned()];
         if let Some(i) = ligne(
             k,
             ix,
             y2,
             il,
-            "Chercher au lancement",
-            "Les versions sont signées et vérifiées avant d'être installées.",
+            tr!("Chercher au lancement"),
+            tr!("Les versions sont signées et vérifiées avant d'être installées."),
             "reglage-mises-a-jour",
             &options,
             usize::from(!r.mises_a_jour_automatiques),
@@ -2912,7 +2969,7 @@ impl Accueil {
         k.t.texte(
             Pos2::new(ix, y2 + 10.0),
             Align2::LEFT_CENTER,
-            &format!("Version installée : {}", env!("CARGO_PKG_VERSION")),
+            &tr!("Version installée : {v}", v = env!("CARGO_PKG_VERSION")),
             Police::CorpsDemi,
             k.a.typo.fort,
             c.texte.c(),
@@ -2925,7 +2982,7 @@ impl Accueil {
             k.a.typo.petit,
             c.doux.c(),
         );
-        let texte = "Chercher maintenant";
+        let texte = tr!("Chercher maintenant");
         let lb = Self::largeur_bouton(k, texte, None);
         if Self::bouton(
             k,
@@ -2943,7 +3000,7 @@ impl Accueil {
 
         let chemin = cx
             .dossier
-            .unwrap_or("Aucun : rien n'est écrit sur le disque");
+            .unwrap_or(tr!("Aucun : rien n'est écrit sur le disque"));
         let h_chemin =
             k.t.p
                 .layout(
@@ -2954,12 +3011,19 @@ impl Accueil {
                 )
                 .size()
                 .y;
-        section(k, x2, y2, l1, 56.0 + 44.0 + h_chemin + 70.0, "Mes données");
+        section(
+            k,
+            x2,
+            y2,
+            l1,
+            56.0 + 44.0 + h_chemin + 70.0,
+            tr!("Mes données"),
+        );
         y2 += 56.0;
         y2 += k.t.paragraphe(
             Pos2::new(ix, y2),
             il,
-            "Projets, avancement du parcours et réglages sont enregistrés automatiquement dans ce dossier :",
+            tr!("Projets, avancement du parcours et réglages sont enregistrés automatiquement dans ce dossier :"),
             Police::Corps,
             k.a.typo.corps,
             c.doux.c(),
@@ -2973,7 +3037,7 @@ impl Accueil {
             c.texte.c(),
         ) + 12.0;
         if cx.dossier.is_some() {
-            let texte = "Ouvrir le dossier";
+            let texte = tr!("Ouvrir le dossier");
             let lb = Self::largeur_bouton(k, texte, Some(Icone::Dossier));
             if Self::bouton(
                 k,
@@ -2990,9 +3054,9 @@ impl Accueil {
         }
         // Recommencer le parcours : deux clics, pour ne jamais effacer par mégarde.
         let texte = if self.recommencer_arme {
-            "Confirmer : tout recommencer"
+            tr!("Confirmer : tout recommencer")
         } else {
-            "Recommencer le parcours"
+            tr!("Recommencer le parcours")
         };
         let lb = Self::largeur_bouton(k, texte, None);
         if Self::bouton(
@@ -3007,7 +3071,7 @@ impl Accueil {
             } else {
                 Sorte::Secondaire
             },
-            "Efface les quêtes réussies et les briques gagnées. Une copie est gardée dans le dossier de tes données.",
+            tr!("Efface les quêtes réussies et les briques gagnées. Une copie est gardée dans le dossier de tes données."),
         ) {
             if self.recommencer_arme {
                 demandes.push(Demande::RecommencerParcours);
@@ -3017,15 +3081,18 @@ impl Accueil {
         y2 += 40.0 + 22.0 + g;
 
         let raccourcis: [(&str, &str); 9] = [
-            ("Espace", "Lecture ou pause"),
-            ("Ctrl + Z / Ctrl + Y", "Annuler / rétablir"),
-            ("Ctrl + A", "Tout sélectionner"),
-            ("Ctrl + G", "Regrouper en brique"),
-            ("Ctrl + D", "Dupliquer la sélection"),
-            ("Suppr", "Supprimer la sélection"),
-            ("F", "Recadrer le plan"),
-            ("Échap", "Lâcher la sélection, sortir d'une brique"),
-            ("Molette", "Zoomer autour du pointeur"),
+            (tr!("Espace"), tr!("Lecture ou pause")),
+            ("Ctrl + Z / Ctrl + Y", tr!("Annuler / rétablir")),
+            (tr!("Ctrl + A"), tr!("Tout sélectionner")),
+            (tr!("Ctrl + G"), tr!("Regrouper en brique")),
+            (tr!("Ctrl + D"), tr!("Dupliquer la sélection")),
+            (tr!("Suppr"), tr!("Supprimer la sélection")),
+            ("F", tr!("Recadrer le plan")),
+            (
+                tr!("Échap"),
+                tr!("Lâcher la sélection, sortir d'une brique"),
+            ),
+            (tr!("Molette"), tr!("Zoomer autour du pointeur")),
         ];
         section(
             k,
@@ -3033,7 +3100,7 @@ impl Accueil {
             y2,
             l1,
             56.0 + raccourcis.len() as f32 * 28.0 + 12.0,
-            "Raccourcis clavier",
+            tr!("Raccourcis clavier"),
         );
         y2 += 56.0;
         for (touche, effet) in raccourcis {

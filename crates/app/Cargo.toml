@@ -29,6 +29,10 @@ eframe = { version = "0.37", default-features = false, features = ["wgpu", "x11"
 egui = "0.37"
 # Simplification des expressions logiques (Quine-McCluskey, méthode de Petrick).
 quine-mc_cluskey = "0.2.4"
+# Interface en plusieurs langues : textes traduits rangés dans locales/ (src/langue.rs).
+rust-i18n = "4.2.4"
+# La langue du système, pour choisir celle de l'interface au premier lancement.
+sys-locale = "0.3"
 # Exporter le plan en image : encodage PNG.
 image = { version = "0.25", default-features = false, features = ["png"] }
 # Mises à jour automatiques : bibliothèques éprouvées, rien de fait maison (docs/mises-a-jour.md).

@@ -38,21 +38,21 @@ fn visiter(
         return Ok(());
     }
     if en_cours.iter().any(|n| n == nom) {
-        return Err(format!("le composant « {nom} » se contient lui-même"));
+        return Err(tr!(
+            "le composant « {nom} » se contient lui-même",
+            nom = nom
+        ));
     }
     let comp = bib
         .composants
         .get(nom)
-        .ok_or_else(|| format!("le composant « {nom} » n'existe pas"))?;
+        .ok_or_else(|| tr!("le composant « {nom} » n'existe pas", nom = nom))?;
     en_cours.push(nom.to_owned());
     for inst in &comp.instances {
         match inst.genre.as_str() {
             "NAND" | "HORLOGE" => {}
             "TRI" | "ZERO" | "UN" => {
-                return Err(format!(
-                    "« {nom} » utilise la primitive {}, que l'application ne sait pas encore poser",
-                    inst.genre
-                ));
+                return Err(tr!("« {nom} » utilise la primitive {genre}, que l'application ne sait pas encore poser", nom = nom, genre = inst.genre));
             }
             autre => visiter(bib, autre, faits, en_cours)?,
         }
@@ -95,7 +95,7 @@ fn extremite(
     texte: &str,
     largeur_de: impl Fn(&str) -> Option<u32>,
 ) -> Result<(String, Vec<u32>), String> {
-    let faux = || format!("extrémité « {texte} » illisible");
+    let faux = || tr!("extrémité « {texte} » illisible", texte = texte);
     let (nom, bits) = match texte.find('[') {
         None => (texte, None),
         Some(i) => {
@@ -103,7 +103,7 @@ fn extremite(
             (&texte[..i], Some(dedans))
         }
     };
-    let largeur = largeur_de(nom).ok_or_else(|| format!("broche « {nom} » inconnue"))?;
+    let largeur = largeur_de(nom).ok_or_else(|| tr!("broche « {nom} » inconnue", nom = nom))?;
     let bits: Vec<u32> = match bits {
         None => (0..largeur).collect(),
         Some(d) => match d.split_once(':') {
@@ -120,13 +120,16 @@ fn extremite(
         },
     };
     if bits.iter().any(|b| *b >= largeur) {
-        return Err(format!("« {texte} » dépasse la largeur de la broche"));
+        return Err(tr!(
+            "« {texte} » dépasse la largeur de la broche",
+            texte = texte
+        ));
     }
     Ok((nom.to_owned(), bits))
 }
 
 fn plan_de(nom: &str, comp: &Composant, faits: &[Modele]) -> Result<Document, String> {
-    let ici = |e: String| format!("dans « {nom} » : {e}");
+    let ici = |e: String| tr!("dans « {nom} » : {e}", nom = nom, e = e);
     let mut plan = Document::nouveau();
     let mut prises: BTreeMap<String, Prise> = BTreeMap::new();
     let mut nb_bits = 0usize;
@@ -183,7 +186,7 @@ fn plan_de(nom: &str, comp: &Composant, faits: &[Modele]) -> Result<Document, St
                 let modele = faits
                     .iter()
                     .find(|m| m.nom == genre)
-                    .ok_or_else(|| ici(format!("le composant « {genre} » manque")))?;
+                    .ok_or_else(|| ici(tr!("le composant « {genre} » manque", genre = genre)))?;
                 let mut element = modele.instance();
                 element.nom = inst.nom.clone();
                 let (e, s) = (element.broches_e.clone(), element.broches_s.clone());
@@ -225,9 +228,9 @@ fn plan_de(nom: &str, comp: &Composant, faits: &[Modele]) -> Result<Document, St
                 None => premier = Some(bits),
                 Some(p) => {
                     if p.len() != bits.len() {
-                        return Err(ici(format!(
-                            "le fil [{}] relie des largeurs différentes",
-                            fil.join(", ")
+                        return Err(ici(tr!(
+                            "le fil [{v}] relie des largeurs différentes",
+                            v = fil.join(", ")
                         )));
                     }
                     for (a, b) in p.iter().zip(&bits) {
