@@ -11,7 +11,8 @@ name: Publication
 # - zipsign : en même temps, compile zipsign à neuf et transmet son empreinte SHA-256 ;
 # - essais : sans aucun secret, vérifie que l'exécutable porte ce commit, le profil release et la
 #   version du code, l'essaie encore, et transmet son empreinte SHA-256 ;
-# - windows : reprend ces deux fichiers (empreintes comparées), signe, publie et revérifie comme
+# - windows : reprend ces deux fichiers (empreintes comparées), signe, publie l'archive signée et
+#   l'installateur construit et essayé par la CI (empreinte comparée), puis revérifie comme
 #   avant. C'est le seul job qui reçoit la clé de signature : l'exécutable n'y est jamais lancé,
 #   et zipsign, le programme à qui l'on confie la clé, n'y vient d'aucun cache (un cache peut
 #   être écrit par tout job qui lance l'exécutable).
@@ -328,6 +329,22 @@ jobs:
           fi
           mkdir -p target/release
           cp "$RUNNER_TEMP/ci/computer-engineer.exe" target/release/computer-engineer.exe
+          # L'installateur que la CI a construit à partir de cet exécutable, puis installé, lancé
+          # et désinstallé : celui-là, octet pour octet. Il n'est pas lancé ici.
+          installateur="$(sed -n 's/^installateur=//p' "$RUNNER_TEMP/ci/construction.txt")"
+          attendue="$(sed -n 's/^installateur_sha256=//p' "$RUNNER_TEMP/ci/construction.txt")"
+          if [ "$installateur" != "computer-engineer-setup-${ETIQUETTE}-x86_64.exe" ] && [ "$PUBLIER" = true ]; then
+            echo "L'installateur de la CI ($installateur) ne porte pas la version $ETIQUETTE : rien n'est publié." >&2
+            exit 1
+          fi
+          recue="$(sha256sum < "$RUNNER_TEMP/ci/$installateur" | cut -d' ' -f1)"
+          echo "Installateur $installateur, empreinte attendue : $attendue, reçue : $recue"
+          if [ "${#attendue}" -ne 64 ] || [ "$recue" != "$attendue" ]; then
+            echo "L'installateur téléchargé n'est pas celui que la CI a essayé : rien n'est publié." >&2
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/installateur"
+          cp "$RUNNER_TEMP/ci/$installateur" "$RUNNER_TEMP/installateur/"
 
       - name: Archive signée et vérifiée avec les clés compilées dans l'application
         env:
@@ -347,6 +364,7 @@ jobs:
           printf '%s' "$ZIPSIGN_CLE_PRIVEE" | base64 -d > "$cle"
           trap 'rm -f "$cle"' EXIT
           ZIPSIGN="$zipsign" outils/empaqueter.sh target/release/computer-engineer.exe "$cle" dist
+          cp "$RUNNER_TEMP"/installateur/computer-engineer-setup-*.exe dist/
 
       - name: Notes de la version, tirées du CHANGELOG
         run: |
@@ -376,7 +394,7 @@ jobs:
             echo "Le secret CE_JETON_VERSIONS n'est pas réglé : impossible de publier." >&2
             exit 1
           fi
-          gh release create "$ETIQUETTE" dist/computer-engineer-*.zip \
+          gh release create "$ETIQUETTE" dist/computer-engineer-*.zip dist/computer-engineer-setup-*.exe \
             --repo "$CE_DEPOT_DES_VERSIONS" \
             --title "Computer Engineer ${ETIQUETTE#v}" \
             --notes-file dist/notes.md
@@ -392,6 +410,9 @@ jobs:
             sleep $((essai * 10))
           done
           cmp "verif/$nom" "dist/$nom"
+          installateur="$(basename dist/computer-engineer-setup-*.exe)"
+          curl -fsSL "https://github.com/$CE_DEPOT_DES_VERSIONS/releases/download/$ETIQUETTE/$installateur" -o "verif/$installateur"
+          cmp "verif/$installateur" "dist/$installateur"
           cles=()
           for c in crates/app/cles/verification-*.pub; do [ -s "$c" ] && cles+=("$c"); done
           "$RUNNER_TEMP/zipsign/zipsign.exe" verify zip "verif/$nom" "${cles[@]}"

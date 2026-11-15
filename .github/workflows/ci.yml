@@ -257,6 +257,82 @@ jobs:
             echo "L'exécutable gardé n'est plus celui que cargo a produit." >&2
             exit 1
           fi
+      - name: Installateur (Inno Setup), construit à partir de l'exécutable gardé
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Inno Setup : préinstallé sur certaines images Windows de GitHub, sinon par Chocolatey.
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE) { throw "Inno Setup n'a pas pu être installé." }
+          }
+          (Get-Item $iscc).VersionInfo | Format-List ProductVersion
+          $version = ((cargo metadata --format-version 1 --no-deps --locked | ConvertFrom-Json).packages | Where-Object name -eq 'ce-app').version
+          $sortie = Join-Path $env:RUNNER_TEMP 'installateur'
+          & $iscc /Q "/DVersion=$version" "/DSource=$env:RUNNER_TEMP\exe\computer-engineer.exe" "/O$sortie" installateur\computer-engineer.iss
+          if ($LASTEXITCODE) { throw "L'installateur n'a pas pu être construit." }
+          $nom = "computer-engineer-setup-v$version-x86_64.exe"
+          Copy-Item (Join-Path $sortie $nom) "$env:RUNNER_TEMP\exe\"
+          $empreinte = (Get-FileHash "$env:RUNNER_TEMP\exe\$nom" -Algorithm SHA256).Hash.ToLower()
+          # Relu par la publication, qui publie ce fichier-là, octet pour octet.
+          Add-Content "$env:RUNNER_TEMP\exe\construction.txt" "installateur=$nom`ninstallateur_sha256=$empreinte"
+          Get-Content "$env:RUNNER_TEMP\exe\construction.txt"
+      - name: Installer, lancer, désinstaller comme un utilisateur (sans droits d'administrateur)
+        shell: pwsh
+        env:
+          ATTENDUE: ${{ steps.construire.outputs.sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $nom = (Select-String -Path "$env:RUNNER_TEMP\exe\construction.txt" -Pattern '^installateur=(.*)$').Matches[0].Groups[1].Value
+          $version = ($nom -replace '^computer-engineer-setup-v(.*)-x86_64\.exe$', '$1')
+          $cle = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{66AE1388-2389-4176-93A1-D83C77A8C7F0}_is1'
+          $dossier = Join-Path $env:LOCALAPPDATA 'Programs\Computer Engineer'
+          $exe = Join-Path $dossier 'computer-engineer.exe'
+          $bureau = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Computer Engineer.lnk'
+          $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Computer Engineer.lnk'
+          function Exiger($vrai, $message) { if (-not $vrai) { throw $message } }
+
+          # Les projets de l'utilisateur, qui doivent survivre à la désinstallation.
+          $donnees = Join-Path $env:APPDATA 'Computer Engineer\projets'
+          New-Item -ItemType Directory -Force $donnees | Out-Null
+          Set-Content (Join-Path $donnees 'garde-moi.json') '{}'
+
+          $p = Start-Process "$env:RUNNER_TEMP\exe\$nom" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/LOG=$env:RUNNER_TEMP\installation.log" -Wait -PassThru
+          if ($p.ExitCode) { Get-Content "$env:RUNNER_TEMP\installation.log"; throw "Installation : code $($p.ExitCode)" }
+          Exiger (Test-Path $exe) "L'exécutable n'est pas dans $dossier."
+          Exiger ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() -eq $env:ATTENDUE) "L'exécutable installé n'est pas celui que la CI a testé."
+          $shell = New-Object -ComObject WScript.Shell
+          foreach ($lnk in $bureau, $menu) {
+            Exiger (Test-Path $lnk) "Raccourci absent : $lnk"
+            Exiger ($shell.CreateShortcut($lnk).TargetPath -eq $exe) "Le raccourci $lnk ne lance pas $exe."
+          }
+          $inscrit = Get-ItemProperty $cle
+          $inscrit | Format-List DisplayName, DisplayVersion, Publisher, InstallLocation, UninstallString
+          Exiger ($inscrit.DisplayName -eq 'Computer Engineer') "Nom affiché dans les Paramètres : $($inscrit.DisplayName)"
+          Exiger ($inscrit.DisplayVersion -eq $version) "Version affichée : $($inscrit.DisplayVersion)"
+
+          # Après une mise à jour automatique (qui ne repasse pas par l'installateur), l'application
+          # remet elle-même la version affichée à jour.
+          Set-ItemProperty $cle -Name DisplayVersion -Value '0.0.1'
+          $p = Start-Process $exe -ArgumentList '--verifier' -Wait -PassThru
+          Exiger ($p.ExitCode -eq 0) "L'application installée échoue à --verifier (code $($p.ExitCode))."
+          Exiger ((Get-ItemProperty $cle).DisplayVersion -eq $version) "La version affichée n'a pas été remise à jour."
+
+          # Désinstallation, comme depuis les Paramètres de Windows.
+          $desinstallateur = ($inscrit.QuietUninstallString, $inscrit.UninstallString | Where-Object { $_ } | Select-Object -First 1) -replace '"', ''
+          $desinstallateur = ($desinstallateur -split ' /')[0]
+          $p = Start-Process $desinstallateur -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          Exiger ($p.ExitCode -eq 0) "Désinstallation : code $($p.ExitCode)"
+          # Le désinstallateur se relance depuis un dossier temporaire : on lui laisse le temps de finir.
+          for ($i = 0; $i -lt 60 -and ((Test-Path $exe) -or (Test-Path $cle)); $i++) { Start-Sleep 1 }
+          Exiger (-not (Test-Path $exe)) "L'exécutable est resté après la désinstallation."
+          Exiger (-not (Test-Path $dossier)) "Le dossier d'installation est resté."
+          Exiger (-not (Test-Path $bureau)) "Le raccourci du bureau est resté."
+          Exiger (-not (Test-Path $menu)) "Le raccourci du menu Démarrer est resté."
+          Exiger (-not (Test-Path $cle)) "L'application est encore inscrite dans les Paramètres."
+          Exiger (Test-Path (Join-Path $donnees 'garde-moi.json')) "La désinstallation a supprimé les projets de l'utilisateur."
+          Write-Output "Installation, raccourcis, version affichée et désinstallation : bons."
       - name: Conserver les exécutables
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -265,6 +341,7 @@ jobs:
             ${{ runner.temp }}/exe/computer-engineer.exe
             ${{ runner.temp }}/exe/ce.exe
             ${{ runner.temp }}/exe/construction.txt
+            ${{ runner.temp }}/exe/computer-engineer-setup-v*-x86_64.exe
           if-no-files-found: error
           # La publication reprend l'exécutable d'un push sur main ou d'une CI lancée à la main :
           # on le garde 30 jours. Celui d'une PR ne sert qu'à l'essayer : 7 jours.

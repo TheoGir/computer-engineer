@@ -100,6 +100,11 @@ fn mettre_a_jour(source: ce_app::mise_a_jour::Source) -> ExitCode {
 /// valeurs, les quatre cas de la quête se valident, l'ordinateur miniature calcule 6 × 7 avec
 /// son clavier et son écran, l'apparence fait l'aller-retour en JSON.
 fn verifier() -> ExitCode {
+    // Installée : la version inscrite dans les Paramètres de Windows suit celle-ci (comme au
+    // lancement de la fenêtre), ce que la CI vérifie après avoir installé l'application.
+    if ce_app::installation::tenir_la_version_a_jour(env!("CARGO_PKG_VERSION")) {
+        println!("Version inscrite dans les Paramètres de Windows mise à jour.");
+    }
     let a = Apparence::default();
     let mut at = Atelier::nouveau(&a);
     let mut pas = 0;

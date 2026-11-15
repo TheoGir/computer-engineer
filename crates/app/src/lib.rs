@@ -50,6 +50,7 @@ pub mod fenetres;
 pub mod format;
 pub mod importer;
 pub mod incident;
+pub mod installation;
 pub mod licences;
 pub mod mise_a_jour;
 pub mod panneaux;

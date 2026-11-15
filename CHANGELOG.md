@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 0.5.0 — 15 novembre 2026
+
+Un vrai installateur, comme pour toute application Windows.
+
+- Sur la page des versions, `computer-engineer-setup-v0.5.0-x86_64.exe` installe l'application pour toi seul, sans mot de passe d'administrateur, dans `%LOCALAPPDATA%\Programs\Computer Engineer`. Il pose un raccourci dans le menu Démarrer et sur le bureau (case à décocher si tu n'en veux pas), et peut lancer l'application tout de suite.
+- L'application apparaît dans les Paramètres de Windows, « Applications installées », avec son icône et sa version, et se désinstalle de là : application, raccourcis et inscription sont retirés, tes projets sont gardés.
+- Les mises à jour automatiques continuent de remplacer l'application sur place, sans rien demander ; la version affichée dans les Paramètres de Windows suit.
+- Une application déjà ouverte est fermée proprement avant d'être remplacée. Les raccourcis posés par l'installateur ne sont pas reposés en double au premier lancement.
+- L'archive `.zip` reste publiée à côté : c'est elle que téléchargent les mises à jour automatiques, et elle sert toujours à qui veut l'application sans l'installer.
+- À chaque CI, l'installateur est construit à partir de l'exécutable testé, puis installé, lancé et désinstallé comme par un utilisateur, en vérifiant chaque fichier, raccourci et inscription.
+
 ## 0.4.0 — 15 novembre 2026
 
 Une application redessinée de bout en bout, le programme de l'ordinateur s'écrit dans l'application, 40 nouvelles quêtes t'attendent, et rien ne se perd plus : l'application installée propose d'elle-même cette version. (La 0.3.0 n'a pas été publiée : tout ce qu'elle apportait est ici.)

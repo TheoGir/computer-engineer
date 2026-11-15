@@ -555,6 +555,9 @@ impl Application {
             maj.rechercher(false);
         }
         app.mise_a_jour = Some(maj);
+        // Installée par l'installateur : la version affichée dans les Paramètres de Windows suit
+        // les mises à jour automatiques, qui ne repassent pas par l'installateur.
+        crate::installation::tenir_la_version_a_jour(env!("CARGO_PKG_VERSION"));
         if std::env::var_os("CE_SANS_RACCOURCI").is_none() {
             if let Some(raccourcis) = Raccourcis::du_systeme() {
                 app = app.avec_raccourcis(raccourcis);
@@ -567,7 +570,9 @@ impl Application {
     /// Démarrer (une seule fois, retenu dans les réglages) ; ensuite, refait ceux qui mènent à
     /// un autre exécutable. Sans dossier de données, rien ne serait retenu : rien n'est posé.
     pub fn avec_raccourcis(mut self, raccourcis: Raccourcis) -> Self {
-        let proposes = self.reglages.raccourcis_proposes || self.dossier.is_none();
+        let proposes = self.reglages.raccourcis_proposes
+            || self.dossier.is_none()
+            || crate::installation::par_l_installateur();
         let bilan = raccourcis.au_lancement(proposes);
         if bilan.proposes {
             self.reglages.raccourcis_proposes = true;

@@ -1,7 +1,8 @@
 //! Les raccourcis qui lancent l'application : sur le bureau et dans le menu Démarrer de Windows.
 //!
 //! - Au premier lancement, l'application pose les deux raccourcis, une seule fois : un raccourci
-//!   que l'utilisateur a supprimé n'est pas remis dans son dos. Paramètres les pose ou les retire.
+//!   que l'utilisateur a supprimé n'est pas remis dans son dos. Ceux que l'installateur a déjà
+//!   posés vers cet exécutable sont gardés tels quels, sans message. Paramètres les pose ou les retire.
 //! - À chaque lancement, un raccourci qui mène ailleurs (dossier de l'application déplacé, archive
 //!   extraite à un autre endroit) est refait vers l'exécutable lancé. Une mise à jour remplace
 //!   l'exécutable sur place : le raccourci reste juste sans rien faire.
@@ -221,25 +222,34 @@ impl Raccourcis {
                 continue;
             };
             if !proposes {
+                // Déjà posé vers cet exécutable (par l'installateur) : rien à faire ni à dire.
+                if self.mene_ici(&fichier) {
+                    continue;
+                }
                 match self.poser(lieu) {
                     Ok(()) => bilan.poses.push(lieu),
                     Err(e) => bilan.erreurs.push(e),
                 }
-            } else if fichier.is_file() {
-                let juste = self
-                    .systeme
-                    .cible(&fichier)
-                    .is_ok_and(|c| meme_fichier(&c, &self.exe));
-                if !juste {
-                    match self.poser(lieu) {
-                        Ok(()) => bilan.refaits.push(lieu),
-                        Err(e) => bilan.erreurs.push(e),
-                    }
+            } else if fichier.is_file() && !self.mene_ici(&fichier) {
+                match self.poser(lieu) {
+                    Ok(()) => bilan.refaits.push(lieu),
+                    Err(e) => bilan.erreurs.push(e),
                 }
             }
         }
         bilan.proposes = !proposes;
         bilan
+    }
+}
+
+impl Raccourcis {
+    /// Vrai si le raccourci `fichier` existe et lance l'exécutable en marche.
+    fn mene_ici(&self, fichier: &Path) -> bool {
+        fichier.is_file()
+            && self
+                .systeme
+                .cible(fichier)
+                .is_ok_and(|c| meme_fichier(&c, &self.exe))
     }
 }
 
@@ -399,6 +409,42 @@ mod tests {
             r.join(exe),
             false,
         )
+    }
+
+    #[test]
+    fn les_raccourcis_de_l_installateur_sont_gardes_sans_message() {
+        let r = essai("installateur");
+        let rc = raccourcis(&r, "Zoé app/computer-engineer.exe");
+        // L'installateur a posé les deux raccourcis vers cet exécutable avant le premier lancement.
+        for lieu in Lieu::TOUS {
+            let f = rc.fichier(lieu).unwrap();
+            std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+            std::fs::write(
+                &f,
+                r.join("Zoé app/computer-engineer.exe")
+                    .to_string_lossy()
+                    .as_bytes(),
+            )
+            .unwrap();
+        }
+        let bilan = rc.au_lancement(false);
+        assert_eq!(bilan.poses, vec![]);
+        assert_eq!(bilan.refaits, vec![]);
+        assert!(
+            bilan.proposes,
+            "retenu : plus jamais reposés dans le dos de l'utilisateur"
+        );
+        assert_eq!(bilan.message(), None);
+        assert_eq!(rc.presents(), [true, true]);
+        // Un raccourci vers un autre exécutable, lui, est refait au premier lancement.
+        std::fs::write(
+            rc.fichier(Lieu::Bureau).unwrap(),
+            b"C:\\ailleurs\\vieux.exe",
+        )
+        .unwrap();
+        let bilan = rc.au_lancement(false);
+        assert_eq!(bilan.poses, vec![Lieu::Bureau]);
+        std::fs::remove_dir_all(&r).unwrap();
     }
 
     #[test]
