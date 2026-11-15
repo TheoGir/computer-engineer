@@ -208,3 +208,27 @@ fn captures_machine_et_palette() {
         .save(format!("{dossier}/p2-machine.png"))
         .expect("écriture de la capture");
 }
+
+#[test]
+fn capture_depannage() {
+    let Ok(dossier) = std::env::var("CE_CAPTURES") else {
+        eprintln!("CE_CAPTURES n'est pas défini : captures ignorées.");
+        return;
+    };
+    let mut b = banc(true);
+    {
+        let app = b.state_mut();
+        let fiche = PARCOURS
+            .iter()
+            .find(|f| f.cle == "panne-additionneur-complet")
+            .expect("quête");
+        let apparence = app.apparence.clone();
+        assert!(app.atelier.ouvrir_quete(fiche, "Dépannage", &apparence));
+    }
+    b.run_steps(120);
+    let image = b.render().expect("rendu");
+    std::fs::create_dir_all(&dossier).expect("dossier de sortie");
+    image
+        .save(format!("{dossier}/p3-depannage.png"))
+        .expect("écriture de la capture");
+}

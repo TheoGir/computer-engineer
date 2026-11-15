@@ -94,3 +94,7 @@ memoire-256
 ordinateur-256
 messagerie
 messagerie-chiffree
+panne-ou-x
+panne-demi-additionneur
+panne-multiplexeur
+panne-additionneur-complet

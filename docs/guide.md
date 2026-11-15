@@ -51,6 +51,8 @@ des plus anciennes ; l'original d'un projet mis au nouveau format est gardé dan
   voir où elle est utilisée.
 - **Les quêtes** : de la porte NON jusqu'à plusieurs ordinateurs, et des grands projets.
   « Vérifier » compare ton circuit à un corrigé prouvé ; chaque réussite devient une brique.
+  La branche « Dépannage » donne au contraire un circuit déjà construit avec un seul fil mal
+  branché : trouve-le et rebranche-le.
 - **L'ordinateur miniature** : dans tes projets, ouvre l'exemple « Ordinateur miniature ».
   Clique sur son clavier et tape deux chiffres : il affiche leur produit.
 

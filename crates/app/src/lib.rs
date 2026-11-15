@@ -43,6 +43,7 @@ pub mod app;
 pub mod apparence;
 pub mod brique;
 pub mod calques;
+pub mod depannage;
 pub mod dessin;
 pub mod disposition;
 pub mod document;
