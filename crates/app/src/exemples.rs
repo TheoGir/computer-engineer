@@ -61,7 +61,7 @@ pub fn ordinateur(nom: &str, programme: &str) -> Result<Projet, String> {
     garder_le_programme(&mut projet, programme);
     let modele = projet
         .modele(ORDINATEUR)
-        .ok_or("la brique de l'ordinateur manque")?;
+        .ok_or(tr!("la brique de l'ordinateur manque"))?;
 
     let mut plan = Document::nouveau();
     let mut brique = modele.instance();
@@ -82,11 +82,11 @@ pub fn ordinateur(nom: &str, programme: &str) -> Result<Projet, String> {
     let clavier = plan.poser(Element::clavier("clavier"), Point::nouveau(160.0, 370.0));
     let ecran = plan.poser(Element::ecran("ecran"), Point::nouveau(940.0, 200.0));
     let arret = plan.poser(
-        Element::sortie("arret", "arrêt", 1),
+        Element::sortie("arret", tr!("arrêt"), 1),
         Point::nouveau(820.0, 380.0),
     );
     let compteur = plan.poser(
-        Element::sortie("pc", "compteur de programme", 8),
+        Element::sortie("pc", tr!("compteur de programme"), 8),
         Point::nouveau(820.0, 470.0),
     );
     let mut ok = brancher(&mut plan, Source::de(raz), pc, entree("raz"));
@@ -101,7 +101,7 @@ pub fn ordinateur(nom: &str, programme: &str) -> Result<Projet, String> {
             .is_some_and(|j| brancher(&mut plan, Source::nouvelle(pc, j), puits, Some(broche)));
     }
     if !ok {
-        return Err("les broches de l'ordinateur ne sont pas celles attendues".to_owned());
+        return Err(tr!("les broches de l'ordinateur ne sont pas celles attendues").to_owned());
     }
     projet.principal = plan;
     Ok(projet)
@@ -140,7 +140,7 @@ pub fn atelier_de_l_ordinateur(nom: &str, programme: &str, fourni: bool) -> Resu
         }
         let mut b = projet
             .modele(modele)
-            .ok_or_else(|| format!("la brique {modele} manque"))?
+            .ok_or_else(|| tr!("la brique {modele} manque", modele = modele))?
             .instance();
         b.nom = nom.to_owned();
         plan.poser(b, Point::nouveau(x, y));
@@ -182,7 +182,7 @@ pub fn atelier_du_grand_projet(nom: &str, atelier: Atelier) -> Result<Projet, St
     let poser = |projet: &Projet, plan: &mut Document, modele: &str, nom: &str, x, y| {
         let mut b = projet
             .modele(modele)
-            .ok_or_else(|| format!("la brique {modele} manque"))?
+            .ok_or_else(|| tr!("la brique {modele} manque", modele = modele))?
             .instance();
         b.nom = nom.to_owned();
         plan.poser(b, Point::nouveau(x, y));

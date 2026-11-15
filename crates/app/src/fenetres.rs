@@ -44,13 +44,13 @@ impl Rubrique {
     /// Le titre de l'onglet.
     pub fn titre(self) -> &'static str {
         match self {
-            Rubrique::PremiersPas => "Premiers pas",
-            Rubrique::Raccourcis => "Raccourcis",
-            Rubrique::Programmer => "Programmer l'ordinateur",
-            Rubrique::Algebre => "Algèbre de Boole",
-            Rubrique::Lexique => "Lexique",
-            Rubrique::Fichiers => "Fichiers et mises à jour",
-            Rubrique::APropos => "À propos",
+            Rubrique::PremiersPas => tr!("Premiers pas"),
+            Rubrique::Raccourcis => tr!("Raccourcis"),
+            Rubrique::Programmer => tr!("Programmer l'ordinateur"),
+            Rubrique::Algebre => tr!("Algèbre de Boole"),
+            Rubrique::Lexique => tr!("Lexique"),
+            Rubrique::Fichiers => tr!("Fichiers et mises à jour"),
+            Rubrique::APropos => tr!("À propos"),
         }
     }
 }
@@ -211,17 +211,13 @@ pub fn texte_de(rubrique: Rubrique) -> String {
         Rubrique::Fichiers => FICHIERS.to_owned(),
         Rubrique::Algebre => ALGEBRE.to_owned(),
         Rubrique::Lexique => {
-            let mut t = "# De A à Z\nLes mots qu'on croise en construisant un ordinateur. Tape un mot dans « Chercher » pour le trouver aussi dans le reste de l'aide.\n\n".to_owned();
+            let mut t = tr!("# De A à Z\nLes mots qu'on croise en construisant un ordinateur. Tape un mot dans « Chercher » pour le trouver aussi dans le reste de l'aide.\n\n").to_owned();
             for (mot, sens) in LEXIQUE {
                 t.push_str(&format!("- {mot} : {sens}\n"));
             }
             t
         }
-        Rubrique::APropos => format!(
-            "# Computer Engineer {}\nConstruire un ordinateur complet à partir d'une seule porte logique, la NAND, dans un simulateur qui reproduit son comportement logique et temporel.\n\nLes versions : https://github.com/TheoGir/computer-engineer-releases\n\n# Bibliothèques et polices\nComputer Engineer est fait avec des bibliothèques libres, dont voici les licences.\n\n{}",
-            env!("CARGO_PKG_VERSION"),
-            crate::licences::RESUME
-        ),
+        Rubrique::APropos => tr!("# Computer Engineer {v}\nConstruire un ordinateur complet à partir d'une seule porte logique, la NAND, dans un simulateur qui reproduit son comportement logique et temporel.\n\nLes versions : https://github.com/TheoGir/computer-engineer-releases\n\n# Bibliothèques et polices\nComputer Engineer est fait avec des bibliothèques libres, dont voici les licences.\n\n{v2}", v = env!("CARGO_PKG_VERSION"), v2 = crate::licences::RESUME),
     }
 }
 
@@ -506,7 +502,7 @@ impl Fenetres {
         match at.memoire_programmable() {
             Some(m) => self.editeur = Some(Editeur::sur(at, &m)),
             None => at.dire_longtemps(
-                "Ce projet n'a pas de mémoire morte programmable. Ouvre l'exemple « Ordinateur miniature » dans tes projets, puis Ctrl+P.",
+                tr!("Ce projet n'a pas de mémoire morte programmable. Ouvre l'exemple « Ordinateur miniature » dans tes projets, puis Ctrl+P."),
             ),
         }
     }
@@ -567,7 +563,7 @@ impl Fenetres {
         };
         if let Some(rubrique) = &mut self.aide {
             let mut ouverte = true;
-            egui::Window::new("Aide")
+            egui::Window::new(tr!("Aide"))
                 .id(egui::Id::unique("fenetre-aide"))
                 .open(&mut ouverte)
                 .collapsible(false)
@@ -606,7 +602,7 @@ impl Fenetres {
                     ui.add_space(4.0);
                     ui.add(
                         TextEdit::singleline(&mut self.recherche)
-                            .hint_text("Chercher dans l'aide : un mot, un raccourci…")
+                            .hint_text(tr!("Chercher dans l'aide : un mot, un raccourci…"))
                             .desired_width(f32::INFINITY),
                     );
                     ui.add_space(2.0);
@@ -617,9 +613,7 @@ impl Fenetres {
                             let trouve = chercher(&recherche);
                             if trouve.is_empty() {
                                 ui.label(
-                                    RichText::new(format!(
-                                        "Rien trouvé pour « {recherche} ». Essaie un mot plus court."
-                                    ))
+                                    RichText::new(tr!("Rien trouvé pour « {recherche} ». Essaie un mot plus court.", recherche = recherche))
                                     .color(c.doux.c()),
                                 );
                             } else {
@@ -630,14 +624,12 @@ impl Fenetres {
                         ecrire(ui, &texte_de(*rubrique), a);
                         if *rubrique == Rubrique::APropos {
                             ui.add_space(8.0);
-                            if ui.button("Lire les textes complets des licences").clicked() {
+                            if ui.button(tr!("Lire les textes complets des licences")).clicked() {
                                 let dossier = std::env::temp_dir().join("Computer Engineer");
                                 let ouvert = crate::licences::ecrire(&dossier)
                                     .and_then(|f| crate::incident::ouvrir_dans_l_explorateur(&f));
                                 if let Err(e) = ouvert {
-                                    at.dire_longtemps(&format!(
-                                        "Les licences n'ont pas pu être ouvertes : {e}"
-                                    ));
+                                    at.dire_longtemps(&tr!("Les licences n'ont pas pu être ouvertes : {e}", e = e));
                                 }
                             }
                         }
@@ -669,7 +661,7 @@ impl Fenetres {
             .and_then(|m| m.programme.as_deref())
             .and_then(|texte| ce_circuit::ordinateur::assembler(texte).ok())
             .unwrap_or_default();
-        egui::Window::new(format!("Programme de la mémoire « {} »", editeur.modele))
+        egui::Window::new(tr!("Programme de la mémoire « {modele} »", modele = editeur.modele))
             .id(egui::Id::unique("fenetre-programme"))
             .open(&mut ouverte)
             .collapsible(false)
@@ -678,7 +670,7 @@ impl Fenetres {
             .frame(cadre)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Partir d'un exemple :").color(c.doux.c()));
+                    ui.label(RichText::new(tr!("Partir d'un exemple :")).color(c.doux.c()));
                     for (nom, texte) in PROGRAMMES {
                         if ui.button(nom).clicked() {
                             editeur.texte = texte.to_owned();
@@ -707,15 +699,12 @@ impl Fenetres {
                 match &editeur.verdict {
                     Ok(n) => {
                         ui.label(
-                            RichText::new(format!(
-                                "{n} instruction{} sur {TAILLE_MAXIMALE} possibles : prêt à charger.",
-                                if *n > 1 { "s" } else { "" }
-                            ))
+                            RichText::new(tr!("{n} instruction{v} sur {TAILLE_MAXIMALE} possibles : prêt à charger.", n = n, v = if *n > 1 { "s" } else { "" }, TAILLE_MAXIMALE = TAILLE_MAXIMALE))
                             .color(c.un.c()),
                         );
                     }
                     Err(e) => {
-                        ui.label(RichText::new(format!("À corriger, {e}")).color(danger));
+                        ui.label(RichText::new(tr!("À corriger, {e}", e = e)).color(danger));
                     }
                 }
                 if let Some(vue) = &machine {
@@ -727,16 +716,16 @@ impl Fenetres {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     let pret = matches!(editeur.verdict, Ok(n) if n > 0);
                     if ui
-                        .add_enabled(pret, principal("Charger dans la mémoire"))
+                        .add_enabled(pret, principal(tr!("Charger dans la mémoire")))
                         .on_hover_text(
-                            "Refabrique la mémoire morte en NAND avec ce programme et redémarre l'ordinateur.",
+                            tr!("Refabrique la mémoire morte en NAND avec ce programme et redémarre l'ordinateur."),
                         )
                         .clicked()
                     {
                         charger = true;
                     }
                     ui.label(
-                        RichText::new("Aide-mémoire : F1, « Programmer l'ordinateur ».")
+                        RichText::new(tr!("Aide-mémoire : F1, « Programmer l'ordinateur »."))
                             .color(c.discret.c()),
                     );
                 });
@@ -744,10 +733,7 @@ impl Fenetres {
         if charger {
             let (modele, texte) = (editeur.modele.clone(), editeur.texte.clone());
             match at.programmer(&modele, &texte) {
-                Ok(c) => at.dire(&format!(
-                    "Nouveau programme chargé : {} instructions, une mémoire morte de {} portes NAND. L'ordinateur redémarre.",
-                    c.instructions, c.portes
-                )),
+                Ok(c) => at.dire(&tr!("Nouveau programme chargé : {instructions} instructions, une mémoire morte de {portes} portes NAND. L'ordinateur redémarre.", instructions = c.instructions, portes = c.portes)),
                 Err(e) => editeur.verdict = Err(e),
             }
         }
@@ -773,7 +759,7 @@ impl Fenetres {
         let c = a.palette();
         let e = a.formes.echelle_texte;
         let principal = egui::Button::new(
-            RichText::new("Fabriquer la brique")
+            RichText::new(tr!("Fabriquer la brique"))
                 .font(Police::CorpsDemi.taille(a.typo.corps * e))
                 .color(Color32::WHITE),
         )
@@ -783,7 +769,7 @@ impl Fenetres {
         let lu = crate::automate::Automate::lire(&vue.texte);
         let mut ouverte = true;
         let mut fabriquer = false;
-        egui::Window::new("Automate")
+        egui::Window::new(tr!("Automate"))
             .id(egui::Id::unique("fenetre-automate"))
             .open(&mut ouverte)
             .collapsible(false)
@@ -792,7 +778,7 @@ impl Fenetres {
             .frame(cadre)
             .show(ctx, |ui| {
                 ui.label(
-                    RichText::new("Décris les états : « état nom : sorties à 1 », puis ses transitions « si entrée et non autre -> état ». Le premier état est celui du départ (raz). À chaque front de clk, la première transition vraie est suivie ; sinon on reste.")
+                    RichText::new(tr!("Décris les états : « état nom : sorties à 1 », puis ses transitions « si entrée et non autre -> état ». Le premier état est celui du départ (raz). À chaque front de clk, la première transition vraie est suivie ; sinon on reste."))
                         .color(c.doux.c()),
                 );
                 ui.add_space(4.0);
@@ -816,27 +802,17 @@ impl Fenetres {
                 match &lu {
                     Ok(auto) => {
                         ui.label(
-                            RichText::new(format!(
-                                "{} état{}, {} entrée{}, {} sortie{} : {} bascule{} D pour retenir l'état.",
-                                auto.etats.len(),
-                                if auto.etats.len() > 1 { "s" } else { "" },
-                                auto.entrees.len(),
-                                if auto.entrees.len() > 1 { "s" } else { "" },
-                                auto.sorties.len(),
-                                if auto.sorties.len() > 1 { "s" } else { "" },
-                                auto.bits_d_etat(),
-                                if auto.bits_d_etat() > 1 { "s" } else { "" },
-                            ))
+                            RichText::new(tr!("{len} état{v}, {len2} entrée{v2}, {len3} sortie{v3} : {bits_d_etat} bascule{v4} D pour retenir l'état.", len = auto.etats.len(), v = if auto.etats.len() > 1 { "s" } else { "" }, len2 = auto.entrees.len(), v2 = if auto.entrees.len() > 1 { "s" } else { "" }, len3 = auto.sorties.len(), v3 = if auto.sorties.len() > 1 { "s" } else { "" }, bits_d_etat = auto.bits_d_etat(), v4 = if auto.bits_d_etat() > 1 { "s" } else { "" }))
                             .color(c.un.c()),
                         );
                     }
                     Err(raison) => {
-                        ui.label(RichText::new(format!("À corriger, {raison}")).color(c.danger.c()));
+                        ui.label(RichText::new(tr!("À corriger, {raison}", raison = raison)).color(c.danger.c()));
                     }
                 }
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Nom de la brique").color(c.doux.c()));
+                    ui.label(RichText::new(tr!("Nom de la brique")).color(c.doux.c()));
                     ui.add(TextEdit::singleline(&mut vue.nom).desired_width(180.0));
                     if ui.add_enabled(lu.is_ok(), principal).clicked() {
                         fabriquer = true;
@@ -885,7 +861,7 @@ impl Fenetres {
                 .color(couleur)
         };
         let principal = egui::Button::new(
-            RichText::new("Lancer le banc")
+            RichText::new(tr!("Lancer le banc"))
                 .font(Police::CorpsDemi.taille(a.typo.corps * e))
                 .color(Color32::WHITE),
         )
@@ -895,7 +871,7 @@ impl Fenetres {
         let mut ouverte = true;
         let mut lancer = false;
         let mut change = false;
-        egui::Window::new(format!("Banc d'essai de « {} »", vue.nom))
+        egui::Window::new(tr!("Banc d'essai de « {nom} »", nom = vue.nom))
             .id(egui::Id::unique("fenetre-banc"))
             .open(&mut ouverte)
             .collapsible(false)
@@ -904,7 +880,7 @@ impl Fenetres {
             .frame(cadre)
             .show(ctx, |ui| {
                 ui.label(
-                    RichText::new("Une ligne par essai : les valeurs des interrupteurs, « -> », puis ce que les lampes doivent afficher. « - » : laisser l'interrupteur, ou peu importe la lampe. Les lignes se jouent dans l'ordre, mémoire comprise ; « attendre 50 » laisse passer le temps.")
+                    RichText::new(tr!("Une ligne par essai : les valeurs des interrupteurs, « -> », puis ce que les lampes doivent afficher. « - » : laisser l'interrupteur, ou peu importe la lampe. Les lignes se jouent dans l'ordre, mémoire comprise ; « attendre 50 » laisse passer le temps."))
                         .color(c.doux.c()),
                 );
                 ui.add_space(4.0);
@@ -929,20 +905,12 @@ impl Fenetres {
                         let justes = lignes.iter().filter(|l| l.juste()).count();
                         let (texte, couleur) = if justes == lignes.len() {
                             (
-                                format!(
-                                    "Tout est juste : {justes} essai{}.",
-                                    if justes > 1 { "s" } else { "" }
-                                ),
+                                tr!("Tout est juste : {justes} essai{v}.", justes = justes, v = if justes > 1 { "s" } else { "" }),
                                 c.un.c(),
                             )
                         } else {
                             (
-                                format!(
-                                    "{} essai{} faux sur {}.",
-                                    lignes.len() - justes,
-                                    if lignes.len() - justes > 1 { "s" } else { "" },
-                                    lignes.len()
-                                ),
+                                tr!("{v} essai{v2} faux sur {len}.", v = lignes.len() - justes, v2 = if lignes.len() - justes > 1 { "s" } else { "" }, len = lignes.len()),
                                 c.danger.c(),
                             )
                         };
@@ -954,7 +922,7 @@ impl Fenetres {
                 };
                 if *version != at.version {
                     ui.label(
-                        RichText::new("Le circuit ou le banc a changé depuis : relance-le.")
+                        RichText::new(tr!("Le circuit ou le banc a changé depuis : relance-le."))
                             .color(c.discret.c()),
                     );
                 }
@@ -1029,7 +997,7 @@ impl Fenetres {
         };
         let mut ouverte = true;
         let mut exporter = false;
-        egui::Window::new(format!("Analyse de « {} »", vue.nom))
+        egui::Window::new(tr!("Analyse de « {nom} »", nom = vue.nom))
             .id(egui::Id::unique("fenetre-analyse"))
             .open(&mut ouverte)
             .collapsible(false)
@@ -1043,20 +1011,12 @@ impl Fenetres {
                     }
                     Ok(an) => {
                         ui.label(
-                            RichText::new(format!(
-                                "{} porte{} NAND · {} étape{} au plus entre une entrée et une sortie · {} combinaison{} d'entrées, toutes simulées.",
-                                an.portes,
-                                if an.portes > 1 { "s" } else { "" },
-                                an.profondeur,
-                                if an.profondeur > 1 { "s" } else { "" },
-                                an.lignes.len(),
-                                if an.lignes.len() > 1 { "s" } else { "" },
-                            ))
+                            RichText::new(tr!("{portes} porte{v} NAND · {profondeur} étape{v2} au plus entre une entrée et une sortie · {len} combinaison{v3} d'entrées, toutes simulées.", portes = an.portes, v = if an.portes > 1 { "s" } else { "" }, profondeur = an.profondeur, v2 = if an.profondeur > 1 { "s" } else { "" }, len = an.lignes.len(), v3 = if an.lignes.len() > 1 { "s" } else { "" }))
                             .color(c.doux.c()),
                         );
                         ui.add_space(8.0);
                         ui.label(
-                            RichText::new("Expressions simplifiées")
+                            RichText::new(tr!("Expressions simplifiées"))
                                 .font(Police::CorpsDemi.taille(a.typo.fort * e))
                                 .color(c.texte.c()),
                         );
@@ -1074,12 +1034,12 @@ impl Fenetres {
                             }
                         }
                         ui.label(
-                            RichText::new("· se lit ET, + se lit OU, ¬ se lit NON. Chaque expression a le moins de produits possible (méthode de Quine-McCluskey) ; F1, « Algèbre de Boole », explique comment.")
+                            RichText::new(tr!("· se lit ET, + se lit OU, ¬ se lit NON. Chaque expression a le moins de produits possible (méthode de Quine-McCluskey) ; F1, « Algèbre de Boole », explique comment."))
                                 .color(c.discret.c()),
                         );
                         ui.add_space(8.0);
                         ui.label(
-                            RichText::new("Table de vérité")
+                            RichText::new(tr!("Table de vérité"))
                                 .font(Police::CorpsDemi.taille(a.typo.fort * e))
                                 .color(c.texte.c()),
                         );
@@ -1159,14 +1119,14 @@ impl Fenetres {
                 ui.separator();
                 ui.horizontal_wrapped(|ui| {
                     if ui
-                        .button("Exporter en Verilog")
-                        .on_hover_text("Écrit ce plan, briques mises à plat, dans un fichier .v : pour un autre simulateur ou un vrai circuit programmable (FPGA).")
+                        .button(tr!("Exporter en Verilog"))
+                        .on_hover_text(tr!("Écrit ce plan, briques mises à plat, dans un fichier .v : pour un autre simulateur ou un vrai circuit programmable (FPGA)."))
                         .clicked()
                     {
                         exporter = true;
                     }
                     ui.label(
-                        RichText::new("Les bus se lisent du bit de poids fort au bit 0.")
+                        RichText::new(tr!("Les bus se lisent du bit de poids fort au bit 0."))
                             .color(c.discret.c()),
                     );
                 });
@@ -1192,14 +1152,14 @@ fn vue_machine(ui: &mut egui::Ui, vue: &crate::programme::VueMachine, code: &[u1
     let c = a.palette();
     let mono = |t: String, couleur: Color32| RichText::new(t).monospace().color(couleur);
     ui.label(
-        RichText::new("La machine en marche")
+        RichText::new(tr!("La machine en marche"))
             .font(Police::CorpsDemi.taille(a.typo.corps * a.formes.echelle_texte))
             .color(c.texte.c()),
     );
     ui.columns(2, |colonnes| {
         let ui = &mut colonnes[0];
         ui.label(mono(
-            format!("Accumulateur A : {}", octet(vue.a)),
+            tr!("Accumulateur A : {v}", v = octet(vue.a)),
             c.texte.c(),
         ));
         // Le programme chargé, l'instruction en cours surlignée et gardée en vue.
@@ -1216,7 +1176,7 @@ fn vue_machine(ui: &mut egui::Ui, vue: &crate::programme::VueMachine, code: &[u1
                     };
                     let en_cours = vue.pc == Some(i as u8);
                     let r = ui.label(if en_cours {
-                        mono(format!("{texte}   ◀ en cours"), c.accent_clair.c())
+                        mono(tr!("{texte}   ◀ en cours", texte = texte), c.accent_clair.c())
                             .background_color(c.enfonce.c())
                     } else {
                         mono(texte, c.doux.c())
@@ -1226,12 +1186,12 @@ fn vue_machine(ui: &mut egui::Ui, vue: &crate::programme::VueMachine, code: &[u1
                     }
                 }
                 if code.is_empty() {
-                    ui.label(mono("aucun programme chargé".to_owned(), c.discret.c()));
+                    ui.label(mono(tr!("aucun programme chargé").to_owned(), c.discret.c()));
                 }
             });
         let ui = &mut colonnes[1];
         ui.label(mono(
-            format!("Mémoire vive ({} octets)", vue.ram.len()),
+            tr!("Mémoire vive ({len} octets)", len = vue.ram.len()),
             c.texte.c(),
         ));
         egui::Grid::new("memoire-vive")

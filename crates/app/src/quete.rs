@@ -1460,12 +1460,9 @@ impl Quete {
             titre: f.titre,
             consigne: f.consigne,
             felicitations: if f.felicitations.is_empty() {
-                format!(
-                    "Juste ! « {} » rejoint tes briques, prête pour les quêtes suivantes.",
-                    f.brique
-                )
+                tr!("Juste ! « {brique} » rejoint tes briques, prête pour les quêtes suivantes.", brique = f.brique)
             } else {
-                f.felicitations.to_owned()
+                crate::langue::traduire(f.felicitations).to_owned()
             },
             brique: f.brique,
             epreuve: f.epreuve,
@@ -1656,29 +1653,23 @@ impl Quete {
             let quoi = if genre == Genre::Entree {
                 "l'interrupteur"
             } else {
-                "la lampe"
+                tr!("la lampe")
             };
             let e = plan
                 .elements
                 .iter()
                 .find(|e| e.genre == genre && e.nom == b.nom)
-                .ok_or_else(|| format!("Il manque {quoi} « {} » sur le plan.", b.nom))?;
+                .ok_or_else(|| tr!("Il manque {quoi} « {nom} » sur le plan.", quoi = quoi, nom = b.nom))?;
             let largeur = match genre {
                 Genre::Entree => e.broches_s[0].largeur,
                 _ => e.broches_e[0].largeur,
             };
             if largeur != b.largeur {
-                return Err(format!(
-                    "{} « {} » doit avoir {} bit{}, pas {largeur}.",
-                    if genre == Genre::Entree {
+                return Err(tr!("{v} « {nom} » doit avoir {largeur2} bit{v2}, pas {largeur}.", largeur = largeur, v = if genre == Genre::Entree {
                         "L'interrupteur"
                     } else {
                         "La lampe"
-                    },
-                    b.nom,
-                    b.largeur,
-                    if b.largeur > 1 { "s" } else { "" }
-                ));
+                    }, nom = b.nom, largeur2 = b.largeur, v2 = if b.largeur > 1 { "s" } else { "" }));
             }
             Ok(e.id)
         };
@@ -1766,7 +1757,7 @@ impl Quete {
     fn comparer(&self, projet: &Projet) -> Verdict {
         let fiche = Self::fiche(self.cle);
         let Some(corrige) = fiche.map(|f| f.corrige) else {
-            return Verdict::echec("Cette quête n'a pas de corrigé.");
+            return Verdict::echec(tr!("Cette quête n'a pas de corrigé."));
         };
         let plan = &projet.principal;
         let (entrees, sorties) = match self.reperer(plan) {
@@ -1777,14 +1768,14 @@ impl Quete {
         briques.suivre(projet);
         let circuit = match Pont::construire(plan, projet, &briques) {
             Ok(p) => p.circuit,
-            Err(e) => return Verdict::echec(format!("Le circuit ne peut pas être simulé : {e}.")),
+            Err(e) => return Verdict::echec(tr!("Le circuit ne peut pas être simulé : {e}.", e = e)),
         };
         let profondeur = ce_circuit::analyse::chemin_critique(&circuit.netlist);
         let (Ok(mut toi), Ok(mut lui)) = (
             Banc::de_circuit(circuit),
             Banc::nouveau(corriges(), corrige),
         ) else {
-            return Verdict::echec("Le circuit ne peut pas être simulé.");
+            return Verdict::echec(tr!("Le circuit ne peut pas être simulé."));
         };
         let essais = self.essais();
         let sequentielle = self.epreuve == Epreuve::Sequentielle;
@@ -1795,10 +1786,7 @@ impl Quete {
             }
             lui.stabiliser(BUDGET);
             if !toi.stabiliser(BUDGET).est_stable() {
-                return Verdict::echec(format!(
-                    "Avec {}, ton circuit ne se stabilise pas : il oscille.",
-                    self.decrire(valeurs)
-                ));
+                return Verdict::echec(tr!("Avec {v}, ton circuit ne se stabilise pas : il oscille.", v = self.decrire(valeurs)));
             }
             for (k, b) in self.sorties.iter().enumerate() {
                 let voulu = lui.lire_valeurs(&b.corrige).unwrap_or_default();
@@ -1818,47 +1806,34 @@ impl Quete {
                             match v {
                                 Valeur::Un => n |= 1 << i,
                                 Valeur::Zero => {}
-                                _ => return "indéterminé".to_owned(),
+                                _ => return tr!("indéterminé").to_owned(),
                             }
                         }
                         n.to_string()
                     };
                     let moment = if sequentielle {
-                        format!("Au {}e essai, avec ", n + 1)
+                        tr!("Au {v}e essai, avec ", v = n + 1)
                     } else {
-                        "Avec ".to_owned()
+                        tr!("Avec ").to_owned()
                     };
-                    return Verdict::echec(format!(
-                        "{moment}{}, la lampe {} devrait valoir {} ; elle montre {}.",
-                        self.decrire(valeurs),
-                        b.nom,
-                        lire(&voulu),
-                        lire(&vu)
-                    ));
+                    return Verdict::echec(tr!("{moment}{v}, la lampe {nom} devrait valoir {v2} ; elle montre {v3}.", moment = moment, v = self.decrire(valeurs), nom = b.nom, v2 = lire(&voulu), v3 = lire(&vu)));
                 }
             }
         }
         if let (Some(max), Some(d)) = (fiche.and_then(|f| f.profondeur_max), profondeur) {
             if d > max {
-                return Verdict::echec(format!(
-                    "Tous les essais sont justes, mais ton circuit met {d} étapes à répondre dans le pire cas : il en faut au plus {max}."
-                ));
+                return Verdict::echec(tr!("Tous les essais sont justes, mais ton circuit met {d} étapes à répondre dans le pire cas : il en faut au plus {max}.", d = d, max = max));
             }
         }
         Verdict {
             reussi: true,
-            texte: format!(
-                "{} essai{} sur {}, tous justes, comparés au corrigé.",
-                essais.len(),
-                if essais.len() > 1 { "s" } else { "" },
-                if sequentielle {
+            texte: tr!("{len} essai{v} sur {v2}, tous justes, comparés au corrigé.", len = essais.len(), v = if essais.len() > 1 { "s" } else { "" }, v2 = if sequentielle {
                     "une longue suite d'actions"
                 } else if essais.len() == 1 << self.entrees.iter().map(|b| b.largeur).sum::<u32>() {
                     "toutes les combinaisons"
                 } else {
                     "des combinaisons tirées au hasard"
-                }
-            ),
+                }),
         }
     }
 }
@@ -1871,17 +1846,17 @@ fn verifier_l_ordinateur(projet: &Projet, touches: &str, attendu: &str) -> Verdi
         let mut tous = plan.elements.iter().filter(|e| e.genre == genre);
         match (tous.next(), tous.next()) {
             (Some(e), None) => Ok(e.id),
-            (None, _) => Err(format!("Il faut {quoi} sur le plan.")),
-            _ => Err(format!("Il faut un seul {quoi} sur le plan.")),
+            (None, _) => Err(tr!("Il faut {quoi} sur le plan.", quoi = quoi)),
+            _ => Err(tr!("Il faut un seul {quoi} sur le plan.", quoi = quoi)),
         }
     };
-    let (clavier, ecran) = match (un(Genre::Clavier, "clavier"), un(Genre::Ecran, "écran")) {
+    let (clavier, ecran) = match (un(Genre::Clavier, "clavier"), un(Genre::Ecran, tr!("écran"))) {
         (Ok(c), Ok(e)) => (c, e),
         (Err(e), _) | (_, Err(e)) => return Verdict::echec(e),
     };
     let mut s = Session::nouvelle(plan, projet, &[]);
     if let Some(e) = s.erreur() {
-        return Verdict::echec(format!("Le circuit ne peut pas être simulé : {e}."));
+        return Verdict::echec(tr!("Le circuit ne peut pas être simulé : {e}.", e = e));
     }
     for c in touches.bytes() {
         s.taper(clavier, c);
@@ -1889,16 +1864,16 @@ fn verifier_l_ordinateur(projet: &Projet, touches: &str, attendu: &str) -> Verdi
     let periode = 2 * Reglages::default().demi_periode;
     s.avancer_vite(periode * 300 * (touches.len() as u64 + 1));
     let vu = s.ecran(ecran).to_owned();
-    let tape = format!("Après « {touches} » au clavier, l'écran");
+    let tape = tr!("Après « {touches} » au clavier, l'écran", touches = touches);
     if vu == attendu {
         Verdict {
             reussi: true,
             texte: format!("{tape} affiche {attendu}."),
         }
     } else if vu.is_empty() {
-        Verdict::echec(format!("{tape} n'affiche rien."))
+        Verdict::echec(tr!("{tape} n'affiche rien.", tape = tape))
     } else {
-        Verdict::echec(format!("{tape} affiche « {vu} » au lieu de {attendu}."))
+        Verdict::echec(tr!("{tape} affiche « {vu} » au lieu de {attendu}.", tape = tape, vu = vu, attendu = attendu))
     }
 }
 

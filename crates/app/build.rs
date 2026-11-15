@@ -4,6 +4,8 @@
 
 fn main() {
     println!("cargo:rerun-if-changed=icone/computer-engineer.ico");
+    // Les traductions sont intégrées à la compilation (`rust_i18n::i18n!`, `src/lib.rs`).
+    println!("cargo:rerun-if-changed=locales");
     println!("cargo:rerun-if-env-changed=CI");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;

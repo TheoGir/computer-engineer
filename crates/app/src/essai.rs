@@ -59,7 +59,7 @@ fn lire_case(mot: &str) -> Result<Case, String> {
         m.parse::<u64>()
     };
     lu.map(Some)
-        .map_err(|_| format!("« {mot} » n'est pas une valeur (0, 1, 12, 0b101, 0x1F ou -)"))
+        .map_err(|_| tr!("« {mot} » n'est pas une valeur (0, 1, 12, 0b101, 0x1F ou -)", mot = mot))
 }
 
 /// Les mots d'une ligne, séparés par des espaces ou des virgules.
@@ -105,12 +105,8 @@ fn borne(plan: &Document, nom: &str, genre: Genre, numero: usize) -> Result<Born
                 e.broches_e[0].largeur
             },
         }),
-        [] => Err(format!(
-            "ligne {numero} : aucun {quoi} ne s'appelle « {nom} » sur ce plan"
-        )),
-        _ => Err(format!(
-            "ligne {numero} : plusieurs {quoi}s s'appellent « {nom} » ; donne-leur des noms différents"
-        )),
+        [] => Err(tr!("ligne {numero} : aucun {quoi} ne s'appelle « {nom} » sur ce plan", numero = numero, quoi = quoi, nom = nom)),
+        _ => Err(tr!("ligne {numero} : plusieurs {quoi}s s'appellent « {nom} » ; donne-leur des noms différents", numero = numero, quoi = quoi, nom = nom)),
     }
 }
 
@@ -133,7 +129,7 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
         }
         let Some((entrees, sorties)) = &entete else {
             let (g, d) = deux_cotes(ligne).ok_or_else(|| {
-                format!("ligne {numero} : la première ligne nomme les interrupteurs, puis « -> », puis les lampes (par exemple « a b -> s »)")
+                tr!("ligne {numero} : la première ligne nomme les interrupteurs, puis « -> », puis les lampes (par exemple « a b -> s »)", numero = numero)
             })?;
             let entrees = mots(g)
                 .into_iter()
@@ -144,9 +140,7 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
                 .map(|n| borne(plan, n, Genre::Sortie, numero))
                 .collect::<Result<Vec<_>, _>>()?;
             if sorties.is_empty() {
-                return Err(format!(
-                    "ligne {numero} : nomme au moins une lampe après « -> »"
-                ));
+                return Err(tr!("ligne {numero} : nomme au moins une lampe après « -> »", numero = numero));
             }
             entete = Some((entrees, sorties));
             continue;
@@ -172,31 +166,21 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
                 .get(1)
                 .and_then(|d| d.parse().ok())
                 .filter(|_| premiers.len() == 2)
-                .ok_or_else(|| format!("ligne {numero} : écris « attendre » suivi d'un nombre"))?;
+                .ok_or_else(|| tr!("ligne {numero} : écris « attendre » suivi d'un nombre", numero = numero))?;
             b.avancer(duree);
             continue;
         }
         let (g, d) = deux_cotes(ligne).ok_or_else(|| {
-            format!("ligne {numero} : il manque « -> » entre les interrupteurs et les lampes")
+            tr!("ligne {numero} : il manque « -> » entre les interrupteurs et les lampes", numero = numero)
         })?;
         let (valeurs_e, valeurs_s) = (mots(g), mots(d));
         if valeurs_e.len() != entrees.len() || valeurs_s.len() != sorties.len() {
-            return Err(format!(
-                "ligne {numero} : {} valeur{} avant « -> » et {} après, comme dans l'en-tête",
-                entrees.len(),
-                if entrees.len() > 1 { "s" } else { "" },
-                sorties.len()
-            ));
+            return Err(tr!("ligne {numero} : {len} valeur{v} avant « -> » et {len2} après, comme dans l'en-tête", numero = numero, len = entrees.len(), v = if entrees.len() > 1 { "s" } else { "" }, len2 = sorties.len()));
         }
         for (borne, mot) in entrees.iter().zip(&valeurs_e) {
             if let Some(v) = lire_case(mot).map_err(|e| format!("ligne {numero} : {e}"))? {
                 if !tient(v, borne.largeur) {
-                    return Err(format!(
-                        "ligne {numero} : {v} ne tient pas sur les {} bit{} de « {} »",
-                        borne.largeur,
-                        if borne.largeur > 1 { "s" } else { "" },
-                        borne.nom
-                    ));
+                    return Err(tr!("ligne {numero} : {v} ne tient pas sur les {largeur} bit{v2} de « {nom} »", numero = numero, v = v, largeur = borne.largeur, v2 = if borne.largeur > 1 { "s" } else { "" }, nom = borne.nom));
                 }
                 b.ecrire(&format!("e{}", borne.id), v)
                     .map_err(|e| e.to_string())?;
@@ -220,10 +204,7 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
                         .unwrap_or_else(|_| "?".to_owned())
                         .to_uppercase(),
                 };
-                ecarts.push(format!(
-                    "{} : attendu {attendue}, obtenu {obtenue}",
-                    borne.nom
-                ));
+                ecarts.push(tr!("{nom} : attendu {attendue}, obtenu {obtenue}", attendue = attendue, obtenue = obtenue, nom = borne.nom));
             }
         }
         jouees.push(LigneJouee {
@@ -233,7 +214,7 @@ pub fn jouer(projet: &Projet, plan: &Document, texte: &str) -> Result<Vec<LigneJ
         });
     }
     if entete.is_none() {
-        return Err("Écris d'abord l'en-tête : les interrupteurs, « -> », puis les lampes (par exemple « a b -> s »).".to_owned());
+        return Err(tr!("Écris d'abord l'en-tête : les interrupteurs, « -> », puis les lampes (par exemple « a b -> s »).").to_owned());
     }
     Ok(jouees)
 }
@@ -251,13 +232,7 @@ pub fn modele_de_banc(plan: &Document) -> String {
     let (entrees, sorties) = (noms(Genre::Entree), noms(Genre::Sortie));
     let zeros = |n: usize| vec!["0"; n].join(" ");
     let tirets = |n: usize| vec!["-"; n].join(" ");
-    format!(
-        "# Une ligne par essai : les valeurs des interrupteurs, « -> », ce que les lampes\n# doivent afficher (- : peu importe).\n{} -> {}\n{} -> {}\n",
-        entrees.join(" "),
-        sorties.join(" "),
-        zeros(entrees.len()),
-        tirets(sorties.len())
-    )
+    tr!("# Une ligne par essai : les valeurs des interrupteurs, « -> », ce que les lampes\n# doivent afficher (- : peu importe).\n{v} -> {v2}\n{v3} -> {v4}\n", v = entrees.join(" "), v2 = sorties.join(" "), v3 = zeros(entrees.len()), v4 = tirets(sorties.len()))
 }
 
 #[cfg(test)]

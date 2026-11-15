@@ -80,7 +80,7 @@ impl Source {
         // Sans clé, `self_update` ne vérifierait rien : on refuse plutôt.
         if self.cles.is_empty() {
             return Err(
-                "les mises à jour automatiques ne sont pas encore configurées dans cette version"
+                tr!("les mises à jour automatiques ne sont pas encore configurées dans cette version")
                     .to_owned(),
             );
         }
@@ -148,7 +148,7 @@ impl Source {
     /// la version installée, ou `None` si l'on avait déjà la dernière. En cas d'échec, le message
     /// dit dans quel état est l'exécutable installé.
     pub fn installer(&self) -> Result<Option<String>, String> {
-        let pas_modifiee = |e: String| format!("{e}. Ta version actuelle n'a pas été modifiée");
+        let pas_modifiee = |e: String| tr!("{e}. Ta version actuelle n'a pas été modifiée", e = e);
         let Some(r) = self.plus_recente().map_err(pas_modifiee)? else {
             return Ok(None);
         };
@@ -161,17 +161,14 @@ impl Source {
             // Sans `canonicalize` : le chemin reste celui que montre l'Explorateur (pas de « \\?\ »)
             // dans les messages.
             None => std::env::current_exe()
-                .map_err(|e| pas_modifiee(format!("exécutable introuvable ({e})")))?,
+                .map_err(|e| pas_modifiee(tr!("exécutable introuvable ({e})", e = e)))?,
         };
         avec_secours(&exe, || {
             match maj.update_extended().map_err(|e| e.to_string())? {
                 self_update::update::ReleaseStatus::Updated(r) if r.version() == version => {
                     Ok(Some(version))
                 }
-                self_update::update::ReleaseStatus::Updated(r) => Err(format!(
-                    "la version {} est arrivée au lieu de la {version}",
-                    r.version()
-                )),
+                self_update::update::ReleaseStatus::Updated(r) => Err(tr!("la version {version2} est arrivée au lieu de la {version}", version = version, version2 = r.version())),
                 _ => Ok(None),
             }
         })
@@ -207,10 +204,7 @@ pub fn avec_secours<T>(
     let copie = copie_de_secours(exe);
     if let Err(e) = std::fs::copy(exe, &copie) {
         let dossier = exe.parent().unwrap_or(exe);
-        return Err(format!(
-            "impossible d'écrire dans le dossier « {} » ({e}) : place l'application dans un dossier à toi, par exemple Documents. Ta version actuelle n'a pas été modifiée",
-            dossier.display()
-        ));
+        return Err(tr!("impossible d'écrire dans le dossier « {display} » ({e}) : place l'application dans un dossier à toi, par exemple Documents. Ta version actuelle n'a pas été modifiée", e = e, display = dossier.display()));
     }
     let resultat = installer();
     let Err(e) = resultat else {
@@ -219,7 +213,7 @@ pub fn avec_secours<T>(
     };
     if exe.exists() {
         let _ = std::fs::remove_file(&copie);
-        return Err(format!("{e}. Ta version actuelle n'a pas été modifiée"));
+        return Err(tr!("{e}. Ta version actuelle n'a pas été modifiée", e = e));
     }
     // L'exécutable a été retiré : on remet la copie en la renommant (même dossier, donc sans
     // place disque, même si le disque est plein), sinon en la recopiant, en insistant un peu si
@@ -228,19 +222,15 @@ pub fn avec_secours<T>(
     nettoyer_les_restes(exe);
     for essai in 0..6u32 {
         if std::fs::rename(&copie, exe).is_ok() {
-            return Err(format!("{e}. Ta version actuelle a été remise en place"));
+            return Err(tr!("{e}. Ta version actuelle a été remise en place", e = e));
         }
         if std::fs::copy(&copie, exe).is_ok() {
             let _ = std::fs::remove_file(&copie);
-            return Err(format!("{e}. Ta version actuelle a été remise en place"));
+            return Err(tr!("{e}. Ta version actuelle a été remise en place", e = e));
         }
         std::thread::sleep(Duration::from_millis(100 << essai));
     }
-    Err(format!(
-        "{e}. Ta version actuelle est gardée dans « {} » : renomme ce fichier en « {} » pour retrouver l'application",
-        copie.display(),
-        exe.file_name().unwrap_or_default().to_string_lossy()
-    ))
+    Err(tr!("{e}. Ta version actuelle est gardée dans « {display} » : renomme ce fichier en « {v} » pour retrouver l'application", e = e, display = copie.display(), v = exe.file_name().unwrap_or_default().to_string_lossy()))
 }
 
 /// Retire la copie de secours qu'une mise à jour interrompue (application fermée pendant le
@@ -398,7 +388,7 @@ impl MiseAJour {
 
     /// Le fil d'exécution s'est arrêté sans rien dire (il a paniqué).
     fn interrompue(&self) -> Nouvelle {
-        let e = "la mise à jour s'est arrêtée en cours de route".to_owned();
+        let e = tr!("la mise à jour s'est arrêtée en cours de route").to_owned();
         match self.etat {
             Etat::Recherche { demandee } => Nouvelle::Recherche {
                 demandee,

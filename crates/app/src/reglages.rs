@@ -7,6 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::apparence::{Apparence, Mode};
+use crate::langue::Langue;
 
 /// Ce que l'application montre au lancement.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,6 +32,8 @@ pub const TAILLES_TEXTE: [(f32, &str); 4] = [
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Reglages {
+    /// La langue de l'interface ; `None` : pas encore choisie, celle du système au lancement.
+    pub langue: Option<Langue>,
     /// Chercher une nouvelle version au lancement.
     pub mises_a_jour_automatiques: bool,
     /// Ce qui s'affiche au lancement.
@@ -52,6 +55,7 @@ pub struct Reglages {
 impl Default for Reglages {
     fn default() -> Self {
         Reglages {
+            langue: None,
             mises_a_jour_automatiques: true,
             au_lancement: Lancement::Accueil,
             theme: None,

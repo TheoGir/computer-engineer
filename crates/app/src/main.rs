@@ -20,6 +20,7 @@ use ce_app::document::Genre;
 use ce_app::etat::{Atelier, Etat};
 use ce_app::exemples::EXEMPLES;
 use ce_app::incident;
+use ce_app::tr;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -189,6 +190,12 @@ fn dossier_des_rapports() -> std::path::PathBuf {
 }
 
 fn lancer() -> ExitCode {
+    // La langue d'abord, pour que les premiers messages (fenêtre déjà ouverte, échec au
+    // démarrage) soient déjà dans la bonne langue.
+    let langue = ce_app::sauvegarde::Dossier::par_defaut()
+        .and_then(|d| d.reglages_lus().0.langue)
+        .unwrap_or_else(ce_app::langue::Langue::du_systeme);
+    ce_app::langue::choisir(langue);
     let rapports = dossier_des_rapports();
     incident::installer_le_rapport_de_plantage(rapports.clone());
     // Une seule fenêtre à la fois sur le dossier de données : deux fenêtres ouvertes sur le même
@@ -197,7 +204,7 @@ fn lancer() -> ExitCode {
         Some(d) => match incident::verrouiller(d.racine(), std::time::Duration::from_secs(10)) {
             incident::Verrou::Occupe => {
                 incident::annoncer_un_echec(
-                    "Computer Engineer est déjà ouvert dans une autre fenêtre.\n\nUtilise cette fenêtre-là (regarde dans la barre des tâches) : deux fenêtres ouvertes sur les mêmes projets s'écraseraient l'une l'autre.",
+                    tr!("Computer Engineer est déjà ouvert dans une autre fenêtre.\n\nUtilise cette fenêtre-là (regarde dans la barre des tâches) : deux fenêtres ouvertes sur les mêmes projets s'écraseraient l'une l'autre."),
                 );
                 eprintln!("Computer Engineer est déjà ouvert dans une autre fenêtre.");
                 return ExitCode::SUCCESS;
@@ -208,7 +215,7 @@ fn lancer() -> ExitCode {
     };
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Computer Engineer")
+            .with_title(tr!("Computer Engineer"))
             .with_inner_size([1440.0, 900.0])
             .with_min_inner_size([1040.0, 660.0])
             .with_app_id("computer-engineer")
@@ -216,22 +223,20 @@ fn lancer() -> ExitCode {
         ..Default::default()
     };
     match eframe::run_native(
-        "Computer Engineer",
+        tr!("Computer Engineer"),
         options,
         Box::new(|cc| Ok(Box::new(Application::pour_eframe(cc)))),
     ) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            let detail = format!("L'application n'a pas pu démarrer : {e}");
+            let detail = tr!("L'application n'a pas pu démarrer : {e}", e = e);
             eprintln!("{detail}");
-            let texte = incident::texte_du_rapport("démarrage impossible", &detail);
+            let texte = incident::texte_du_rapport(tr!("démarrage impossible"), &detail);
             let ou = incident::ecrire_un_rapport(&rapports, "demarrage", &texte).map_or_else(
                 |_| String::new(),
-                |p| format!("\n\nUn rapport a été écrit dans {}.", p.display()),
+                |p| tr!("\n\nUn rapport a été écrit dans {display}.", display = p.display()),
             );
-            incident::annoncer_un_echec(&format!(
-                "Computer Engineer n'a pas pu ouvrir sa fenêtre.\n\n{e}\n\nLa cause la plus fréquente est un pilote de carte graphique trop ancien : mettre à jour le pilote (Windows Update ou le site du fabricant) règle en général le problème.{ou}"
-            ));
+            incident::annoncer_un_echec(&tr!("Computer Engineer n'a pas pu ouvrir sa fenêtre.\n\n{e}\n\nLa cause la plus fréquente est un pilote de carte graphique trop ancien : mettre à jour le pilote (Windows Update ou le site du fabricant) règle en général le problème.{ou}", e = e, ou = ou));
             ExitCode::FAILURE
         }
     }

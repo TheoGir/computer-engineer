@@ -25,7 +25,9 @@
 //! - [`incident`] : rapports de plantage et d'échec au démarrage ;
 //! - [`raccourci`] : les raccourcis du bureau et du menu Démarrer de Windows ;
 //! - [`etat`] : l'atelier, qui réunit le tout et porte les actions ;
-//! - [`reglages`] : les choix de l'utilisateur (thème, texte, vitesse, lancement, mises à jour).
+//! - [`reglages`] : les choix de l'utilisateur (langue, thème, texte, vitesse, lancement, mises à
+//!   jour) ;
+//! - [`langue`] : l'interface en français ou en anglais, macro [`tr!`].
 //!
 //! Ce qui s'affiche :
 //! - [`routage`] : le tracé des fils ;
@@ -37,6 +39,10 @@
 //! - [`licences`] : les licences des bibliothèques et polices ;
 //! - [`accueil`] : l'écran d'accueil, les projets, le parcours et les paramètres ;
 //! - [`app`] : la boucle d'une image.
+
+// En premier : la macro `tr!` sert à tous les modules qui suivent.
+#[macro_use]
+pub mod langue;
 
 pub mod accueil;
 pub mod app;
@@ -74,3 +80,6 @@ pub mod routage;
 pub mod sauvegarde;
 pub mod savoir;
 pub mod simulation;
+
+// Les traductions de `locales/`, intégrées à l'exécutable (voir [`langue`]).
+rust_i18n::i18n!("locales");

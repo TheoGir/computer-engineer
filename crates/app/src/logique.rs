@@ -359,14 +359,12 @@ fn expressions_de(
         .enumerate()
         .map(|(k, nom)| {
             if bits == 0 {
-                return (nom, Err("Pas d'interrupteur : rien dont dépendre.".to_owned()));
+                return (nom, Err(tr!("Pas d'interrupteur : rien dont dépendre.").to_owned()));
             }
             if bits > MAX_BITS_EXPRESSION {
                 return (
                     nom,
-                    Err(format!(
-                        "{bits} bits d'entrée : trop pour une expression lisible (au plus {MAX_BITS_EXPRESSION})."
-                    )),
+                    Err(tr!("{bits} bits d'entrée : trop pour une expression lisible (au plus {MAX_BITS_EXPRESSION}).", bits = bits, MAX_BITS_EXPRESSION = MAX_BITS_EXPRESSION)),
                 );
             }
             let mut vrais = Vec::new();
@@ -377,7 +375,7 @@ fn expressions_de(
                     _ => {
                         return (
                             nom,
-                            Err("Elle n'a pas toujours une valeur nette (X ou Z) : un fil est en l'air ou en conflit.".to_owned()),
+                            Err(tr!("Elle n'a pas toujours une valeur nette (X ou Z) : un fil est en l'air ou en conflit.").to_owned()),
                         )
                     }
                 }
@@ -386,7 +384,7 @@ fn expressions_de(
             let texte = if s.minimale {
                 s.texte
             } else {
-                format!("{}   (simplifiée, peut-être pas la plus courte)", s.texte)
+                tr!("{texte}   (simplifiée, peut-être pas la plus courte)", texte = s.texte)
             };
             (nom, Ok(texte))
         })
@@ -408,10 +406,10 @@ pub fn analyser(projet: &Projet, plan: &Document) -> Result<Analyse, String> {
         .iter()
         .any(|e| matches!(e.genre, Genre::Horloge | Genre::Clavier | Genre::Ecran))
     {
-        return Err("Ce plan a une horloge, un clavier ou un écran : ce qu'il fait dépend du temps qui passe. La table de vérité ne vaut que pour un circuit sans mémoire ; regarde plutôt le chronogramme.".to_owned());
+        return Err(tr!("Ce plan a une horloge, un clavier ou un écran : ce qu'il fait dépend du temps qui passe. La table de vérité ne vaut que pour un circuit sans mémoire ; regarde plutôt le chronogramme.").to_owned());
     }
     if !plan.elements.iter().any(|e| e.genre == Genre::Sortie) {
-        return Err("Pose au moins une lampe : c'est elle qu'on analyse.".to_owned());
+        return Err(tr!("Pose au moins une lampe : c'est elle qu'on analyse.").to_owned());
     }
     let bits: u32 = plan
         .elements
@@ -420,10 +418,7 @@ pub fn analyser(projet: &Projet, plan: &Document) -> Result<Analyse, String> {
         .map(|e| e.broches_s[0].largeur)
         .sum();
     if bits > MAX_BITS_TABLE {
-        return Err(format!(
-            "Ce plan a {bits} bits d'entrée, soit {} combinaisons : trop pour une table lisible (au plus {MAX_BITS_TABLE} bits). Entre dans une de ses briques pour l'analyser seule.",
-            1u64 << bits.min(63)
-        ));
+        return Err(tr!("Ce plan a {bits} bits d'entrée, soit {v} combinaisons : trop pour une table lisible (au plus {MAX_BITS_TABLE} bits). Entre dans une de ses briques pour l'analyser seule.", bits = bits, v = 1u64 << bits.min(63), MAX_BITS_TABLE = MAX_BITS_TABLE));
     }
     let mut briques = Briques::default();
     briques.suivre(projet);
@@ -431,9 +426,9 @@ pub fn analyser(projet: &Projet, plan: &Document) -> Result<Analyse, String> {
     let table = table_du_circuit(circuit).map_err(|e| {
         let texte = e.to_string();
         if texte.contains("boucle") {
-            "Ce circuit a une boucle : il garde une mémoire, et ses lampes dépendent du passé, pas seulement des interrupteurs. La table de vérité ne vaut que pour un circuit sans mémoire ; regarde plutôt le chronogramme.".to_owned()
+            tr!("Ce circuit a une boucle : il garde une mémoire, et ses lampes dépendent du passé, pas seulement des interrupteurs. La table de vérité ne vaut que pour un circuit sans mémoire ; regarde plutôt le chronogramme.").to_owned()
         } else {
-            format!("Ce circuit ne peut pas être analysé : {texte}.")
+            tr!("Ce circuit ne peut pas être analysé : {texte}.", texte = texte)
         }
     })?;
     let entrees: Vec<(String, u32)> = table.entrees.iter().map(|(n, l)| (nom(n), *l)).collect();
@@ -461,22 +456,22 @@ pub struct Indice {
 /// Comment s'appelle, pour le joueur, le composant `genre` d'un corrigé.
 fn nom_pour_le_joueur(genre: &str) -> String {
     if genre == "NAND" {
-        return "porte NAND".to_owned();
+        return tr!("porte NAND").to_owned();
     }
     match PARCOURS.iter().find(|f| f.corrige == genre) {
-        Some(f) => format!("« {} » (quête « {} »)", f.brique, f.titre),
+        Some(f) => tr!("« {brique} » (quête « {titre} »)", brique = f.brique, titre = crate::langue::traduire(f.titre)),
         None => genre.to_lowercase().replace('_', " "),
     }
 }
 
 fn par_ou_commencer(f: &Fiche) -> String {
     if crate::depannage::est_un_depannage(f.cle) {
-        return "Ne démonte rien : le circuit est presque juste. Clique sur les entrées pour essayer chaque cas, ou ouvre la table de vérité (Ctrl+E), et note les cas faux. Puis pars de la lampe qui se trompe et remonte les fils : pour chaque porte, vérifie que sa sortie est bien le NAND de ses deux entrées et que ses entrées viennent du bon endroit. Le fil fautif trouvé, rebranche-le.".to_owned();
+        return tr!("Ne démonte rien : le circuit est presque juste. Clique sur les entrées pour essayer chaque cas, ou ouvre la table de vérité (Ctrl+E), et note les cas faux. Puis pars de la lampe qui se trompe et remonte les fils : pour chaque porte, vérifie que sa sortie est bien le NAND de ses deux entrées et que ses entrées viennent du bon endroit. Le fil fautif trouvé, rebranche-le.").to_owned();
     }
     match f.epreuve {
-        Epreuve::Combinatoire => "Commence par la table de vérité : pour chaque combinaison d'entrées, que doit valoir chaque lampe ? Une méthode marche toujours : chaque ligne où la lampe vaut 1 devient un ET de ses entrées (inversées quand elles valent 0), et la lampe est le OU de ces ET. On simplifie ensuite. Souvent, une brique déjà gagnée fait la moitié du travail.".to_owned(),
-        Epreuve::Sequentielle => "Ce composant se souvient : sa sortie dépend de ce qui s'est passé avant. Il lui faut une mémoire, une boucle ou une bascule gagnée plus tôt. Demande-toi ce qui doit être retenu, et à quel moment (au front montant de l'horloge, le plus souvent) cela doit changer. Le chronogramme montre tout, instant par instant.".to_owned(),
-        Epreuve::Ordinateur { .. } | Epreuve::Systeme { .. } => "Un grand assemblage se construit et se vérifie morceau par morceau. Pose d'abord les grandes briques, relie les bus en suivant leurs noms, puis teste chaque brique seule : entre dedans (double-clic), et Ctrl+E l'analyse quand elle n'a pas de mémoire. Le chronogramme montre où le signal s'arrête.".to_owned(),
+        Epreuve::Combinatoire => tr!("Commence par la table de vérité : pour chaque combinaison d'entrées, que doit valoir chaque lampe ? Une méthode marche toujours : chaque ligne où la lampe vaut 1 devient un ET de ses entrées (inversées quand elles valent 0), et la lampe est le OU de ces ET. On simplifie ensuite. Souvent, une brique déjà gagnée fait la moitié du travail.").to_owned(),
+        Epreuve::Sequentielle => tr!("Ce composant se souvient : sa sortie dépend de ce qui s'est passé avant. Il lui faut une mémoire, une boucle ou une bascule gagnée plus tôt. Demande-toi ce qui doit être retenu, et à quel moment (au front montant de l'horloge, le plus souvent) cela doit changer. Le chronogramme montre tout, instant par instant.").to_owned(),
+        Epreuve::Ordinateur { .. } | Epreuve::Systeme { .. } => tr!("Un grand assemblage se construit et se vérifie morceau par morceau. Pose d'abord les grandes briques, relie les bus en suivant leurs noms, puis teste chaque brique seule : entre dedans (double-clic), et Ctrl+E l'analyse quand elle n'a pas de mémoire. Le chronogramme montre où le signal s'arrête.").to_owned(),
     }
 }
 
@@ -504,9 +499,7 @@ fn briques_du_corrige(f: &'static Fiche) -> Option<String> {
         })
         .collect::<Vec<_>>()
         .join(", ");
-    Some(format!(
-        "Le corrigé assemble : {liste}. Ce n'est pas la seule façon de faire, mais ces briques suffisent."
-    ))
+    Some(tr!("Le corrigé assemble : {liste}. Ce n'est pas la seule façon de faire, mais ces briques suffisent.", liste = liste))
 }
 
 fn expression_attendue(f: &'static Fiche) -> Option<String> {
@@ -547,10 +540,7 @@ fn expression_attendue(f: &'static Fiche) -> Option<String> {
     if lignes.is_empty() {
         return None;
     }
-    Some(format!(
-        "{}. Lis · comme ET, + comme OU et ¬ comme NON : tu sais fabriquer chacune de ces portes avec des NAND.",
-        lignes.join(" ; ")
-    ))
+    Some(tr!("{v}. Lis · comme ET, + comme OU et ¬ comme NON : tu sais fabriquer chacune de ces portes avec des NAND.", v = lignes.join(" ; ")))
 }
 
 /// Les indices de la quête `cle`, du plus léger au plus précis.
@@ -559,18 +549,18 @@ pub fn indices(cle: &str) -> Vec<Indice> {
         return Vec::new();
     };
     let mut v = vec![Indice {
-        titre: "Par où commencer",
+        titre: tr!("Par où commencer"),
         texte: par_ou_commencer(f),
     }];
     if let Some(texte) = briques_du_corrige(f) {
         v.push(Indice {
-            titre: "Les briques du corrigé",
+            titre: tr!("Les briques du corrigé"),
             texte,
         });
     }
     if let Some(texte) = expression_attendue(f) {
         v.push(Indice {
-            titre: "L'expression attendue",
+            titre: tr!("L'expression attendue"),
             texte,
         });
     }

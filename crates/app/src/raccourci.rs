@@ -47,16 +47,16 @@ impl Lieu {
     /// Le lieu, écrit dans une phrase : « sur le bureau ».
     pub fn dans_une_phrase(self) -> &'static str {
         match self {
-            Lieu::Bureau => "sur le bureau",
-            Lieu::MenuDemarrer => "dans le menu Démarrer",
+            Lieu::Bureau => tr!("sur le bureau"),
+            Lieu::MenuDemarrer => tr!("dans le menu Démarrer"),
         }
     }
 
     /// Le lieu d'où l'on retire : « du bureau ».
     pub fn d_ou(self) -> &'static str {
         match self {
-            Lieu::Bureau => "du bureau",
-            Lieu::MenuDemarrer => "du menu Démarrer",
+            Lieu::Bureau => tr!("du bureau"),
+            Lieu::MenuDemarrer => tr!("du menu Démarrer"),
         }
     }
 }
@@ -112,18 +112,13 @@ impl Bilan {
             return Some(MESSAGE_ARCHIVE.to_owned());
         }
         if let Some(e) = self.erreurs.first() {
-            return Some(format!(
-                "Le raccourci n'a pas pu être posé : {e}. Tu peux réessayer dans Paramètres."
-            ));
+            return Some(tr!("Le raccourci n'a pas pu être posé : {e}. Tu peux réessayer dans Paramètres.", e = e));
         }
         match self.poses.as_slice() {
             [] => None,
-            [lieu] => Some(format!(
-                "Raccourci ajouté {}. Tu peux le retirer dans Paramètres.",
-                lieu.dans_une_phrase()
-            )),
+            [lieu] => Some(tr!("Raccourci ajouté {dans_une_phrase}. Tu peux le retirer dans Paramètres.", dans_une_phrase = lieu.dans_une_phrase())),
             _ => Some(
-                "Raccourcis ajoutés sur le bureau et dans le menu Démarrer. Tu peux les retirer dans Paramètres."
+                tr!("Raccourcis ajoutés sur le bureau et dans le menu Démarrer. Tu peux les retirer dans Paramètres.")
                     .to_owned(),
             ),
         }
@@ -184,10 +179,10 @@ impl Raccourcis {
         }
         let fichier = self
             .fichier(lieu)
-            .ok_or_else(|| format!("Windows ne donne pas de dossier {}", lieu.dans_une_phrase()))?;
+            .ok_or_else(|| tr!("Windows ne donne pas de dossier {dans_une_phrase}", dans_une_phrase = lieu.dans_une_phrase()))?;
         if let Some(dossier) = fichier.parent() {
             std::fs::create_dir_all(dossier)
-                .map_err(|e| format!("{} n'a pas pu être créé ({e})", dossier.display()))?;
+                .map_err(|e| tr!("{display} n'a pas pu être créé ({e})", e = e, display = dossier.display()))?;
         }
         self.systeme.ecrire(&fichier, &self.exe)
     }
@@ -200,10 +195,7 @@ impl Raccourcis {
         match std::fs::remove_file(&fichier) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(format!(
-                "{} n'a pas pu être supprimé ({e})",
-                fichier.display()
-            )),
+            Err(e) => Err(tr!("{display} n'a pas pu être supprimé ({e})", e = e, display = fichier.display())),
         }
     }
 
@@ -304,14 +296,14 @@ mod coquille {
             })
             .join()
         })
-        .map_err(|_| "erreur interne du shell".to_owned())?
+        .map_err(|_| tr!("erreur interne du shell").to_owned())?
         .map_err(|e| e.to_string())
     }
 
     fn texte(chemin: &Path) -> Result<&str, String> {
         chemin
             .to_str()
-            .ok_or_else(|| format!("chemin illisible : {}", chemin.display()))
+            .ok_or_else(|| tr!("chemin illisible : {display}", display = chemin.display()))
     }
 
     fn lien() -> w::HrResult<w::IShellLink> {

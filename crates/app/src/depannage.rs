@@ -35,13 +35,13 @@ pub fn plan_a_plat(bib: &Bibliotheque, nom: &str) -> Result<Document, String> {
     let circuit = Circuit::elaborer(bib, nom).map_err(|e| e.to_string())?;
     let net = &circuit.netlist;
     if !net.constantes.is_empty() || !net.horloges.is_empty() {
-        return Err(format!("« {nom} » a des constantes ou une horloge"));
+        return Err(tr!("« {nom} » a des constantes ou une horloge", nom = nom));
     }
     if net.portes.iter().any(|p| p.genre != GenrePorte::Nand) {
-        return Err(format!("« {nom} » n'est pas fait que de NAND"));
+        return Err(tr!("« {nom} » n'est pas fait que de NAND", nom = nom));
     }
     if circuit.broches.iter().any(|b| b.nets.len() != 1) {
-        return Err(format!("« {nom} » a des broches de plusieurs bits"));
+        return Err(tr!("« {nom} » a des broches de plusieurs bits", nom = nom));
     }
     let mut plan = Document::nouveau();
     let mut source_de: BTreeMap<u32, Source> = BTreeMap::new();
@@ -61,7 +61,7 @@ pub fn plan_a_plat(bib: &Bibliotheque, nom: &str) -> Result<Document, String> {
     for (k, p) in net.portes.iter().enumerate() {
         for (i, e) in [p.e0, p.e1].into_iter().enumerate() {
             let source = source_de.get(&e).ok_or_else(|| {
-                format!("une entrée de porte de « {nom} » n'est pilotée par rien")
+                tr!("une entrée de porte de « {nom} » n'est pilotée par rien", nom = nom)
             })?;
             plan.relier(
                 *source,
@@ -76,7 +76,7 @@ pub fn plan_a_plat(bib: &Bibliotheque, nom: &str) -> Result<Document, String> {
         let id = plan.poser(Element::sortie(&b.nom, &b.nom, 1), Point::default());
         let source = source_de
             .get(&b.nets[0])
-            .ok_or_else(|| format!("la sortie {} de « {nom} » n'est pilotée par rien", b.nom))?;
+            .ok_or_else(|| tr!("la sortie {nom2} de « {nom} » n'est pilotée par rien", nom = nom, nom2 = b.nom))?;
         plan.relier(
             *source,
             Fil {
@@ -111,7 +111,7 @@ pub fn plan_en_panne(fiche: &Fiche) -> Option<Result<Document, String>> {
 
 fn plan_en_panne_de(bib: &Bibliotheque, corrige: &str, depart: usize) -> Result<Document, String> {
     let juste = plan_a_plat(bib, corrige)?;
-    let attendue = table(&juste).ok_or("le corrigé a une boucle")?;
+    let attendue = table(&juste).ok_or(tr!("le corrigé a une boucle"))?;
     let portes: Vec<Id> = juste.portes().map(|e| e.id).collect();
     let sources: Vec<Source> = juste
         .elements
@@ -141,7 +141,7 @@ fn plan_en_panne_de(bib: &Bibliotheque, corrige: &str, depart: usize) -> Result<
             }
         }
     }
-    Err(format!("aucune panne trouvée pour « {corrige} »"))
+    Err(tr!("aucune panne trouvée pour « {corrige} »", corrige = corrige))
 }
 
 #[cfg(test)]

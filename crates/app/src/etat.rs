@@ -84,10 +84,10 @@ impl Proposition {
     /// Le libellé du lien.
     pub fn libelle(self) -> &'static str {
         match self {
-            Proposition::MettreAJour => "Mettre à jour",
-            Proposition::Redemarrer => "Redémarrer",
-            Proposition::Restaurer => "Annuler",
-            Proposition::VoirLeRapport => "Voir le rapport",
+            Proposition::MettreAJour => tr!("Mettre à jour"),
+            Proposition::Redemarrer => tr!("Redémarrer"),
+            Proposition::Restaurer => tr!("Annuler"),
+            Proposition::VoirLeRapport => tr!("Voir le rapport"),
         }
     }
 }
@@ -350,7 +350,7 @@ pub const ASTUCE_DU_PLAN: &str =
 impl Atelier {
     /// L'atelier au lancement : le demi-additionneur, `a` à 1, lecture en marche.
     pub fn nouveau(a: &Apparence) -> Self {
-        let mut projet = Projet::nouveau("Premier circuit", Document::demi_additionneur());
+        let mut projet = Projet::nouveau(tr!("Premier circuit"), Document::demi_additionneur());
         projet.quete = Some(Quete::demi_additionneur().cle.to_owned());
         let mut atelier = Self::avec(projet, a);
         atelier.dire_longtemps(ASTUCE_DU_PLAN);
@@ -443,7 +443,7 @@ impl Atelier {
                 true
             }
             Err(e) => {
-                self.dire(&format!("L'ordinateur n'a pas pu être ouvert : {e}"));
+                self.dire(&tr!("L'ordinateur n'a pas pu être ouvert : {e}", e = e));
                 false
             }
         }
@@ -458,7 +458,7 @@ impl Atelier {
     ) -> bool {
         let ouvert = self.ouvrir_ordinateur(nom, exemple.programme, a);
         if ouvert {
-            self.dire_longtemps(exemple.accueil);
+            self.dire_longtemps(crate::langue::traduire(exemple.accueil));
         }
         ouvert
     }
@@ -550,9 +550,7 @@ impl Atelier {
         self.charger_le_lieu(None);
         self.trajet = Trajet::Entree(id);
         if self.doc.elements.iter().any(|e| e.genre == Genre::Entree) {
-            self.presenter_le_lieu(&format!(
-                "Tu vois cet exemplaire de « {nom} » tourner dans le plan du dessus : ses entrées viennent de là-haut. Pour l'essayer seule, ouvre-la depuis Mes briques."
-            ));
+            self.presenter_le_lieu(&tr!("Tu vois cet exemplaire de « {nom} » tourner dans le plan du dessus : ses entrées viennent de là-haut. Pour l'essayer seule, ouvre-la depuis Mes briques.", nom = nom));
         }
         true
     }
@@ -575,9 +573,7 @@ impl Atelier {
         self.charger_le_lieu(Some(session));
         self.trajet = Trajet::Dedans;
         if self.doc.elements.iter().any(|e| e.genre == Genre::Entree) {
-            self.presenter_le_lieu(&format!(
-                "Tu essaies « {nom} » seule : ses interrupteurs remplacent ce qui la pilote dans le plan du dessus. Change-les pour voir comment elle réagit."
-            ));
+            self.presenter_le_lieu(&tr!("Tu essaies « {nom} » seule : ses interrupteurs remplacent ce qui la pilote dans le plan du dessus. Change-les pour voir comment elle réagit.", nom = nom));
         }
         true
     }
@@ -782,9 +778,7 @@ impl Atelier {
             .arret()
             .map(|s| self.doc.nom_signal(s))
             .unwrap_or_default();
-        self.dire(&format!(
-            "Point d'arrêt : « {nom} » est passé à 1 à t = {t}. La lecture est en pause."
-        ));
+        self.dire(&tr!("Point d'arrêt : « {nom} » est passé à 1 à t = {t}. La lecture est en pause.", nom = nom, t = t));
         true
     }
 
@@ -795,22 +789,20 @@ impl Atelier {
         };
         if self.session.arret() == Some(source) {
             self.session.poser_arret(None);
-            self.dire("Point d'arrêt retiré.");
+            self.dire(tr!("Point d'arrêt retiré."));
             return;
         }
         if !self.chemin.is_empty() {
-            self.dire("Un point d'arrêt se pose sur le plan principal.");
+            self.dire(tr!("Un point d'arrêt se pose sur le plan principal."));
             return;
         }
         if self.doc.largeur_source(source) != Some(1) {
-            self.dire("Un point d'arrêt se pose sur un fil d'un seul bit.");
+            self.dire(tr!("Un point d'arrêt se pose sur un fil d'un seul bit."));
             return;
         }
         self.session.poser_arret(Some(source));
         let nom = self.doc.nom_signal(source);
-        self.dire(&format!(
-            "Point d'arrêt posé : la lecture s'arrêtera quand « {nom} » passera à 1."
-        ));
+        self.dire(&tr!("Point d'arrêt posé : la lecture s'arrêtera quand « {nom} » passera à 1.", nom = nom));
     }
 
     /// Part du pas en cours déjà écoulée, de 0 à 1 (pour les animations).
@@ -888,23 +880,17 @@ impl Atelier {
                 self.ouvrir(projet, a);
                 let briques = self.projet.modeles.len();
                 let texte = if fiche.epreuve.ordinateur() {
-                    format!("{} : {}", fiche.titre, fiche.consigne)
+                    format!("{} : {}", crate::langue::traduire(fiche.titre), crate::langue::traduire(fiche.consigne))
                 } else if briques > 0 && !self.parcours.briques.is_empty() {
-                    format!(
-                        "{} : {} Tes briques gagnées sont dans la palette. Clique sur Vérifier quand c'est prêt.",
-                        fiche.titre, fiche.consigne
-                    )
+                    tr!("{titre} : {consigne} Tes briques gagnées sont dans la palette. Clique sur Vérifier quand c'est prêt.", titre = crate::langue::traduire(fiche.titre), consigne = crate::langue::traduire(fiche.consigne))
                 } else {
-                    format!(
-                        "{} : {} Clique sur Vérifier quand c'est prêt.",
-                        fiche.titre, fiche.consigne
-                    )
+                    tr!("{titre} : {consigne} Clique sur Vérifier quand c'est prêt.", titre = crate::langue::traduire(fiche.titre), consigne = crate::langue::traduire(fiche.consigne))
                 };
                 self.dire_longtemps(&texte);
                 true
             }
             Err(e) => {
-                self.dire(&format!("La quête n'a pas pu être ouverte : {e}"));
+                self.dire(&tr!("La quête n'a pas pu être ouverte : {e}", e = e));
                 false
             }
         }
@@ -981,7 +967,7 @@ impl Atelier {
             .is_some_and(|e| e.genre == Genre::Entree)
         {
             self.dire(
-                "Cette entrée est pilotée par le plan du dessus. Pour la changer à la main, ouvre la brique seule depuis Mes briques.",
+                tr!("Cette entrée est pilotée par le plan du dessus. Pour la changer à la main, ouvre la brique seule depuis Mes briques."),
             );
         }
         true
@@ -1160,7 +1146,7 @@ impl Atelier {
             self.reste = 0.0;
             self.observer();
             if let Some(e) = self.session.erreur().map(str::to_owned) {
-                self.dire(&format!("Ce circuit ne peut pas être simulé : {e}."));
+                self.dire(&tr!("Ce circuit ne peut pas être simulé : {e}.", e = e));
             }
         }
         let doc = &self.doc;
@@ -1275,7 +1261,7 @@ impl Atelier {
     /// Pose une brique du modèle `modele`, si c'est possible.
     pub fn poser_brique(&mut self, modele: &str, pos: Point) -> Option<Id> {
         if !self.peut_poser(modele) {
-            self.dire("Une brique ne peut pas se contenir elle-même.");
+            self.dire(tr!("Une brique ne peut pas se contenir elle-même."));
             return None;
         }
         let element = self.projet.modele(modele)?.instance();
@@ -1285,19 +1271,16 @@ impl Atelier {
     /// Regroupe les éléments sélectionnés en une nouvelle brique. Renvoie la brique posée.
     pub fn regrouper_selection(&mut self, a: &Apparence) -> Option<Id> {
         let ids = self.elements_selectionnes().to_vec();
-        let nom = self.projet.nom_libre("Brique");
+        let nom = self.projet.nom_libre(tr!("Brique"));
         let Some((modele, id)) = brique::regrouper(&mut self.doc, &ids, &nom) else {
-            self.dire("Sélectionne d'abord des portes ou des briques à regrouper.");
+            self.dire(tr!("Sélectionne d'abord des portes ou des briques à regrouper."));
             return None;
         };
         let portes = self.projet.nb_portes(&modele.plan);
         let nom = self.projet.ajouter(modele);
         self.selectionner(id);
         self.apres_modification(a);
-        self.dire(&format!(
-            "« {nom} » est une nouvelle brique de {portes} porte{}. Elle est dans la palette, prête à resservir ; double-clique dessus pour l'ouvrir.",
-            if portes > 1 { "s" } else { "" }
-        ));
+        self.dire(&tr!("« {nom} » est une nouvelle brique de {portes} porte{v}. Elle est dans la palette, prête à resservir ; double-clique dessus pour l'ouvrir.", nom = nom, portes = portes, v = if portes > 1 { "s" } else { "" }));
         Some(id)
     }
 
@@ -1305,22 +1288,20 @@ impl Atelier {
     /// deviennent ses broches. Renvoie le nom de la brique.
     pub fn plan_en_brique(&mut self) -> Option<String> {
         if !self.chemin.is_empty() {
-            self.dire("Ce plan est déjà celui d'une brique.");
+            self.dire(tr!("Ce plan est déjà celui d'une brique."));
             return None;
         }
         if self.doc.portes().count() == 0
             && !self.doc.elements.iter().any(|e| e.genre == Genre::Brique)
         {
-            self.dire("Il n'y a encore rien à enregistrer sur ce plan.");
+            self.dire(tr!("Il n'y a encore rien à enregistrer sur ce plan."));
             return None;
         }
-        let base = self.quete.as_ref().map_or("Brique", |q| q.brique);
+        let base = self.quete.as_ref().map_or(tr!("Brique"), |q| q.brique);
         let nom = self.projet.nom_libre(base);
         let nom = self.projet.ajouter(brique::modele_du_plan(&self.doc, &nom));
         self.version += 1;
-        self.dire(&format!(
-            "Le plan est enregistré comme la brique « {nom} ». Elle est dans la palette."
-        ));
+        self.dire(&tr!("Le plan est enregistré comme la brique « {nom} ». Elle est dans la palette.", nom = nom));
         Some(nom)
     }
 
@@ -1331,7 +1312,7 @@ impl Atelier {
             return false;
         }
         if self.doc.elements.iter().any(|e| e.id != id && e.nom == nom) {
-            self.dire(&format!("Un autre élément s'appelle déjà « {nom} »."));
+            self.dire(&tr!("Un autre élément s'appelle déjà « {nom} ».", nom = nom));
             return false;
         }
         if self
@@ -1339,7 +1320,7 @@ impl Atelier {
             .as_ref()
             .is_some_and(|q| self.chemin.is_empty() && q.tient_a(&self.doc, id))
         {
-            self.dire("La quête a besoin de ce nom.");
+            self.dire(tr!("La quête a besoin de ce nom."));
             return false;
         }
         match self.doc.element_mut(id) {
@@ -1353,7 +1334,7 @@ impl Atelier {
     /// Change le nombre de bits d'un interrupteur ou d'une lampe.
     pub fn changer_largeur(&mut self, id: Id, largeur: u32, a: &Apparence) -> bool {
         if !(1..=64).contains(&largeur) {
-            self.dire("Un fil porte de 1 à 64 bits.");
+            self.dire(tr!("Un fil porte de 1 à 64 bits."));
             return false;
         }
         if self
@@ -1361,7 +1342,7 @@ impl Atelier {
             .as_ref()
             .is_some_and(|q| self.chemin.is_empty() && q.tient_a(&self.doc, id))
         {
-            self.dire("La quête a besoin de cet élément tel qu'il est.");
+            self.dire(tr!("La quête a besoin de cet élément tel qu'il est."));
             return false;
         }
         self.doc.changer_largeur(id, largeur) && self.apres_modification(a)
@@ -1379,7 +1360,7 @@ impl Atelier {
             match lu {
                 Some(p) => plages.push(p),
                 None => {
-                    self.dire("Écris les morceaux comme 0:3 4:7, ou 0 1 2 3 pour des bits seuls.");
+                    self.dire(tr!("Écris les morceaux comme 0:3 4:7, ou 0 1 2 3 pour des bits seuls."));
                     return false;
                 }
             }
@@ -1396,7 +1377,7 @@ impl Atelier {
             .doc
             .redefinir_decoupe(id, actuelle.max(besoin), &plages)
         {
-            self.dire("Ces morceaux ne tiennent pas dans un bus de 64 bits.");
+            self.dire(tr!("Ces morceaux ne tiennent pas dans un bus de 64 bits."));
             return false;
         }
         self.apres_modification(a)
@@ -1413,7 +1394,7 @@ impl Atelier {
             Some(l) if self.doc.redefinir_jonction(id, &l) => self.apres_modification(a),
             _ => {
                 self.dire(
-                    "Écris la largeur de chaque entrée, comme 4 4 ou 1 1 1 1 (64 bits au plus).",
+                    tr!("Écris la largeur de chaque entrée, comme 4 4 ou 1 1 1 1 (64 bits au plus)."),
                 );
                 false
             }
@@ -1493,11 +1474,11 @@ impl Atelier {
     pub fn usages_du_modele(&self, modele: &str) -> String {
         let usages = self.projet.usages(modele);
         if usages.is_empty() {
-            return "nulle part pour l'instant".to_owned();
+            return tr!("nulle part pour l'instant").to_owned();
         }
         usages
             .iter()
-            .map(|(ou, n)| format!("{} ({n})", ou.unwrap_or("plan principal")))
+            .map(|(ou, n)| format!("{} ({n})", ou.unwrap_or(tr!("plan principal"))))
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -1575,7 +1556,7 @@ impl Atelier {
                 let (oui, non): (Vec<Id>, Vec<Id>) =
                     ids.iter().partition(|id| self.supprimable(**id));
                 if !non.is_empty() {
-                    self.dire("Les interrupteurs et les lampes de la quête restent en place.");
+                    self.dire(tr!("Les interrupteurs et les lampes de la quête restent en place."));
                 }
                 if oui.is_empty() {
                     return false;
@@ -1599,12 +1580,10 @@ impl Atelier {
     pub fn fabriquer_automate(&mut self, texte: &str, nom: &str) -> Result<String, String> {
         let nom = nom.trim();
         if nom.is_empty() {
-            return Err("Donne un nom à la brique.".to_owned());
+            return Err(tr!("Donne un nom à la brique.").to_owned());
         }
         if self.projet.modele(nom).is_some() {
-            return Err(format!(
-                "Une brique s'appelle déjà « {nom} » : choisis un autre nom."
-            ));
+            return Err(tr!("Une brique s'appelle déjà « {nom} » : choisis un autre nom.", nom = nom));
         }
         let automate = crate::automate::Automate::lire(texte)?;
         let briques = automate.briques(nom)?;
@@ -1612,10 +1591,7 @@ impl Atelier {
             // La bascule D et ce qui la compose : celles du projet servent si elles existent.
             match self.projet.modele(&m.nom) {
                 Some(deja) if deja.plan.interface() != m.plan.interface() => {
-                    return Err(format!(
-                        "Ta brique « {} » n'a pas les mêmes broches que celle dont l'automate a besoin : renomme-la d'abord.",
-                        m.nom
-                    ));
+                    return Err(tr!("Ta brique « {nom} » n'a pas les mêmes broches que celle dont l'automate a besoin : renomme-la d'abord.", nom = m.nom));
                 }
                 Some(_) => {}
                 None => {
@@ -1629,11 +1605,7 @@ impl Atelier {
             .modele(nom)
             .map_or(0, |m| self.projet.nb_portes(&m.plan));
         let n = automate.etats.len();
-        Ok(format!(
-            "Brique « {nom} » fabriquée : {n} état{}, {portes} porte{} NAND. Elle est dans la palette.",
-            if n > 1 { "s" } else { "" },
-            if portes > 1 { "s" } else { "" },
-        ))
+        Ok(tr!("Brique « {nom} » fabriquée : {n} état{v}, {portes} porte{v2} NAND. Elle est dans la palette.", nom = nom, n = n, portes = portes, v = if n > 1 { "s" } else { "" }, v2 = if portes > 1 { "s" } else { "" }))
     }
 
     /// Retourne les éléments sélectionnés de gauche à droite (ou les remet à l'endroit).
@@ -1641,7 +1613,7 @@ impl Atelier {
     pub fn retourner_selection(&mut self, a: &Apparence) -> bool {
         let ids = self.elements_selectionnes().to_vec();
         if ids.is_empty() {
-            self.dire("Sélectionne d'abord ce que tu veux retourner.");
+            self.dire(tr!("Sélectionne d'abord ce que tu veux retourner."));
             return false;
         }
         for id in ids {
@@ -1669,16 +1641,12 @@ impl Atelier {
     pub fn copier_selection(&mut self) -> bool {
         let ids = self.elements_selectionnes().to_vec();
         let Some(pp) = PressePapiers::de(&self.projet, &self.doc, &ids) else {
-            self.dire("Sélectionne d'abord ce que tu veux copier.");
+            self.dire(tr!("Sélectionne d'abord ce que tu veux copier."));
             return false;
         };
         let n = pp.elements.len();
         self.presse_papiers = Some(pp);
-        self.dire(&format!(
-            "{n} élément{} copié{}. Ctrl+V pour coller, ici ou dans un autre projet.",
-            if n > 1 { "s" } else { "" },
-            if n > 1 { "s" } else { "" }
-        ));
+        self.dire(&tr!("{n} élément{v} copié{v}. Ctrl+V pour coller, ici ou dans un autre projet.", n = n, v = if n > 1 { "s" } else { "" }));
         true
     }
 
@@ -1687,7 +1655,7 @@ impl Atelier {
     pub fn couper_selection(&mut self, a: &Apparence) -> bool {
         let ids = self.elements_selectionnes().to_vec();
         let Some(pp) = PressePapiers::de(&self.projet, &self.doc, &ids) else {
-            self.dire("Sélectionne d'abord ce que tu veux couper.");
+            self.dire(tr!("Sélectionne d'abord ce que tu veux couper."));
             return false;
         };
         self.presse_papiers = Some(pp);
@@ -1699,7 +1667,7 @@ impl Atelier {
     /// a été collé.
     pub fn coller(&mut self, a: &Apparence) -> bool {
         let Some(mut pp) = self.presse_papiers.take() else {
-            self.dire("Rien à coller : sélectionne des éléments, puis Ctrl+C.");
+            self.dire(tr!("Rien à coller : sélectionne des éléments, puis Ctrl+C."));
             return false;
         };
         // Les briques sont rangées dans une copie du projet : si l'une d'elles finissait par se
@@ -1711,7 +1679,7 @@ impl Atelier {
             .iter()
             .any(|e| e.genre == Genre::Brique && !essai.peut_poser(lieu.as_deref(), &e.modele))
         {
-            self.dire("Une brique ne peut pas se contenir elle-même : colle-la plutôt sur le plan du dessus.");
+            self.dire(tr!("Une brique ne peut pas se contenir elle-même : colle-la plutôt sur le plan du dessus."));
             self.presse_papiers = Some(pp);
             return false;
         }
@@ -1727,13 +1695,7 @@ impl Atelier {
         let change = self.apres_modification(a);
         if ajoutees > 0 {
             self.version += 1;
-            self.dire(&format!(
-                "{n} élément{} collé{}, et {ajoutees} brique{} ajoutée{} à ce projet.",
-                if n > 1 { "s" } else { "" },
-                if n > 1 { "s" } else { "" },
-                if ajoutees > 1 { "s" } else { "" },
-                if ajoutees > 1 { "s" } else { "" }
-            ));
+            self.dire(&tr!("{n} élément{v} collé{v}, et {ajoutees} brique{v2} ajoutée{v2} à ce projet.", n = n, ajoutees = ajoutees, v = if n > 1 { "s" } else { "" }, v2 = if ajoutees > 1 { "s" } else { "" }));
         }
         change
     }
@@ -1742,16 +1704,16 @@ impl Atelier {
     pub fn nom_genre(e: &Element) -> &str {
         match e.genre {
             Genre::Nand => "NAND",
-            Genre::Entree if e.param > 0 => "démarrage",
+            Genre::Entree if e.param > 0 => tr!("démarrage"),
             Genre::Entree if e.est_poussoir() => "poussoir",
             Genre::Entree => "interrupteur",
             Genre::Sortie if e.est_afficheur() => "afficheur",
             Genre::Sortie => "lampe",
             Genre::Brique => &e.modele,
             Genre::Horloge => "horloge",
-            Genre::Ecran => "écran",
+            Genre::Ecran => tr!("écran"),
             Genre::Clavier => "clavier",
-            Genre::Decoupe => "découpeur",
+            Genre::Decoupe => tr!("découpeur"),
             Genre::Jonction => "jonction",
         }
     }
@@ -1764,7 +1726,7 @@ impl Atelier {
                     let e = self.doc.element(*id)?;
                     Some(format!("{} · {}", e.nom, Self::nom_genre(e)))
                 }
-                plusieurs => Some(format!("{} éléments", plusieurs.len())),
+                plusieurs => Some(tr!("{len} éléments", len = plusieurs.len())),
             },
             Selection::Fil(f) => Some(format!(
                 "fil {}",
