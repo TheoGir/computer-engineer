@@ -345,13 +345,14 @@ dependencies = [
 
 [[package]]
 name = "ce-app"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ce-circuit",
  "ce-moteur",
  "eframe",
  "egui",
  "egui_kittest",
+ "quine-mc_cluskey",
  "self_update",
  "serde",
  "serde_json",
@@ -363,7 +364,7 @@ dependencies = [
 
 [[package]]
 name = "ce-circuit"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ce-moteur",
  "serde",
@@ -372,7 +373,7 @@ dependencies = [
 
 [[package]]
 name = "ce-cli"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ce-circuit",
  "ce-moteur",
@@ -380,7 +381,7 @@ dependencies = [
 
 [[package]]
 name = "ce-moteur"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "wasm-encoder 0.243.0",
  "wasmtime",
@@ -3036,6 +3037,12 @@ checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "quine-mc_cluskey"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07589615d719a60c8dd8a4622e7946465dfef20d1a428f969e3443e7386d5f45"
 
 [[package]]
 name = "quinn"

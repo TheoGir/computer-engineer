@@ -189,9 +189,158 @@ pub struct Atelier {
     parents: Vec<(Option<Session>, Historique)>,
     /// Le message qui présente le plan ouvert : il s'en va quand on change de plan.
     message_du_lieu: Option<u64>,
+    /// Ce qui a été copié ou coupé : survit au changement de projet.
+    pub presse_papiers: Option<PressePapiers>,
     reste: f32,
     dette: f64,
     prochain_message: u64,
+}
+
+/// Ce que Ctrl+C ou Ctrl+X a mis de côté : des éléments, les fils qui les relient entre eux,
+/// et les briques dont ils ont besoin, pour pouvoir les coller dans un autre projet.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PressePapiers {
+    /// Format du texte mis dans le presse-papiers du système ([`FORMAT_PRESSE_PAPIERS`]).
+    pub format: String,
+    /// Les éléments copiés, tels qu'ils étaient. Les fils qui venaient d'éléments non copiés
+    /// sont retirés.
+    pub elements: Vec<Element>,
+    /// Les modèles des briques copiées, et ceux qu'ils contiennent, jusqu'au fond.
+    pub modeles: Vec<brique::Modele>,
+    /// Nombre de fois où ils ont déjà été collés : chaque collage est un peu plus décalé.
+    #[serde(skip)]
+    pub collages: u32,
+}
+
+/// Format du texte qu'un Ctrl+C met dans le presse-papiers du système : on peut ainsi coller
+/// un circuit après avoir relancé l'application, ou l'envoyer à quelqu'un sous forme de texte.
+/// Les éléments et les briques y ont la forme du format de projet en vigueur
+/// ([`brique::FORMAT`]).
+pub const FORMAT_PRESSE_PAPIERS: &str = "computer-engineer/presse-papiers/1";
+
+impl PressePapiers {
+    /// Met de côté ces éléments du plan `doc` du projet `projet`.
+    pub fn de(projet: &Projet, doc: &Document, ids: &[Id]) -> Option<PressePapiers> {
+        let mut elements: Vec<Element> = doc
+            .elements
+            .iter()
+            .filter(|e| ids.contains(&e.id))
+            .cloned()
+            .collect();
+        if elements.is_empty() {
+            return None;
+        }
+        for e in &mut elements {
+            for s in &mut e.entrees {
+                if s.is_some_and(|s| !ids.contains(&s.id)) {
+                    *s = None;
+                }
+            }
+        }
+        // Les briques posées, puis celles qu'elles contiennent, jusqu'au fond.
+        let mut noms: Vec<String> = Vec::new();
+        let mut pile: Vec<String> = elements
+            .iter()
+            .filter(|e| e.genre == Genre::Brique)
+            .map(|e| e.modele.clone())
+            .collect();
+        while let Some(nom) = pile.pop() {
+            if noms.contains(&nom) {
+                continue;
+            }
+            if let Some(m) = projet.modele(&nom) {
+                pile.extend(
+                    m.plan
+                        .elements
+                        .iter()
+                        .filter(|e| e.genre == Genre::Brique)
+                        .map(|e| e.modele.clone()),
+                );
+                noms.push(nom);
+            }
+        }
+        let modeles = noms
+            .iter()
+            .filter_map(|n| projet.modele(n).cloned())
+            .collect();
+        Some(PressePapiers {
+            format: FORMAT_PRESSE_PAPIERS.to_owned(),
+            elements,
+            modeles,
+            collages: 0,
+        })
+    }
+
+    /// Le texte à mettre dans le presse-papiers du système.
+    pub fn en_texte(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    /// Relit un texte collé : `None` s'il ne vient pas d'un Ctrl+C de l'application, ou d'une
+    /// version dont le format n'est pas connu.
+    pub fn de_texte(texte: &str) -> Option<PressePapiers> {
+        let texte = texte.trim();
+        if !texte.starts_with('{') || !texte.contains(FORMAT_PRESSE_PAPIERS) {
+            return None;
+        }
+        serde_json::from_str::<PressePapiers>(texte)
+            .ok()
+            .filter(|p| p.format == FORMAT_PRESSE_PAPIERS && !p.elements.is_empty())
+    }
+
+    /// Range dans `projet` les briques dont les éléments copiés ont besoin. Une brique de même
+    /// nom et de même contenu sert telle quelle ; une brique de même nom mais différente est
+    /// ajoutée sous un nom libre. Renvoie les éléments à poser, avec les noms retenus, et le
+    /// nombre de briques ajoutées.
+    fn ranger_les_briques(&self, projet: &mut Projet) -> (Vec<Element>, usize) {
+        // Le nom retenu pour chaque modèle copié.
+        let mut noms: Vec<(String, String)> = Vec::new();
+        let mut a_ajouter: Vec<usize> = Vec::new();
+        let mut pris: Vec<String> = Vec::new();
+        for (i, m) in self.modeles.iter().enumerate() {
+            // Déjà collée une fois sous un autre nom : même contenu, on la reprend.
+            let jumelle = projet.modeles.iter().find(|p| {
+                p.plan == m.plan && p.description == m.description && p.programme == m.programme
+            });
+            match projet.modele(&m.nom) {
+                Some(deja) if deja == m => noms.push((m.nom.clone(), m.nom.clone())),
+                _ if jumelle.is_some() => {
+                    let nom = jumelle.map(|j| j.nom.clone()).unwrap_or_default();
+                    noms.push((m.nom.clone(), nom));
+                }
+                deja => {
+                    let mut nom = m.nom.clone();
+                    if deja.is_some() || pris.contains(&nom) {
+                        nom = (2..)
+                            .map(|k| format!("{} {k}", m.nom))
+                            .find(|n| projet.modele(n).is_none() && !pris.contains(n))
+                            .expect("il reste toujours un nom libre");
+                    }
+                    pris.push(nom.clone());
+                    noms.push((m.nom.clone(), nom));
+                    a_ajouter.push(i);
+                }
+            }
+        }
+        let renommer = |plan_elements: &mut Vec<Element>| {
+            for e in plan_elements.iter_mut() {
+                if e.genre == Genre::Brique {
+                    if let Some((_, n)) = noms.iter().find(|(ancien, _)| *ancien == e.modele) {
+                        e.modele = n.clone();
+                    }
+                }
+            }
+        };
+        for &i in &a_ajouter {
+            let mut m = self.modeles[i].clone();
+            m.nom = noms[i].1.clone();
+            renommer(&mut m.plan.elements);
+            projet.ajouter(m);
+        }
+        let mut elements = self.elements.clone();
+        renommer(&mut elements);
+        (elements, a_ajouter.len())
+    }
 }
 
 /// L'astuce qui accompagne le plan de démonstration du lancement.
@@ -242,6 +391,7 @@ impl Atelier {
             exemplaires: Vec::new(),
             parents: Vec::new(),
             message_du_lieu: None,
+            presse_papiers: None,
             reste: 0.0,
             dette: 0.0,
             prochain_message: 0,
@@ -267,8 +417,10 @@ impl Atelier {
         let version = self.version + 1;
         let deplacements = self.deplacements + 1;
         let parcours = std::mem::take(&mut self.parcours);
+        let presse_papiers = self.presse_papiers.take();
         *self = Self::avec(projet, a);
         self.parcours = parcours;
+        self.presse_papiers = presse_papiers;
         self.volets = volets;
         self.horloge = horloge;
         // Les messages du projet précédent ne le concernent plus : ils ne sont pas repris.
@@ -1358,6 +1510,80 @@ impl Atelier {
         self.apres_modification(a)
     }
 
+    /// Met la sélection de côté (Ctrl+C), avec les briques dont elle a besoin. Renvoie
+    /// `true` s'il y avait quelque chose à copier.
+    pub fn copier_selection(&mut self) -> bool {
+        let ids = self.elements_selectionnes().to_vec();
+        let Some(pp) = PressePapiers::de(&self.projet, &self.doc, &ids) else {
+            self.dire("Sélectionne d'abord ce que tu veux copier.");
+            return false;
+        };
+        let n = pp.elements.len();
+        self.presse_papiers = Some(pp);
+        self.dire(&format!(
+            "{n} élément{} copié{}. Ctrl+V pour coller, ici ou dans un autre projet.",
+            if n > 1 { "s" } else { "" },
+            if n > 1 { "s" } else { "" }
+        ));
+        true
+    }
+
+    /// Met la sélection de côté puis la retire du plan (Ctrl+X). Les interrupteurs et les
+    /// lampes de la quête restent en place, mais sont copiés.
+    pub fn couper_selection(&mut self, a: &Apparence) -> bool {
+        let ids = self.elements_selectionnes().to_vec();
+        let Some(pp) = PressePapiers::de(&self.projet, &self.doc, &ids) else {
+            self.dire("Sélectionne d'abord ce que tu veux couper.");
+            return false;
+        };
+        self.presse_papiers = Some(pp);
+        self.supprimer_selection(a)
+    }
+
+    /// Colle ce qui a été copié (Ctrl+V), un peu décalé, et le sélectionne. Les briques
+    /// nécessaires qui manquent à ce projet y sont ajoutées. Renvoie `true` si quelque chose
+    /// a été collé.
+    pub fn coller(&mut self, a: &Apparence) -> bool {
+        let Some(mut pp) = self.presse_papiers.take() else {
+            self.dire("Rien à coller : sélectionne des éléments, puis Ctrl+C.");
+            return false;
+        };
+        // Les briques sont rangées dans une copie du projet : si l'une d'elles finissait par se
+        // contenir elle-même (coller la brique B dans B), rien n'est changé.
+        let mut essai = self.projet.clone();
+        let (elements, ajoutees) = pp.ranger_les_briques(&mut essai);
+        let lieu = self.lieu().map(str::to_owned);
+        if elements
+            .iter()
+            .any(|e| e.genre == Genre::Brique && !essai.peut_poser(lieu.as_deref(), &e.modele))
+        {
+            self.dire("Une brique ne peut pas se contenir elle-même : colle-la plutôt sur le plan du dessus.");
+            self.presse_papiers = Some(pp);
+            return false;
+        }
+        self.projet = essai;
+        pp.collages += 1;
+        let pas = (40.0 / a.manipulation.grille).round().max(1.0) * a.manipulation.grille;
+        // Deux pas par collage : la copie ne cache pas l'original.
+        let decalage = 2.0 * pas * pp.collages as f32;
+        let n = elements.len();
+        let copies = self.doc.inserer_copies(elements, decalage, decalage);
+        self.presse_papiers = Some(pp);
+        self.selectionner_tous(copies);
+        let change = self.apres_modification(a);
+        if ajoutees > 0 {
+            self.version += 1;
+            self.dire(&format!(
+                "{n} élément{} collé{}, et {ajoutees} brique{} ajoutée{} à ce projet.",
+                if n > 1 { "s" } else { "" },
+                if n > 1 { "s" } else { "" },
+                if ajoutees > 1 { "s" } else { "" },
+                if ajoutees > 1 { "s" } else { "" }
+            ));
+        }
+        change
+    }
+
     /// Nom d'un genre d'élément, pour l'affichage.
     pub fn nom_genre(e: &Element) -> &str {
         match e.genre {
@@ -1888,5 +2114,118 @@ mod tests {
         assert!(at.remonter(0));
         assert!(!at.session.exemplaire());
         assert_eq!(at.session.ecran(ecran), "6*7=42");
+    }
+
+    #[test]
+    fn copier_puis_coller_pose_des_copies_reliees_entre_elles_et_seulement_entre_elles() {
+        let a = Apparence::default();
+        let mut at = Atelier::nouveau(&a);
+        let avant = at.doc.elements.len();
+        // Deux portes du demi-additionneur : g1 lit a et b (hors sélection), g2 lit a et g1.
+        let (g1, g2) = (id(&at, "g1"), id(&at, "g2"));
+        at.selectionner_tous(vec![g1, g2]);
+        assert!(at.copier_selection());
+        assert!(at.coller(&a));
+        assert_eq!(at.doc.elements.len(), avant + 2);
+        let copies = at.elements_selectionnes().to_vec();
+        assert_eq!(copies.len(), 2);
+        let copie_g1 = copies[0];
+        let copie_g2 = at.doc.element(copies[1]).unwrap().clone();
+        // Le fil g1 → g2 suit les copies ; ceux qui venaient de a et b sont retirés.
+        assert!(copie_g2.entrees.iter().flatten().any(|s| s.id == copie_g1));
+        assert!(copie_g2
+            .entrees
+            .iter()
+            .flatten()
+            .all(|s| copies.contains(&s.id)));
+        assert!(at
+            .doc
+            .element(copie_g1)
+            .unwrap()
+            .entrees
+            .iter()
+            .all(Option::is_none));
+        // Un second collage est décalé un peu plus loin, et s'annule.
+        let pos1 = at.doc.element(copie_g1).unwrap().pos;
+        assert!(at.coller(&a));
+        let pos2 = at.doc.element(at.elements_selectionnes()[0]).unwrap().pos;
+        assert!(pos2.x > pos1.x && pos2.y > pos1.y);
+        assert!(at.annuler());
+        assert_eq!(at.doc.elements.len(), avant + 2);
+    }
+
+    #[test]
+    fn couper_retire_la_selection_mais_garde_les_pieces_de_la_quete() {
+        let a = Apparence::default();
+        let mut at = Atelier::nouveau(&a);
+        let avant = at.doc.elements.len();
+        let (g5, lampe_a) = (id(&at, "g5"), id(&at, "a"));
+        at.selectionner_tous(vec![g5, lampe_a]);
+        assert!(at.couper_selection(&a));
+        // L'interrupteur a de la quête reste ; la porte part. Les deux sont copiés.
+        assert_eq!(at.doc.elements.len(), avant - 1);
+        assert_eq!(at.presse_papiers.as_ref().unwrap().elements.len(), 2);
+    }
+
+    #[test]
+    fn coller_dans_un_autre_projet_apporte_les_briques_et_garde_les_siennes() {
+        let a = Apparence::default();
+        let mut at = Atelier::nouveau(&a);
+        // Une brique « Brique » faite de deux portes, posée puis copiée.
+        let (g1, g2) = (id(&at, "g1"), id(&at, "g2"));
+        at.selectionner_tous(vec![g1, g2]);
+        let brique = at.regrouper_selection(&a).unwrap();
+        let modele = at.doc.element(brique).unwrap().modele.clone();
+        at.selectionner(brique);
+        assert!(at.copier_selection());
+        // Le texte du presse-papiers du système se relit tel quel.
+        let texte = at.presse_papiers.as_ref().unwrap().en_texte();
+        let relu = PressePapiers::de_texte(&texte).unwrap();
+        assert_eq!(relu.elements, at.presse_papiers.as_ref().unwrap().elements);
+        assert!(PressePapiers::de_texte("bonjour").is_none());
+
+        // Un autre projet, qui a déjà une brique de même nom mais différente.
+        let mut autre = Projet::nouveau("Autre", Document::nouveau());
+        let mut plan = Document::nouveau();
+        plan.ajouter(Genre::Entree, "x", "", Point::nouveau(0.0, 0.0));
+        autre.ajouter(brique::Modele {
+            nom: modele.clone(),
+            description: String::new(),
+            plan,
+            programme: None,
+        });
+        at.ouvrir(autre, &a);
+        assert!(
+            at.presse_papiers.is_some(),
+            "le presse-papiers survit au changement de projet"
+        );
+        assert!(at.coller(&a));
+        let colle = at
+            .doc
+            .element(at.elements_selectionnes()[0])
+            .unwrap()
+            .clone();
+        assert_eq!(colle.genre, Genre::Brique);
+        assert_ne!(colle.modele, modele, "la brique déjà là n'est pas écrasée");
+        assert_eq!(at.projet.modeles.len(), 2);
+        assert_eq!(at.projet.nb_portes(&at.doc), 2);
+        // Coller encore réutilise la brique apportée, sans en ajouter une troisième.
+        assert!(at.coller(&a));
+        assert_eq!(at.projet.modeles.len(), 2);
+    }
+
+    #[test]
+    fn une_brique_ne_se_colle_pas_dans_elle_meme() {
+        let a = Apparence::default();
+        let mut at = Atelier::nouveau(&a);
+        let (g1, g2) = (id(&at, "g1"), id(&at, "g2"));
+        at.selectionner_tous(vec![g1, g2]);
+        let brique = at.regrouper_selection(&a).unwrap();
+        at.selectionner(brique);
+        assert!(at.copier_selection());
+        assert!(at.entrer(brique));
+        let avant = at.doc.elements.len();
+        assert!(!at.coller(&a));
+        assert_eq!(at.doc.elements.len(), avant);
     }
 }

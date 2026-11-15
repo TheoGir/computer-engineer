@@ -864,6 +864,13 @@ impl Document {
             .iter()
             .filter_map(|id| self.element(*id).cloned())
             .collect();
+        self.inserer_copies(originaux, dx, dy)
+    }
+
+    /// Pose des copies d'éléments (venus de ce plan ou d'un autre), décalées de `(dx, dy)`.
+    /// Les fils qui les relient entre eux suivent les copies ; les autres restent tels quels
+    /// (à retirer d'abord s'ils viennent d'un autre plan). Renvoie les identifiants des copies.
+    pub fn inserer_copies(&mut self, originaux: Vec<Element>, dx: f32, dy: f32) -> Vec<Id> {
         let mut correspondance: Vec<(Id, Id)> = Vec::new();
         for mut copie in originaux {
             let (ancien, pos) = (copie.id, copie.pos);

@@ -2,7 +2,7 @@
 
 Construire un ordinateur complet à partir d'une seule porte logique, le NAND, dans un simulateur qui reproduit réellement le comportement logique et temporel du circuit.
 
-État : **version 0.6.0** ([télécharger](https://github.com/TheoGir/computer-engineer-releases/releases/latest)), qui se met ensuite à jour toute seule. L'application s'ouvre sur un accueil (reprendre le dernier projet, parcours des quêtes, mes projets, paramètres) et s'anime d'un écran à l'autre. Le moteur de simulation est fait ; l'application graphique affiche, anime et laisse modifier un circuit, regroupe des portes en **briques réutilisables et emboîtables**, et enregistre les projets ; l'**ordinateur complet miniature en NAND** (processeur, mémoires, horloge, écran, clavier) s'y ouvre, s'y visite brique par brique et calcule ce qu'on tape sur son clavier, et **se programme dans l'application** (Ctrl+P : assembleur, mémoire morte refabriquée en NAND) ; un **parcours de 96 quêtes vérifiées** mène de la porte NON à l'ordinateur, avec six branches (carte réseau, montre numérique, contrôleur d'écran, maths et automates, codes et secrets, jeux) et des **grands projets** plus grands que l'ordinateur (deux ordinateurs en réseau, un ordinateur à 256 octets).
+État : **version 0.7.0** ([télécharger](https://github.com/TheoGir/computer-engineer-releases/releases/latest)), qui se met ensuite à jour toute seule. L'application s'ouvre sur un accueil (reprendre le dernier projet, parcours des quêtes, mes projets, paramètres) et s'anime d'un écran à l'autre. Le moteur de simulation est fait ; l'application graphique affiche, anime et laisse modifier un circuit, regroupe des portes en **briques réutilisables et emboîtables**, et enregistre les projets ; l'**ordinateur complet miniature en NAND** (processeur, mémoires, horloge, écran, clavier) s'y ouvre, s'y visite brique par brique et calcule ce qu'on tape sur son clavier, et **se programme dans l'application** (Ctrl+P : assembleur, mémoire morte refabriquée en NAND) ; un **parcours de 96 quêtes vérifiées** mène de la porte NON à l'ordinateur, avec six branches (carte réseau, montre numérique, contrôleur d'écran, maths et automates, codes et secrets, jeux) et des **grands projets** plus grands que l'ordinateur (deux ordinateurs en réseau, un ordinateur à 256 octets).
 
 ## Ce qui existe
 
@@ -99,7 +99,7 @@ CE_CAPTURES=/tmp/captures cargo test -p ce-app --test captures
 ## Feuille de route
 
 1. **Moteur 4 valeurs, NAND, simulation événementielle, tests** (fait)
-2. Éditeur graphique (**plan interactif fait**), sauvegarde et chargement (**faits**), première version publiée avec mise à jour automatique (**faits** : versions 0.1.0 à 0.6.0 publiées, mise à jour automatique signée, procédure dans [docs/publier.md](docs/publier.md))
+2. Éditeur graphique (**plan interactif fait**), sauvegarde et chargement (**faits**), première version publiée avec mise à jour automatique (**faits** : versions 0.1.0 à 0.7.0 publiées, mise à jour automatique signée, procédure dans [docs/publier.md](docs/publier.md))
 3. Composants hiérarchiques dans l'éditeur, bibliothèque, bus (**briques, bus, découpeurs et jonctions faits**)
 4. Horloge, chronogrammes, bancs de test, tables de vérité
 5. RAM et ROM, éditeur de programme, entrées et sorties

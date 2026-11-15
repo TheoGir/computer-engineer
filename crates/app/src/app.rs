@@ -1007,22 +1007,67 @@ impl Application {
             Ecran::Atelier => self.image_atelier(ui, dt),
         }
         self.fondre(ui, debut, avant);
-        // F1 partout ; Ctrl+P dans l'atelier, sauf pendant une saisie.
-        let (f1, ctrl_p) = ui.input(|i| {
+        // F1 partout ; Ctrl+P et Ctrl+E dans l'atelier, sauf pendant une saisie.
+        let (f1, ctrl_p, ctrl_e) = ui.input(|i| {
             (
                 i.key_pressed(Key::F1),
                 i.modifiers.command && i.key_pressed(Key::P),
+                i.modifiers.command && i.key_pressed(Key::E),
             )
         });
         if f1 {
             self.fenetres.basculer_aide();
         }
+        let saisie = self.panneaux.en_saisie() || ctx.egui_wants_keyboard_input();
         if ctrl_p && self.ecran == Ecran::Atelier && !self.panneaux.en_saisie() {
             self.fenetres.ouvrir_l_editeur(&mut self.atelier);
+        }
+        if ctrl_e && self.ecran == Ecran::Atelier && !saisie {
+            self.fenetres.basculer_analyse(&self.atelier);
         }
         let atelier = self.ecran == Ecran::Atelier;
         self.fenetres
             .montrer(&ctx, &mut self.atelier, &self.apparence, atelier);
+        if std::mem::take(&mut self.fenetres.exporter) {
+            self.exporter_en_verilog();
+        }
+    }
+
+    /// Écrit le plan affiché en Verilog dans le dossier `exports` des données, et le montre.
+    fn exporter_en_verilog(&mut self) {
+        let at = &self.atelier;
+        let nom = at
+            .lieu()
+            .map_or_else(|| at.projet.nom.clone(), str::to_owned);
+        let texte = match crate::export::verilog(&at.projet, &at.doc, &nom) {
+            Ok(t) => t,
+            Err(e) => {
+                self.atelier
+                    .dire_longtemps(&format!("Ce plan ne peut pas être exporté : {e}."));
+                return;
+            }
+        };
+        let Some(dossier) = &self.dossier else {
+            self.atelier
+                .dire_longtemps("Le dossier des données est introuvable : rien n'a été exporté.");
+            return;
+        };
+        let dossier = dossier.racine().join("exports");
+        let fichier = dossier.join(format!("{}.v", crate::export::identifiant(&nom)));
+        let ecrit = std::fs::create_dir_all(&dossier)
+            .and_then(|()| std::fs::write(&fichier, texte))
+            .and_then(|()| montrer_le_dossier(&dossier));
+        match ecrit {
+            Ok(()) => self.atelier.dire_longtemps(&format!(
+                "Exporté en Verilog : {}, dans le dossier « exports » de tes données.",
+                fichier
+                    .file_name()
+                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+            )),
+            Err(e) => self
+                .atelier
+                .dire_longtemps(&format!("L'export en Verilog a échoué : {e}")),
+        }
     }
 
     /// Ce qui déclenche un fondu en changeant.
@@ -1280,8 +1325,53 @@ impl Application {
                 cadrer: !cmd && !vers_le_circuit && i.key_pressed(Key::F),
                 echap: i.key_pressed(Key::Escape),
                 fleche,
+                // Le système change Ctrl+C, Ctrl+X et Ctrl+V en événements à part ; Ctrl+V
+                // n'arrive que si le presse-papiers du système contient du texte.
+                copier: (cmd && i.key_pressed(Key::C))
+                    || i.events.iter().any(|e| matches!(e, egui::Event::Copy)),
+                couper: (cmd && i.key_pressed(Key::X))
+                    || i.events.iter().any(|e| matches!(e, egui::Event::Cut)),
+                coller: (cmd && i.key_pressed(Key::V))
+                    .then(String::new)
+                    .or_else(|| {
+                        i.events.iter().find_map(|e| match e {
+                            egui::Event::Paste(t) => Some(t.clone()),
+                            egui::Event::PasteImage(_) => Some(String::new()),
+                            _ => None,
+                        })
+                    }),
             }
         });
+        if k.copier || k.couper {
+            let fait = if k.couper {
+                self.atelier.couper_selection(a)
+            } else {
+                self.atelier.copier_selection()
+            };
+            if let Some(pp) = self
+                .atelier
+                .presse_papiers
+                .as_ref()
+                .filter(|_| fait || k.couper)
+            {
+                ui.ctx().copy_text(pp.en_texte());
+            }
+        }
+        if let Some(texte) = k.coller {
+            // Un circuit copié par l'application, peut-être avant de la relancer, ou reçu
+            // sous forme de texte ; sinon, ce qui a été copié ici.
+            if let Some(pp) = crate::etat::PressePapiers::de_texte(&texte) {
+                let meme = self
+                    .atelier
+                    .presse_papiers
+                    .as_ref()
+                    .is_some_and(|p| p.elements == pp.elements && p.modeles == pp.modeles);
+                if !meme {
+                    self.atelier.presse_papiers = Some(pp);
+                }
+            }
+            self.atelier.coller(a);
+        }
         if k.espace {
             self.atelier.lecture_ou_pause();
         }
@@ -1342,6 +1432,10 @@ struct Touches {
     cadrer: bool,
     echap: bool,
     fleche: Option<(f32, f32)>,
+    copier: bool,
+    couper: bool,
+    /// Ctrl+V, avec le texte du presse-papiers du système (vide s'il n'y en a pas).
+    coller: Option<String>,
 }
 
 impl eframe::App for Application {

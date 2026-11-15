@@ -12,6 +12,7 @@ use crate::document::{Broche, Element, Fil, Genre, Id, Profondeur, Source, DEMI_
 use crate::economie::{self, Ecart, Origine};
 use crate::etat::{Atelier, Etat, Proposition, Selection};
 use crate::exemples::EXEMPLES;
+use crate::logique::{self, Indice};
 use crate::parcours::Parcours;
 use crate::plan::Plan;
 use crate::quete::{Quete, PARCOURS};
@@ -134,6 +135,10 @@ pub struct Panneaux {
     /// Vrai quand la fiche « Comprendre » de la quête est dépliée (elle est repliée au
     /// départ, pour que la table et Vérifier restent visibles).
     pub comprendre_ouvert: bool,
+    /// Les indices de la quête affichée, calculés une fois, et combien de ses indices ont
+    /// été révélés, quête par quête (pour la session).
+    indices: Option<(&'static str, Vec<Indice>)>,
+    indices_vus: std::collections::BTreeMap<&'static str, usize>,
     /// Noms des projets enregistrés, fournis par l'application.
     pub projets: Vec<String>,
     edition: Option<Edition>,
@@ -2449,7 +2454,96 @@ impl Panneaux {
 
     /// La fiche « Comprendre » de la quête : à quoi sert ce qu'on construit, comment ça
     /// marche, sa place dans le tout. Elle se replie d'un clic. Renvoie le bas.
-    fn comprendre(&mut self, k: &mut Cadre, cle: &str, x: f32, l: f32, mut y: f32) -> f32 {
+    /// La fiche « Comprendre » de la quête, puis ses indices.
+    fn comprendre(&mut self, k: &mut Cadre, cle: &'static str, x: f32, l: f32, y: f32) -> f32 {
+        let y = self.comprendre_le_composant(k, cle, x, l, y);
+        self.indices(k, cle, x, l, y)
+    }
+
+    /// Les indices de la quête, révélés un par un : d'abord la méthode, puis les briques du
+    /// corrigé, puis l'expression attendue. Renvoie le bas.
+    fn indices(&mut self, k: &mut Cadre, cle: &'static str, x: f32, l: f32, mut y: f32) -> f32 {
+        if self.indices.as_ref().is_none_or(|(c, _)| *c != cle) {
+            self.indices = Some((cle, logique::indices(cle)));
+        }
+        let Some((_, tous)) = &self.indices else {
+            return y;
+        };
+        let total = tous.len();
+        if total == 0 {
+            return y;
+        }
+        let vus = self.indices_vus.get(cle).copied().unwrap_or(0).min(total);
+        let c = k.t.c;
+        let debut = y;
+        for (n, indice) in tous.iter().take(vus).enumerate() {
+            k.t.legende(
+                Pos2::new(x, y + 7.0),
+                Align2::LEFT_CENTER,
+                &format!("Indice {} · {}", n + 1, indice.titre),
+                c.accent_clair.c(),
+            );
+            y += 18.0;
+            y += k.t.paragraphe(
+                Pos2::new(x, y),
+                l,
+                &indice.texte,
+                Police::Corps,
+                k.a.typo.corps,
+                c.texte.alpha(0.88),
+            ) + 10.0;
+        }
+        if vus > 0 {
+            k.t.p.line_segment(
+                [Pos2::new(x - 10.0, debut), Pos2::new(x - 10.0, y - 10.0)],
+                Stroke::new(2.0, c.accent_clair.alpha(0.35)),
+            );
+        }
+        if vus < total {
+            let tete = Rect::from_min_size(Pos2::new(x - 6.0, y), Vec2::new(l + 12.0, 32.0));
+            k.reperer("indice", 0, tete);
+            let touche = k.toucher(
+                tete,
+                egui::Id::unique("indice-suivant"),
+                "Bloqué ? Chaque indice en dit un peu plus. Essaie d'abord avec le précédent.",
+                Sense::click(),
+            );
+            if touche.clic {
+                self.indices_vus.insert(cle, vus + 1);
+            }
+            k.t.element(touche.rect, k.a.formes.rayon_bouton, touche.chaud, false);
+            k.t.icone(
+                Icone::Lampe,
+                Pos2::new(tete.left() + 18.0, tete.center().y),
+                15.0,
+                c.accent_clair.c(),
+            );
+            let texte = if vus == 0 {
+                format!("Un indice · {total} en réserve")
+            } else {
+                format!("Indice suivant · {} sur {total}", vus + 1)
+            };
+            k.t.texte(
+                Pos2::new(tete.left() + 34.0, tete.center().y),
+                Align2::LEFT_CENTER,
+                &texte,
+                Police::CorpsDemi,
+                k.a.typo.corps,
+                c.texte.c(),
+            );
+            y += 32.0 + 12.0;
+        }
+        y
+    }
+
+    fn comprendre_le_composant(
+        &mut self,
+        k: &mut Cadre,
+        cle: &str,
+        x: f32,
+        l: f32,
+        mut y: f32,
+    ) -> f32 {
         let Some(s) = savoir::savoir(cle) else {
             return y;
         };

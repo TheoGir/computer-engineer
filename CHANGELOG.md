@@ -1,12 +1,22 @@
 # Journal des modifications
 
+## 0.7.0 — 15 novembre 2026
+
+Comprendre son circuit, s'en sortir quand on bloque, et partager ce qu'on construit.
+
+- **Des indices dans chaque quête.** Sous « Comprendre ce composant », « Un indice » en révèle un à la fois, du plus léger au plus précis : par où commencer, les briques qu'assemble le corrigé, puis, pour un circuit sans mémoire, l'expression attendue de chaque lampe.
+- **Analyser le circuit (Ctrl+E).** Pour un plan sans mémoire : sa table de vérité complète, calculée en simulant chaque combinaison, et l'expression simplifiée de chaque lampe (`·` ET, `+` OU, `¬` NON), avec le moins de produits possible (méthode de Quine-McCluskey, bibliothèque `quine-mc_cluskey`). Un circuit à mémoire ou à horloge est refusé avec la raison.
+- **Exporter en Verilog**, depuis la même fenêtre : le plan, briques mises à plat, une primitive `nand` par porte, dans le dossier `exports`. Pour un autre simulateur ou un vrai circuit programmable (FPGA).
+- **Copier, couper, coller (Ctrl+C, Ctrl+X, Ctrl+V)**, avec les fils entre les éléments copiés et les briques dont ils ont besoin, dans le même projet ou dans un autre. Une brique de même nom mais différente n'est jamais écrasée : la brique collée prend un nom libre. Ce qui est copié est aussi mis en texte dans le presse-papiers : on peut le coller après avoir relancé l'application, ou l'envoyer à quelqu'un.
+- **L'aide grandit.** Une rubrique « Algèbre de Boole » (lois, De Morgan, pourquoi la NAND suffit, de la table au circuit, tables de Karnaugh, Quine-McCluskey), un lexique de 48 mots, et une recherche dans toute l'aide, sans se soucier des accents. Les lois écrites dans l'aide sont vérifiées par un test, pour toutes les valeurs.
+
 ## 0.6.0 — 15 novembre 2026
 
 La construction minimale : à quel point ton circuit est-il économe ?
 
 - Chaque quête affiche le nombre de portes NAND de ta construction et la plus petite construction connue, avec ce qu'on en sait vraiment : « minimum prouvé », « meilleure connue » ou « référence ». Avant de vérifier, c'est ton objectif ; une fois la quête réussie, trois étoiles, une jauge et une phrase te disent à quel point tu en es proche.
 - La liste du parcours montre les étoiles de chaque brique gagnée. La fiche d'un plan ou d'une brique la compare aussi : au corrigé de sa quête pour une brique gagnée, ou à la fonction qu'elle calcule pour tout circuit sans mémoire de 3 entrées au plus. Un ordinateur ou un grand projet se juge sur les portes que tu ajoutes à l'atelier.
-- Les minimums sont démontrés, pas devinés : les 256 fonctions de 3 entrées et 17 corrigés, par un solveur SAT recoupé par l'énumération de tous les circuits jusqu'à 7 portes. Parfois on fait bien mieux que nos corrigés : le nombre premier tient en 8 portes au lieu de 115. Le détail : [docs/construction-minimale.md](docs/construction-minimale.md).
+- Les minimums sont démontrés, pas devinés : les 256 fonctions de 3 entrées et 17 corrigés, par un solveur SAT recoupé par l'énumération de tous les circuits jusqu'à 7 portes. Parfois on fait bien mieux que nos corrigés : le nombre premier tient en 8 portes au lieu de 115. Le détail : [docs/construction-minimale.md](https://github.com/TheoGir/computer-engineer/blob/main/docs/construction-minimale.md).
 
 ## 0.5.0 — 15 novembre 2026
 

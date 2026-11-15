@@ -62,6 +62,24 @@ redémarre avec ton programme. Exemple, qui écrit `HI` :
 fin:    HLT
 ```
 
+## Comprendre et partager un circuit
+
+- **Bloqué dans une quête ?** Sous « Comprendre ce composant », « Un indice » en révèle un à
+  la fois : par où commencer, les briques du corrigé, puis l'expression attendue de chaque
+  lampe (pour les circuits sans mémoire).
+- **Ctrl+E** analyse le plan affiché quand il n'a pas de mémoire : sa table de vérité complète
+  et l'expression simplifiée de chaque lampe (`·` pour ET, `+` pour OU, `¬` pour NON), avec le
+  moins de produits possible. Pour analyser une brique seule, entre dedans d'abord.
+- **Exporter en Verilog** (dans la même fenêtre) écrit le plan, briques mises à plat, dans le
+  dossier `exports` de tes données : on peut le simuler avec un autre outil ou le charger
+  dans un vrai circuit programmable (FPGA).
+- **Copier, coller** : Ctrl+C copie la sélection avec ses fils et ses briques ; Ctrl+V la
+  colle ici ou dans un autre projet, en y ajoutant les briques qui manquent. Ce qui est copié
+  est aussi du texte : colle-le dans un message pour l'envoyer, la personne qui le reçoit le
+  colle dans son application.
+- **F1** contient aussi un lexique de près de cinquante mots, l'algèbre de Boole (De Morgan,
+  tables de Karnaugh) et une recherche dans toute l'aide.
+
 ## Raccourcis
 
 | Touche | Effet |
@@ -70,6 +88,8 @@ fin:    HLT
 | Espace | lecture ou pause |
 | Ctrl+Z / Ctrl+Y | annuler / rétablir |
 | Ctrl+A, Ctrl+G, Ctrl+D | tout sélectionner, regrouper en brique, dupliquer |
+| Ctrl+C / Ctrl+X / Ctrl+V | copier / couper / coller, dans ce projet ou dans un autre |
+| Ctrl+E | analyser le circuit : table de vérité, expressions, export Verilog |
 | Ctrl+P | programme de la mémoire morte |
 | Suppr | supprimer |
 | Échap | lâcher la sélection, puis remonter d'une brique |
@@ -79,7 +99,8 @@ fin:    HLT
 
 Tout s'enregistre tout seul, une seconde après chaque modification, dans
 `%APPDATA%\Computer Engineer` (Mes projets, « Ouvrir le dossier ») : `projets`, `corbeille`,
-`parcours.json` (quêtes réussies), `reglages.json`, `avant-migration`, `rapports`. Pour
+`parcours.json` (quêtes réussies), `reglages.json`, `avant-migration`, `rapports`, `exports`
+(circuits exportés en Verilog). Pour
 sauvegarder ou changer d'ordinateur, copie ce dossier.
 
 ## En cas de problème
