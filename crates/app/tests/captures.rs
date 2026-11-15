@@ -1227,3 +1227,68 @@ fn captures_branches() {
     b.run_steps(240);
     enregistrer(&mut b, &sortie, "r7-apres-la-fete");
 }
+
+/// Captures de la construction minimale : l'objectif avant de vérifier, les trois étoiles
+/// d'une construction minimale, deux étoiles avec une porte de trop, la fiche d'un plan hors
+/// quête, puis les étoiles dans la liste du parcours.
+#[test]
+fn captures_construction_minimale() {
+    use egui::Pos2;
+
+    let Ok(dossier) = std::env::var("CE_CAPTURES") else {
+        eprintln!("CE_CAPTURES n'est pas défini : captures ignorées.");
+        return;
+    };
+    let cliquer = |b: &mut Harness<'static, Application>, p: Pos2| {
+        b.hover_at(p);
+        b.step();
+        b.drag_at(p);
+        b.step();
+        b.drop_at(p);
+        b.step();
+    };
+    let molette = |b: &mut Harness<'static, Application>, p: Pos2, crans: f32| {
+        b.hover_at(p);
+        b.step();
+        b.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::Vec2::new(0.0, crans * 50.0),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Unknown,
+            modifiers: egui::Modifiers::NONE,
+        });
+        b.run_steps(90);
+    };
+    let mut b = banc(1440.0, 900.0, Apparence::default());
+    b.run_steps(400);
+    enregistrer(&mut b, &dossier, "c1-objectif");
+
+    let verifier = b.state().panneaux.repere("verifier", 0).expect("Vérifier");
+    cliquer(&mut b, verifier.center());
+    b.run_steps(200);
+    enregistrer(&mut b, &dossier, "c2-minimale");
+
+    // Une porte inutile en plus : la construction reste juste, mais n'est plus minimale.
+    {
+        let app = b.state_mut();
+        app.atelier
+            .poser_porte(ce_app::document::Point::nouveau(520.0, 620.0));
+        app.atelier.apres_modification(&Apparence::default());
+    }
+    b.run_steps(30);
+    let verifier = b.state().panneaux.repere("verifier", 0).expect("Vérifier");
+    cliquer(&mut b, verifier.center());
+    b.run_steps(200);
+    enregistrer(&mut b, &dossier, "c3-une-porte-de-trop");
+
+    // Les étoiles des quêtes réussies, dans la liste du parcours.
+    let panneau = b.state().disposition.expect("disposition").quete.center();
+    molette(&mut b, panneau, -20.0);
+    enregistrer(&mut b, &dossier, "c4-parcours-etoiles");
+
+    // Hors quête : la fiche du plan le compare à la fonction qu'il calcule.
+    b.state_mut().atelier.quete = None;
+    b.state_mut().panneaux.defilement_quete = 0.0;
+    b.run_steps(60);
+    enregistrer(&mut b, &dossier, "c5-fiche-du-plan");
+}

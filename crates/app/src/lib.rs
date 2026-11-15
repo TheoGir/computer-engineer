@@ -44,6 +44,7 @@ pub mod calques;
 pub mod dessin;
 pub mod disposition;
 pub mod document;
+pub mod economie;
 pub mod etat;
 pub mod exemples;
 pub mod fenetres;

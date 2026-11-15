@@ -9,6 +9,7 @@ use crate::brique::groupable;
 use crate::dessin::{Animations, Icone, Police, Toile};
 use crate::disposition::{Contenus, Disposition, Ouvertures};
 use crate::document::{Broche, Element, Fil, Genre, Id, Profondeur, Source, DEMI_PERIODE_DEFAUT};
+use crate::economie::{self, Ecart, Origine};
 use crate::etat::{Atelier, Etat, Proposition, Selection};
 use crate::exemples::EXEMPLES;
 use crate::parcours::Parcours;
@@ -112,6 +113,9 @@ impl Reserve {
     }
 }
 
+/// Ce qui fait changer l'écart du plan affiché : version du projet, lieu, version du parcours.
+type CleDuLieu = (u64, Vec<String>, u64);
+
 /// L'état propre aux panneaux : tailles mesurées à la dernière image, défilements, saisie.
 #[derive(Clone, Debug, Default)]
 pub struct Panneaux {
@@ -136,6 +140,11 @@ pub struct Panneaux {
     resumes: Option<(u64, Option<String>, Vec<Resume>)>,
     circuit: Option<(u64, u64, Circuit)>,
     reperes: Vec<(&'static str, usize, Rect)>,
+    /// L'écart à la construction minimale du plan affiché hors quête, calculé une fois par
+    /// version du projet, lieu et version du parcours.
+    ecart_du_lieu: Option<(CleDuLieu, Option<Ecart>)>,
+    /// Les étoiles des quêtes réussies, calculées une fois par version du parcours.
+    etoiles: Option<(u64, Vec<Option<u8>>)>,
 }
 
 /// Une zone cliquable, à l'image où elle est dessinée.
@@ -1839,6 +1848,17 @@ impl Panneaux {
             c.doux.c(),
         );
         y += 24.0;
+        if self.etoiles.as_ref().map(|(v, _)| *v) != Some(at.parcours.version) {
+            self.etoiles = Some((
+                at.parcours.version,
+                economie::etoiles_du_parcours(&at.parcours),
+            ));
+        }
+        let etoiles = self
+            .etoiles
+            .as_ref()
+            .map(|(_, e)| e.clone())
+            .unwrap_or_default();
         let en_cours = at.quete.as_ref().map(|q| q.cle);
         let prochaine = at.parcours.prochaine().map(|f| f.cle);
         let mut chapitre = "";
@@ -1903,10 +1923,23 @@ impl Panneaux {
                     },
                 );
             }
+            // Les étoiles de la brique gagnée, à droite de la ligne.
+            let place_etoiles = match etoiles.get(i).copied().flatten() {
+                Some(n) => {
+                    Self::etoiles(k, n, Pos2::new(rect.right() - 10.0, rect.center().y), false);
+                    3.0 * 2.5 * k.a.formes.etoile_petite + 6.0
+                }
+                None => 0.0,
+            };
             k.t.texte(
                 Pos2::new(rect.left() + 36.0, rect.center().y),
                 Align2::LEFT_CENTER,
-                &k.t.abreger(f.titre, Police::CorpsMoyen, k.a.typo.corps, l - 46.0),
+                &k.t.abreger(
+                    f.titre,
+                    Police::CorpsMoyen,
+                    k.a.typo.corps,
+                    l - 46.0 - place_etoiles,
+                ),
                 Police::CorpsMoyen,
                 k.a.typo.corps,
                 if ici || suivante {
@@ -2024,6 +2057,17 @@ impl Panneaux {
             k.a.typo.corps,
             c.doux.c(),
         ) + 14.0;
+        // La construction minimale de ce plan, s'il en a une connue.
+        let cle = (at.version, at.chemin.clone(), at.parcours.version);
+        if self.ecart_du_lieu.as_ref().map(|(c, _)| c) != Some(&cle) {
+            let ecart =
+                economie::du_plan(&at.projet, &at.doc, dans_brique.as_deref(), &at.parcours);
+            self.ecart_du_lieu = Some((cle, ecart));
+        }
+        let ecart = self.ecart_du_lieu.as_ref().and_then(|(_, e)| e.clone());
+        if portes > 0 {
+            y = Self::construction_minimale(k, ecart.as_ref(), true, x, l, y);
+        }
         if dans_brique.is_some() {
             let rect = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 40.0));
             if k.bouton_texte(rect, "sortir-brique", "Refermer la brique", true) {
@@ -2125,12 +2169,22 @@ impl Panneaux {
             y = Self::badge(k, at, quete, x, l, y);
             y = self.quete_suivante(k, at, quete, x, l, y, demandes);
         }
+        // À quel point la construction est économe : l'écart, sous la brique gagnée une fois
+        // la quête réussie ; avant, l'objectif, sous Vérifier (qui doit rester visible).
+        let ecart = economie::de_la_quete(quete, &at.projet, &at.doc);
+        if reussie {
+            y = Self::construction_minimale(k, ecart.as_ref(), true, x, l, y);
+        }
         y = self.comprendre(k, quete.cle, x, l, y);
 
         if total > 0 {
             y = self.cas_de_la_quete(k, at, quete, &cas, x, l, y);
         }
         y = self.verification(k, at, quete, x, l, y, demandes);
+        if !reussie {
+            y += 8.0;
+            y = Self::construction_minimale(k, ecart.as_ref(), false, x, l, y);
+        }
         y += 22.0;
         self.liste_du_parcours(k, at, x, l, y, demandes)
     }
@@ -2214,6 +2268,110 @@ impl Panneaux {
             }
         }
         y + 20.0 + 12.0
+    }
+
+    /// Trois étoiles dont `n` pleines, alignées à droite sur `droite` ; grandes ou petites.
+    fn etoiles(k: &mut Cadre, n: u8, droite: Pos2, grandes: bool) {
+        let c = k.t.c;
+        let rayon = if grandes {
+            k.a.formes.etoile
+        } else {
+            k.a.formes.etoile_petite
+        };
+        let pas = rayon * 2.5;
+        for i in 0..3u8 {
+            let centre = Pos2::new(droite.x - rayon - pas * (2 - i) as f32, droite.y);
+            let pleine = i < n;
+            let couleur = if pleine { c.un } else { c.bord_fort };
+            k.t.etoile(centre, rayon, pleine, couleur.c());
+        }
+    }
+
+    /// La carte « Construction minimale » : le nombre de portes de la construction, la plus
+    /// petite construction connue et ce qu'on en sait, puis, une fois la construction juste,
+    /// les étoiles, une jauge de proximité et une phrase. Sans cible connue, une ligne le dit.
+    /// Renvoie le bas.
+    fn construction_minimale(
+        k: &mut Cadre,
+        ecart: Option<&Ecart>,
+        juste: bool,
+        x: f32,
+        l: f32,
+        mut y: f32,
+    ) -> f32 {
+        let c = k.t.c;
+        let rect_legende = k.t.legende(
+            Pos2::new(x, y + 8.0),
+            Align2::LEFT_CENTER,
+            "CONSTRUCTION MINIMALE",
+            c.discret.c(),
+        );
+        k.reperer("construction-minimale", 0, rect_legende);
+        let Some(e) = ecart else {
+            y += 22.0;
+            y += k.t.paragraphe(
+                Pos2::new(x, y),
+                l,
+                "Pas de minimum connu pour ce plan : il a une mémoire, ou plus de 3 bits d'entrée.",
+                Police::Corps,
+                k.a.typo.petit,
+                c.doux.c(),
+            );
+            return y + 14.0;
+        };
+        if juste {
+            Self::etoiles(k, e.etoiles(), Pos2::new(x + l, y + 8.0), true);
+        }
+        y += 22.0;
+        let pluriel = if e.tiennes > 1 { "s" } else { "" };
+        let tiennes = match e.origine {
+            Origine::Ajouts => format!("{} porte{pluriel} ajoutée{pluriel}", e.tiennes),
+            _ => format!("{} porte{pluriel}", e.tiennes),
+        };
+        let ligne = if juste {
+            format!("{tiennes} · {}", e.titre())
+        } else {
+            format!(
+                "{tiennes} pour l'instant · Objectif : {}",
+                e.titre().to_lowercase()
+            )
+        };
+        y += k.t.paragraphe(
+            Pos2::new(x, y),
+            l,
+            &ligne,
+            Police::CorpsDemi,
+            k.a.typo.corps,
+            c.texte.c(),
+        ) + 8.0;
+        if juste {
+            let piste = Rect::from_min_size(Pos2::new(x, y), Vec2::new(l, 4.0));
+            k.reperer("jauge-minimale", 0, piste);
+            k.t.p.rect_filled(piste, 2.0, c.enfonce.c());
+            let mut plein = piste;
+            plein.set_width((l * e.proximite()).max(4.0));
+            let couleur = if e.en_trop() == 0 {
+                c.un
+            } else {
+                c.accent_clair
+            };
+            k.t.p.rect_filled(plein, 2.0, couleur.c());
+            y += 4.0 + 8.0;
+        }
+        let phrase = if juste {
+            e.phrase()
+        } else {
+            "Vérifie ta construction pour savoir à quel point elle est économe.".to_owned()
+        };
+        y += k.t.paragraphe(
+            Pos2::new(x, y),
+            l,
+            &phrase,
+            Police::Corps,
+            k.a.typo.petit,
+            c.doux.c(),
+        );
+        y + 14.0
     }
 
     /// Le badge de la brique gagnée : il arrive en rebondissant, un reflet le traverse.

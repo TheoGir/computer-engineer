@@ -277,6 +277,10 @@ pub struct Formes {
     pub rayon_porte: f32,
     /// Facteur de taille de tout le texte de l'interface.
     pub echelle_texte: f32,
+    /// Rayon des étoiles de la construction minimale, dans la fiche de la quête.
+    pub etoile: f32,
+    /// Rayon des petites étoiles, dans la liste du parcours.
+    pub etoile_petite: f32,
 }
 
 impl Default for Formes {
@@ -305,6 +309,8 @@ impl Default for Formes {
             pas_grille: 28.0,
             rayon_porte: 18.0,
             echelle_texte: 1.0,
+            etoile: 6.5,
+            etoile_petite: 4.5,
         }
     }
 }

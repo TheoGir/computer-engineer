@@ -1,5 +1,13 @@
 # Journal des modifications
 
+## 0.6.0
+
+La construction minimale : à quel point ton circuit est-il économe ?
+
+- Chaque quête affiche le nombre de portes NAND de ta construction et la plus petite construction connue, avec ce qu'on en sait vraiment : « minimum prouvé », « meilleure connue » ou « référence ». Avant de vérifier, c'est ton objectif ; une fois la quête réussie, trois étoiles, une jauge et une phrase te disent à quel point tu en es proche.
+- La liste du parcours montre les étoiles de chaque brique gagnée. La fiche d'un plan ou d'une brique la compare aussi : au corrigé de sa quête pour une brique gagnée, ou à la fonction qu'elle calcule pour tout circuit sans mémoire de 3 entrées au plus. Un ordinateur ou un grand projet se juge sur les portes que tu ajoutes à l'atelier.
+- Les minimums sont démontrés, pas devinés : les 256 fonctions de 3 entrées et 17 corrigés, par un solveur SAT recoupé par l'énumération de tous les circuits jusqu'à 7 portes. Parfois on fait bien mieux que nos corrigés : le nombre premier tient en 8 portes au lieu de 115. Le détail : [docs/construction-minimale.md](docs/construction-minimale.md).
+
 ## 0.5.0 — 15 novembre 2026
 
 Un vrai installateur, comme pour toute application Windows.

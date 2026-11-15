@@ -130,7 +130,9 @@ pub fn table_de_verite(bib: &Bibliotheque, nom: &str) -> Result<TableDeVerite, E
     table_du_circuit(Circuit::elaborer(bib, nom)?)
 }
 
-fn table_du_circuit(circuit: Circuit) -> Result<TableDeVerite, Erreur> {
+/// Calcule la table de vérité exhaustive d'un circuit déjà mis à plat (mêmes conditions que
+/// [`table_de_verite`]).
+pub fn table_du_circuit(circuit: Circuit) -> Result<TableDeVerite, Erreur> {
     let nom = circuit.nom.clone();
     let Some(critique) = chemin_critique(&circuit.netlist) else {
         return Err(Erreur::Analyse(format!(
