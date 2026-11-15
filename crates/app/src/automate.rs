@@ -222,9 +222,11 @@ impl Automate {
             "" => "",
             "si" => "",
             g if g.starts_with("si ") => gauche[2..].trim(),
-            _ => return Err(format!(
+            _ => {
+                return Err(format!(
                 "ligne {numero} : une condition commence par « si » (« si a et non b -> {cible} »)"
-            )),
+            ))
+            }
         };
         let mut condition = Vec::new();
         for terme in condition_texte
