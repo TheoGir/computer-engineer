@@ -1,5 +1,15 @@
 # Journal des modifications
 
+## 1.0.1 — 17 novembre 2026
+
+Des fils plus lisibles quand ils se croisent ou se superposent.
+
+- **Deux signaux ne se confondent plus** : quand des fils de sources différentes passaient sur la même ligne, ils ressemblaient à un seul fil. Ils sont maintenant écartés sur des voies parallèles. Les fils d'une même source gardent leur tronc commun.
+- **Un croisement n'est plus une connexion** : là où deux fils se croisent sans se relier, l'un fait un petit pont par-dessus l'autre.
+- **Une vraie connexion a sa pastille** : le point où un fil se sépare en deux est plus gros et cerclé, pour qu'on ne le confonde pas avec un pont.
+- **Survoler un fil allume tout son signal** : de la source jusqu'à chacune de ses arrivées.
+- Sur un très grand plan à plat (plus de 3 700 portes environ), les voies et les ponts ne sont pas calculés, pour que le déplacement reste fluide.
+
 ## 1.0.0 — 15 novembre 2026
 
 La première version complète : on construit un ordinateur entier à partir d'une seule porte NAND, on le programme, et il tourne sous tes yeux.

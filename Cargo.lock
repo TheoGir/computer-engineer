@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "ce-app"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ce-circuit",
  "ce-moteur",
@@ -415,7 +415,7 @@ dependencies = [
 
 [[package]]
 name = "ce-circuit"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ce-moteur",
  "serde",
@@ -424,7 +424,7 @@ dependencies = [
 
 [[package]]
 name = "ce-cli"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ce-circuit",
  "ce-moteur",
@@ -432,7 +432,7 @@ dependencies = [
 
 [[package]]
 name = "ce-moteur"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "wasm-encoder 0.243.0",
  "wasmtime",
